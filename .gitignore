@@ -1,0 +1,7 @@
+*.img
+*.swp
+*.bin
+*.o
+bin/
+docs/
+test/
