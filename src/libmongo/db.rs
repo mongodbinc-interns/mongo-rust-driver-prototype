@@ -27,9 +27,9 @@ use coll::Collection;
 
 static L_END: bool = true;
 
-pub struct DB {
+pub struct DB<'self> {
     name : ~str,
-    priv client : @Client,
+    priv client : &'self Client,
 }
 
 #[link_args = "-lmd5"]
@@ -80,7 +80,7 @@ impl MD5State {
  * to a server or cluster, users may interact with
  * databases by creating `DB` handles to those databases.
  */
-impl DB {
+impl<'self> DB<'self> {
     /**
      * Creates a new Mongo DB with given name and associated Client.
      *
@@ -91,7 +91,7 @@ impl DB {
      * # Returns
      * DB (handle to database)
      */
-    pub fn new(name : ~str, client : @Client) -> DB {
+    pub fn new(name : ~str, client : &'self Client) -> DB<'self> {
         DB {
             name : name,
             client : client
@@ -160,15 +160,15 @@ impl DB {
      * # Failure Types
      * * errors propagated from `get_collection_names`
      */
-    pub fn get_collections(&self) -> Result<~[Collection], MongoErr> {
+    pub fn get_collections(&self) -> Result<~[Collection<'self>], MongoErr> {
         let names = match self.get_collection_names() {
             Ok(n) => n,
             Err(e) => return Err(e),
         };
 
-        let mut coll : ~[Collection] = ~[];
+        let mut coll : ~[Collection<'self>] = ~[];
         for names.iter().advance |&n| {
-            coll = coll + ~[Collection::new(copy self.name, n, self.client)];
+            coll = coll + ~[Collection::new(self.name.clone(), n, self.client)];
         }
 
         Ok(coll)
@@ -188,13 +188,13 @@ impl DB {
                                 coll : ~str,
                                 flag_array : Option<~[COLLECTION_FLAG]>,
                                 option_array : Option<~[COLLECTION_OPTION]>)
-            -> Result<Collection, MongoErr> {
+            -> Result<Collection<'self>, MongoErr> {
         let flags = process_flags!(flag_array);
         let cmd = fmt!( "{ \"create\":\"%s\", %s }",
                         coll,
                         self.process_create_ops(flags, option_array));
         match self.run_command(SpecNotation(cmd)) {
-            Ok(_) => Ok(Collection::new(copy self.name, coll, self.client)),
+            Ok(_) => Ok(Collection::new(self.name.clone(), coll, self.client)),
             Err(e) => Err(e),
         }
     }
@@ -228,8 +228,8 @@ impl DB {
      * # Returns
      * handle to collection
      */
-    pub fn get_collection(&self, coll : ~str) -> Collection {
-        Collection::new(copy self.name, coll, self.client)
+    pub fn get_collection(&self, coll : ~str) -> Collection<'self> {
+        Collection::new(self.name.clone(), coll, self.client)
     }
     /**
      * Drops given collection from database associated with this `DB`.

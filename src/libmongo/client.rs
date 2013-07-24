@@ -54,7 +54,7 @@ impl Client {
         }
     }
 
-    pub fn get_admin(@self) -> DB {
+    pub fn get_admin<'a>(&'a self) -> DB<'a> {
         DB::new(~"admin", self)
     }
 
@@ -70,7 +70,7 @@ impl Client {
      *      "databases" field whose value is array of docs containing
      *      "name" fields of `UString`s)
      */
-    pub fn get_dbs(@self) -> Result<~[~str], MongoErr> {
+    pub fn get_dbs<'a>(&'a self) -> Result<~[~str], MongoErr> {
         let mut names : ~[~str] = ~[];
 
         // run_command from admin database
@@ -138,7 +138,7 @@ impl Client {
      * # Returns
      * handle to specified database
      */
-    pub fn get_db(@self, db : ~str) -> DB {
+    pub fn get_db<'a>(&'a self, db : ~str) -> DB<'a> {
         DB::new(db, self)
     }
 
@@ -154,7 +154,7 @@ impl Client {
      * # Failure Types
      * * anything propagated from run_command
      */
-    pub fn drop_db(@self, db : ~str) -> Result<(), MongoErr> {
+    pub fn drop_db<'a>(&'a self, db : ~str) -> Result<(), MongoErr> {
         let db = DB::new(db, self);
         match db.run_command(SpecNotation(~"{ \"dropDatabase\":1 }")) {
             Ok(_) => Ok(()),
@@ -174,7 +174,7 @@ impl Client {
      * # Returns
      * handle to specified collection
      */
-    pub fn get_collection(@self, db : ~str, coll : ~str) -> Collection {
+    pub fn get_collection<'a>(&'a self, db : ~str, coll : ~str) -> Collection<'a> {
         Collection::new(db, coll, self)
     }
 
@@ -249,7 +249,7 @@ impl Client {
      *      or network error
      */
     // TODO check_primary for replication purposes?
-    pub fn _send_msg(@self, msg : ~[u8],
+    pub fn _send_msg<'a>(&'a self, msg : ~[u8],
                             wc_pair : (&~str, Option<~[WRITE_CONCERN]>),
                             read : bool)
                 -> Result<Option<ServerMsg>, MongoErr> {
