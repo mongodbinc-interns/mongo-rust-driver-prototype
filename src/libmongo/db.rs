@@ -91,7 +91,7 @@ impl<'self> DB<'self> {
      * # Returns
      * DB (handle to database)
      */
-    pub fn new(name : ~str, client : &'self Client) -> DB<'self> {
+    pub fn new<'a>(name : ~str, client : &'a Client) -> DB<'a> {
         DB {
             name : name,
             client : client

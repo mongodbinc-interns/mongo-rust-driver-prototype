@@ -83,11 +83,11 @@ impl<'self> Cursor<'self> {
      * # Returns
      * `Cursor`
      */
-    pub fn new(     query : BsonDocument,
+    pub fn new<'a>( query : BsonDocument,
                     proj : Option<BsonDocument>,
                     collection : &Collection,
-                    client : &'self Client,
-                    flags : i32) -> Cursor<'self> {
+                    client : &'a Client,
+                    flags : i32) -> Cursor<'a> {
         Cursor {
             id: None,
             db: copy collection.db,
