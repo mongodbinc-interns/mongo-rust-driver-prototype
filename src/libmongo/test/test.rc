@@ -36,4 +36,3 @@ mod add_user;
 mod authenticate;
 mod logout;
 mod validate;
-mod scope;
