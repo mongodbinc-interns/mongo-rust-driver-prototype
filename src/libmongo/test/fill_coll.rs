@@ -21,8 +21,8 @@ use bson::encode::*;
 /**
  * Helper fn for tests; fills a collection with a given number of docs.
  */
-pub fn fill_coll(db : ~str, coll : ~str, client : @Client, n : uint)
-            -> (Collection, ~[~str], ~[BsonDocument]) {
+pub fn fill_coll<'a>(db : ~str, coll : ~str, client : &'a Client, n : uint)
+            -> (Collection<'a>, ~[~str], ~[BsonDocument]) {
     let coll = Collection::new(db, coll, client);
 
     // clear out collection to start from scratch
