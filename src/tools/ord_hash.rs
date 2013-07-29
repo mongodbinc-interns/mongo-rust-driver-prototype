@@ -77,12 +77,9 @@ impl<K:Hash + Eq + ToStr + Copy,V:ToStr + Copy> ToStr for OrderedHashmap<K,V> {
     pub fn to_str(&self) -> ~str {
         let mut s = ~"{";
         for self.iter().advance |&(@k, @v)| {
-            s.push_str(" (");
-            s.push_str(k.to_str());
-            s.push_str(", ");
-            s.push_str(v.to_str());
-            s.push_str(") ");
+            s.push_str(fmt!(" %s: %s, ", k.to_str(), v.to_str()));
         }
+        s = s.slice(0, s.len()-2).to_owned();
         s.push_str("}");
         s
     }

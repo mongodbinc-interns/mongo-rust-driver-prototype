@@ -36,3 +36,5 @@ mod add_user;
 mod authenticate;
 mod logout;
 mod validate;
+#[cfg(shard)]
+mod shard_dbs;

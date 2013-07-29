@@ -26,7 +26,7 @@ static L_END: bool = true;
  * This can be converted back and forth from BsonDocument
  * by using the Embedded variant.
  */
-#[deriving(Eq,ToStr)]
+#[deriving(Eq)]
 pub enum Document {
     Double(f64),                    //x01
     UString(~str),                    //x02
@@ -55,7 +55,7 @@ pub enum Document {
 * The type of a complete BSON document.
 * Contains an ordered map of fields and values and the size of the document as i32.
 */
-#[deriving(Eq,ToStr)]
+#[deriving(Eq)]
 pub struct BsonDocument {
     size: i32,
     fields: ~OrderedHashmap<~str, Document>
@@ -253,6 +253,12 @@ impl<E:Encoder> Encodable<E> for Document {
     }
 }
 
+impl ToStr for BsonDocument {
+    pub fn to_str(&self) -> ~str {
+        self.fields.to_str()
+    }
+}
+
 impl<'self> BsonDocument {
     pub fn to_bson(&self) -> ~[u8] {
         let mut encoder = BsonDocEncoder::new();
@@ -367,6 +373,40 @@ impl Document {
             Int64(_) => 8,
             MinKey => 0,
             MaxKey => 0
+        }
+    }
+}
+
+impl ToStr for Document {
+    pub fn to_str(&self) -> ~str {
+        match *self {
+            Double(f) => f.to_str(),
+            UString(ref s) => s.clone(),
+            Embedded(ref doc) => doc.to_str(),
+            Array(ref doc) => doc.to_str(),
+            Binary(st, ref dat) => fmt!("Binary(%s, %s)", st.to_str(), dat.to_str()),
+            ObjectId(ref d) => {
+                let mut s = ~"";
+                for d.iter().advance |&b| {
+                    let mut x = fmt!("%x",b as uint);
+                    if x.len() == 1 {
+                        x = (~"0").append(x);
+                    }
+                    s.push_str(x);
+                }
+                s
+            }
+            Bool(b) => b.to_str(),
+            UTCDate(d) => d.to_str(), //TODO actually format this
+            Null => ~"null",
+            Regex(ref s1, ref s2) => fmt!("Regex(%s, %s)", *s1, *s2),
+            JScript(ref s) => s.clone(),
+            JScriptWithScope(ref s, ref doc) => fmt!("JScope(%s, %s)", *s, doc.to_str()),
+            Int32(i) => i.to_str(),
+            Timestamp(u1,u2) => fmt!("Timestamp(%s, %s)", u1.to_str(), u2.to_str()),
+            Int64(i) => i.to_str(),
+            MinKey => ~"minKey",
+            MaxKey => ~"maxKey"
         }
     }
 }

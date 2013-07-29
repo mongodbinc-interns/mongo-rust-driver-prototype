@@ -348,6 +348,22 @@ impl DB {
         }
     }
 
+    ///Enable sharding on this database.
+    pub fn enable_sharding(&self) -> Result<(), MongoErr> {
+        match self.run_command(SpecNotation(fmt!("{ \"enableSharding\": %s }", self.name))) {
+            Ok(doc) => match *doc.find(~"ok").unwrap() {
+                Double(1f64) => return Ok(()),
+                Int32(1i32) => return Ok(()),
+                Int64(1i64) => return Ok(()),
+                _ => return Err(MongoErr::new(
+                    ~"db::logout",
+                    ~"error while logging out",
+                    ~"the server returned ok: 0"))
+            },
+            Err(e) => return Err(e)
+        };
+    }
+
     ///Add a new database user with the given username and password.
     ///If the system.users collection becomes unavailable, this will fail.
     pub fn add_user(&self, username: ~str, password: ~str, roles: ~[~str]) -> Result<(), MongoErr>{

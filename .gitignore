@@ -1,6 +1,7 @@
 *.img
 *.swp
 *.bin
+*.tmp
 *.o
 bin/
 test/

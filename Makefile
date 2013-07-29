@@ -12,17 +12,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# Rust compilation
 RC = rustc
 RDOC = rustdoc
 RDOCFLAGS = --output-style doc-per-mod --output-format markdown
+FLAGS = -Z debug-info -L ./bin -D unused-unsafe -A unnecessary-allocation $(TOOLFLAGS)
+
+# C compilation
 CC = gcc
 AR = ar rcs
-FLAGS = -Z debug-info -L ./bin -D unused-unsafe -A unnecessary-allocation $(TOOLFLAGS)
 CFLAGS = -c -g -Wall -Werror
+
+# Programs and utilities
 RM = rm
 RMDIR = rmdir -p
 MKDIR = mkdir -p
 
+# Directories
 SRC = ./src
 LIB = ./lib
 BSONDIR = ./src/libbson
@@ -33,7 +39,9 @@ BIN = ./bin
 TEST = ./test
 DOCS = ./docs
 
+# Variables
 MONGOTEST = 0
+TOOLFLAGS =
 
 .PHONY: test
 
@@ -55,7 +63,7 @@ bson: $(BSONDIR)/*
 mongo: $(MONGODIR)/*
 	$(RC) $(FLAGS) --lib --out-dir $(BIN) $(MONGODIR)/mongo.rs
 
-test: $(BSONDIR)/bson.rs $(MONGODIR)/mongo.rs
+test: $(BSONDIR)/bson.rs $(MONGODIR)/mongo.rs $(MONGODIR)/test/test.rs
 	$(RC) $(FLAGS) --test -o $(TEST)/bson_test $(BSONDIR)/bson.rs
 	$(RC) $(FLAGS) --test -o $(TEST)/mongo_test $(MONGODIR)/mongo.rs
 	$(RC) $(FLAGS) --test -o $(TEST)/driver_test $(MONGODIR)/test/test.rs
