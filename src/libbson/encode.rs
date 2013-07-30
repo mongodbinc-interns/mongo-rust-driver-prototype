@@ -467,6 +467,9 @@ priv fn map_size(m: &OrderedHashmap<~str, Document>)  -> i32{
 mod tests {
     use super::*;
     use json_parse::*;
+    use std::rand::Rng;
+    use std::rand;
+    use extra::test::BenchHarness;
 
     //testing size computation
     #[test]
@@ -626,4 +629,79 @@ mod tests {
         assert_eq!(doc.to_bson(), ~[45,0,0,0,4,102,111,111,0,22,0,0,0,2,48,0,6,0,0,0,104,101,108,108,111,0,8,49,0,0,0,2,98,97,122,0,4,0,0,0,113,117,120,0,0]);
     }
 
+    #[bench]
+    fn bench_val_encode(b: &mut BenchHarness) {
+        let seed = [1,2,3,4,5,6,7,8,9,0];
+        let mut rand = rand::IsaacRng::new_seeded(seed);
+        let mut doc = BsonDocument::new();
+        do b.iter {
+            doc.put(~"foo", Double(rand.next() as f64));
+            doc.put(~"bar", Double(rand.next() as f64));
+            doc.put(~"baz", Double(rand.next() as f64));
+            doc.to_bson();
+            doc = BsonDocument::new();
+        }
+    }
+
+    #[bench]
+    fn bench_advanced_object(b: &mut BenchHarness) {
+        let stream = "{
+            'fullName' : 'John Doe',
+            'age' : 42,
+            'state' : 'Massachusetts',
+            'city' : 'Boston',
+            'zip' : 02201,
+            'married' : false,
+            'dozen' : 12,
+            'topThreeFavoriteColors' : [ 'red', 'magenta', 'cyan' ],
+            'favoriteSingleDigitWholeNumbers' : [ 7 ],
+            'favoriteFiveLetterWord' : 'fadsy',
+            'strings' :
+            [
+            'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ',
+            '01234567890',
+            'mixed-1234-in-{+^}',
+            '\"quoted\"',
+            '\"\\e\\s\\c\\a\\p\\e\\d\"',
+            '\"quoted-at-sign@sld.org\"',
+            '\"escaped\\\"quote\"',
+            '\"back\\slash\"',
+            'email@address.com'
+            ],
+            'ipAddresses' : [ '127.0.0.1', '24.48.64.2', '192.168.1.1', '209.68.44.3', '2.2.2.2' ]
+        }".iter().collect::<~[char]>();
+
+        let mut parser = ExtendedJsonParser::new(stream.clone());
+        let doc = match parser.object() {
+            Ok(d) => d,
+            Err(e) => fail!(e.to_str())
+        };
+        do b.iter {
+            doc.to_bson();
+        }
+    }
+
+    #[bench]
+    fn bench_extended_object(b: &mut BenchHarness) {
+        let stream = "{
+            'name': 'foo',
+            'baz': 'qux',
+            'binary': { '$binary': 012345432, '$type': 0 },
+            'dates': [ { '$date': 987654 }, {'$date': 123456}, {'$date': 748392} ],
+            'timestamp': { 'timestamp': { 'timestamp': { '$timestamp': { 't': 1234, 'i': 5678 } } } },
+            'regex': { '$regex': '^.*/012345/.*(foo|bar)+.*$', '$options': '-j -g -i' },
+            'oid': { '$oid': 43214321 },
+            'minkey': { 'maxkey': { 'that-was-a-fakeout': { '$minKey': 1 } } },
+            'maxkey': { 'minkey': { 'haha-that-too': { '$maxKey': 1 } } }
+        }".iter().collect::<~[char]>();
+
+        let mut parser = ExtendedJsonParser::new(stream.clone());
+        let doc = match parser.object() {
+            Ok(d) => d,
+            Err(e) => fail!(e.to_str())
+        };
+        do b.iter {
+            doc.to_bson();
+        }
+    }
 }

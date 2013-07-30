@@ -118,7 +118,7 @@ impl<T:Stream<char>> ExtendedJsonParser<T> {
                     self.stream.pass_while(&[' ', '\n', '\r', '\t']);
                     return Ok(Embedded(~ret));
                 }
-                _ => return Err(~"invalid end to object: expecting , or }")
+                _ => return Err(fmt!("invalid end to object: expecting , or }, found %?", self.stream.first()))
             }
             if !self.stream.has_next() { break; }
         }
@@ -201,6 +201,7 @@ impl<T:Stream<char>> ExtendedJsonParser<T> {
     ///Parse a list.
     fn _list(&mut self) -> DocResult {
         self.stream.pass(1); //pass over [
+        self.stream.pass_while(&[' ', '\n', '\r', '\t']);
         let mut ret = BsonDocument::new();
         let mut i: uint = 0;
         while !(self.stream.first() == &']') {
@@ -332,6 +333,7 @@ mod tests {
 
     use super::*;
     use encode::*;
+    use extra::test::BenchHarness;
 
     #[test]
     fn test_string_fmt() {
@@ -435,7 +437,7 @@ mod tests {
     #[test]
     fn test_nested_list_fmt() {
         //list with object inside
-        let stream1 = "[5.0, {\"foo\": true}, \"bar\"]".iter().collect::<~[char]>();
+        let stream1 = "[ 5.0, {\"foo\": true}, 'bar' ]".iter().collect::<~[char]>();
         let mut parser1 = ExtendedJsonParser::new(stream1);
         let mut m = BsonDocument::new();
         m.put(~"foo", Bool(true));
@@ -452,7 +454,7 @@ mod tests {
         assert_eq!(Array(~l), v1.unwrap());
 
         //list with list inside
-        let stream2 = "[5.0, [true, false], \"foo\"]".iter().collect::<~[char]>();
+        let stream2 = "[5.0, [ true, false ], \"foo\"]".iter().collect::<~[char]>();
         let mut parser2 = ExtendedJsonParser::new(stream2);
         let v2 = parser2._list();
         let mut l1 = BsonDocument::new();
@@ -541,5 +543,141 @@ mod tests {
         let stream = "{\"foo': 'bar\"}".iter().collect::<~[char]>();
         let mut parser = ExtendedJsonParser::new(stream);
         if parser.object().is_err() { fail!("test_mismatched_quotes") }
+    }
+
+    #[bench]
+    fn bench_string_parse(b: &mut BenchHarness) {
+        let stream = "'asdfasdf'".iter().collect::<~[char]>();
+        let mut parser = ExtendedJsonParser::new(stream.clone());
+        do b.iter {
+            parser._string('\'');
+            parser = ExtendedJsonParser::new(stream.clone());
+        }
+    }
+
+    #[bench]
+    fn bench_num_parse(b: &mut BenchHarness) {
+        let stream = "25252525".iter().collect::<~[char]>();
+        let mut parser = ExtendedJsonParser::new(stream.clone());
+        do b.iter {
+            parser._number();
+            parser = ExtendedJsonParser::new(stream.clone());
+        }
+    }
+
+    #[bench]
+    fn bench_bool_parse(b: &mut BenchHarness) {
+        let stream_true = "true".iter().collect::<~[char]>();
+        let stream_false = "false".iter().collect::<~[char]>();
+        let mut parse_true = ExtendedJsonParser::new(stream_true.clone());
+        let mut parse_false = ExtendedJsonParser::new(stream_false.clone());
+        do b.iter {
+            parse_true._bool();
+            parse_true = ExtendedJsonParser::new(stream_true.clone());
+            parse_false._bool();
+            parse_true = ExtendedJsonParser::new(stream_false.clone());
+        }
+    }
+
+    #[bench]
+    fn bench_list_parse(b: &mut BenchHarness) {
+        let stream = "[5.01, true, \'hello\']".iter().collect::<~[char]>();
+        let mut parser = ExtendedJsonParser::new(stream.clone());
+        do b.iter {
+            parser._list();
+            parser = ExtendedJsonParser::new(stream.clone());
+        }
+    }
+
+    #[bench]
+    fn bench_basic_obj_parse(b: &mut BenchHarness) {
+        let stream = "{'foo': true, 'bar': 2}".iter().collect::<~[char]>();
+        let mut parser = ExtendedJsonParser::new(stream.clone());
+        do b.iter {
+            parser.object();
+            parser = ExtendedJsonParser::new(stream.clone());
+        }
+    }
+
+    #[bench]
+    fn bench_object_parse(b: &mut BenchHarness) {
+        let stream = "{\"foo\": true, \'bar\': 2, 'baz': [\"qux-dux\"]}".iter().collect::<~[char]>();
+        let mut parser = ExtendedJsonParser::new(stream.clone());
+        do b.iter {
+            parser.object();
+            parser = ExtendedJsonParser::new(stream.clone());
+        }
+    }
+
+    #[bench]
+    fn bench_nested_obj_parse(b: &mut BenchHarness) {
+        let stream = "{\"qux\": {\"foo\": 5.0, 'bar': 'baz'}, \"fizzbuzz\": false}".iter().collect::<~[char]>();
+        let mut parser = ExtendedJsonParser::new(stream.clone());
+        do b.iter {
+            parser.object();
+            parser = ExtendedJsonParser::new(stream.clone());
+        }
+    }
+
+    #[bench]
+    fn bench_advanced_object(b: &mut BenchHarness) {
+        let stream = "{
+            'fullName' : 'John Doe',
+            'age' : 42,
+            'state' : 'Massachusetts',
+            'city' : 'Boston',
+            'zip' : 02201,
+            'married' : false,
+            'dozen' : 12,
+            'topThreeFavoriteColors' : [ 'red', 'magenta', 'cyan' ],
+            'favoriteSingleDigitWholeNumbers' : [ 7 ],
+            'favoriteFiveLetterWord' : 'fadsy',
+            'strings' :
+            [
+            'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ',
+            '01234567890',
+            'mixed-1234-in-{+^}',
+            '\"quoted\"',
+            '\"\\e\\s\\c\\a\\p\\e\\d\"',
+            '\"quoted-at-sign@sld.org\"',
+            '\"escaped\\\"quote\"',
+            '\"back\\slash\"',
+            'email@address.com'
+            ],
+            'ipAddresses' : [ '127.0.0.1', '24.48.64.2', '192.168.1.1', '209.68.44.3', '2.2.2.2' ]
+        }".iter().collect::<~[char]>();
+
+        let mut parser = ExtendedJsonParser::new(stream.clone());
+        do b.iter {
+            match parser.object() {
+                Ok(_) => (),
+                Err(e) => fail!(e.to_str())
+            }
+            parser = ExtendedJsonParser::new(stream.clone());
+        }
+    }
+
+    #[bench]
+    fn bench_extended_object(b: &mut BenchHarness) {
+        let stream = "{
+            'name': 'foo',
+            'baz': 'qux',
+            'binary': { '$binary': 012345432, '$type': 0 },
+            'dates': [ { '$date': 987654 }, {'$date': 123456}, {'$date': 748392} ],
+            'timestamp': { 'timestamp': { 'timestamp': { '$timestamp': { 't': 1234, 'i': 5678 } } } },
+            'regex': { '$regex': '^.*/012345/.*(foo|bar)+.*$', '$options': '-j -g -i' },
+            'oid': { '$oid': 43214321 },
+            'minkey': { 'maxkey': { 'that-was-a-fakeout': { '$minKey': 1 } } },
+            'maxkey': { 'minkey': { 'haha-that-too': { '$maxKey': 1 } } }
+        }".iter().collect::<~[char]>();
+
+        let mut parser = ExtendedJsonParser::new(stream.clone());
+        do b.iter {
+            match parser.object() {
+                Ok(_) => (),
+                Err(e) => fail!(e.to_str())
+            }
+            parser = ExtendedJsonParser::new(stream.clone());
+        }
     }
 }

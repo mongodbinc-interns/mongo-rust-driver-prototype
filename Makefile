@@ -82,6 +82,16 @@ else
 	$(TEST)/mongo_test
 endif
 
+bench: test
+ifeq ($(MONGOTEST),1)
+	$(TEST)/bson_test --bench
+	$(TEST)/mongo_test --bench
+	$(TEST)/driver_test --bench
+else
+	$(TEST)/bson_test --bench
+	$(TEST)/mongo_test --bench
+endif
+
 ex: $(EXDIR)/*
 	$(RC) $(FLAGS) $(EXDIR)/bson_demo.rs
 	$(RC) $(FLAGS) $(EXDIR)/mongo_demo.rs
