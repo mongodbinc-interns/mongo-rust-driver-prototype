@@ -76,7 +76,7 @@ impl ObjIdFactory {
     pub fn new() -> ObjIdFactory {
         use extra::time::get_time;
         ObjIdFactory {
-            rseed: (&mut XorShiftRng::new()).next(),
+            rseed: (&mut XorShiftRng::new()).next() % (get_time().nsec as u32),
             time: get_time().sec as u32
         }
     }
@@ -108,7 +108,7 @@ impl ObjIdFactory {
 * The type of a complete BSON document.
 * Contains an ordered map of fields and values and the size of the document as i32.
 */
-#[deriving(Eq,Clone)]
+#[deriving(Eq)]
 pub struct BsonDocument {
     size: i32,
     fields: ~OrderedHashmap<~str, Document>
@@ -133,6 +133,19 @@ macro_rules! cstr(
         )
     }
 )
+
+impl Clone for BsonDocument {
+    pub fn clone(&self) -> BsonDocument {
+        let mut map = ~OrderedHashmap::new();
+        for self.fields.iter().advance |&(@k, @v)| {
+            map.insert(k, v);
+        }
+        BsonDocument {
+            size: self.size,
+            fields: map
+        }
+    }
+}
 
 ///serialize::Encoder implementation.
 impl Encoder for BsonDocEncoder {

@@ -33,6 +33,7 @@ SRC = ./src
 LIB = ./lib
 BSONDIR = ./src/libbson
 MONGODIR = ./src/libmongo
+GRIDDIR = ./src/libgridfs
 UTILDIR = ./src/tools
 EXDIR = ./examples
 BIN = ./bin
@@ -45,7 +46,7 @@ TOOLFLAGS =
 
 .PHONY: test
 
-all: bin libs util bson mongo
+all: bin libs util bson mongo gridfs
 
 bin:
 	$(MKDIR) bin
@@ -64,11 +65,15 @@ bson: $(BSONDIR)/*
 mongo: $(MONGODIR)/*
 	$(RC) $(FLAGS) --lib --out-dir $(BIN) $(MONGODIR)/mongo.rs
 
+gridfs: $(GRIDDIR)/*
+	$(RC) $(FLAGS) --lib --out-dir $(BIN) $(GRIDDIR)/gridfs.rs
+
 test: $(BSONDIR)/bson.rs $(MONGODIR)/mongo.rs $(MONGODIR)/test/test.rs
 	$(RC) $(FLAGS) --test -o $(TEST)/tool_test $(UTILDIR)/tools.rs
 	$(RC) $(FLAGS) --test -o $(TEST)/bson_test $(BSONDIR)/bson.rs
 	$(RC) $(FLAGS) --test -o $(TEST)/mongo_test $(MONGODIR)/mongo.rs
 	$(RC) $(FLAGS) --test -o $(TEST)/driver_test $(MONGODIR)/test/test.rs
+	$(RC) $(FLAGS) --test -o $(TEST)/grid_test $(GRIDDIR)/test/test.rs
 
 check: test
 ifeq ($(MONGOTEST),1)
@@ -76,6 +81,7 @@ ifeq ($(MONGOTEST),1)
 	$(TEST)/bson_test
 	$(TEST)/mongo_test
 	$(TEST)/driver_test
+	$(TEST)/grid_test
 else
 	$(TEST)/tool_test
 	$(TEST)/bson_test
