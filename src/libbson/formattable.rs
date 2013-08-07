@@ -241,6 +241,7 @@ impl BsonFormattable for json::Json {
             UTCDate(i) => Ok(json::Number(i as float)),
             Null => Ok(json::Null),
             Regex(_,_) => Err(~"regex cannot be translated to Json"),
+            DBRef(_,_) => Err(~"dbref cannot be translated to Json"),
             JScript(ref s) => Ok(json::String(s.clone())),
             JScriptWithScope(_,_) => Err(~"jscope cannot be translated to Json"),
             Int32(i) => Ok(json::Number(i as float)),

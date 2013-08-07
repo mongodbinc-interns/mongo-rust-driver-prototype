@@ -30,26 +30,26 @@ static L_END: bool = true;
  */
 #[deriving(Eq,Clone)]
 pub enum Document {
-    Double(f64),                    //x01
-    UString(~str),                    //x02
-    Embedded(~BsonDocument),            //x03
-    Array(~BsonDocument),                //x04
-    Binary(u8, ~[u8]),                //x05
+    Double(f64),                           //x01
+    UString(~str),                         //x02
+    Embedded(~BsonDocument),               //x03
+    Array(~BsonDocument),                  //x04
+    Binary(u8, ~[u8]),                     //x05
     //deprecated: x06 undefined
-    ObjectId(~[u8]),                //x07
-    Bool(bool),                    //x08
-    UTCDate(i64),                    //x09
-    Null,                        //x0A
-    Regex(~str, ~str),                //x0B
-    //deprecated: x0C dbpointer
-    JScript(~str),                    //x0D
-    JScriptWithScope(~str, ~BsonDocument),        //x0F
+    ObjectId(~[u8]),                       //x07
+    Bool(bool),                            //x08
+    UTCDate(i64),                          //x09
+    Null,                                  //x0A
+    Regex(~str, ~str),                     //x0B
+    DBRef(~str, ~Document),                //x0C
+    JScript(~str),                         //x0D
+    JScriptWithScope(~str, ~BsonDocument), //x0F
     //deprecated: x0E symbol
-    Int32(i32),                    //x10
-    Timestamp(u32, u32),                    //x11
-    Int64(i64),                    //x12
-    MinKey,                        //xFF
-    MaxKey                        //x7F
+    Int32(i32),                            //x10
+    Timestamp(u32, u32),                   //x11
+    Int64(i64),                            //x12
+    MinKey,                                //xFF
+    MaxKey                                 //x7F
 
 }
 
@@ -231,6 +231,7 @@ impl<E:Encoder> Encodable<E> for BsonDocument {
                UTCDate(_) => 0x09,
                Null => 0x0A,
                Regex(_,_) => 0x0B,
+               DBRef(_,_) => 0x0C,
                JScript(_) => 0x0D,
                JScriptWithScope(_,_) => 0x0F,
                Int32(_) => 0x10,
@@ -294,6 +295,10 @@ impl<E:Encoder> Encodable<E> for Document {
                 encoder.emit_u8(0u8);
                 encoder.emit_map_elt_val(0, cstr!(s2));
                 encoder.emit_u8(0u8);
+            }
+            DBRef(ref s, ref doc) => {
+                encoder.emit_str(*s);
+                doc.encode(encoder);
             }
             JScript(ref s) => {
                 encoder.emit_str(*s);
@@ -439,6 +444,7 @@ impl Document {
             UTCDate(_) => 8,
             Null => 0,
             Regex(ref s1, ref s2) => 2 + (s1.to_bytes(L_END).len() + s2.to_bytes(L_END).len()) as i32,
+            DBRef(ref s, _) => 17 + (*s).to_bytes(L_END).len() as i32, //doc had to be a 12-byte oid
             JScript(ref s) => 5 + (*s).to_bytes(L_END).len() as i32,
             JScriptWithScope(ref s, ref doc) => 5 + (*s).to_bytes(L_END).len() as i32 + doc.size,
             Int32(_) => 4,
@@ -473,6 +479,7 @@ impl ToStr for Document {
             UTCDate(d) => d.to_str(), //TODO actually format this
             Null => ~"null",
             Regex(ref s1, ref s2) => fmt!("Regex(%s, %s)", *s1, *s2),
+            DBRef(ref s, ref doc) => fmt!("DBRef(%s, %s)", *s, doc.to_str()),
             JScript(ref s) => s.clone(),
             JScriptWithScope(ref s, ref doc) => fmt!("JScope(%s, %s)", *s, doc.to_str()),
             Int32(i) => i.to_str(),
@@ -603,6 +610,13 @@ mod tests {
         doc.put(~"foo", Regex(~"bar", ~"baz"));
 
         assert_eq!(doc.to_bson(), ~[18,0,0,0,11,102,111,111,0,98,97,114,0,98,97,122,0,0]);
+    }
+
+    #[test]
+    fn test_dbref_encode() {
+        let mut doc = BsonDocument::new();
+        doc.put(~"foo", DBRef(~"bar", ~ObjectId(~[0u8,1,2,3,4,5,6,7,8,9,10,11])));
+        assert_eq!(doc.to_bson(), ~[30,0,0,0,12,102,111,111,0,4,0,0,0,98,97,114,0,0,1,2,3,4,5,6,7,8,9,10,11,0])
     }
 
     #[test]

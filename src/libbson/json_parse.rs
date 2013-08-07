@@ -314,7 +314,16 @@ impl<T:Stream<char>> ExtendedJsonParser<T> {
                     && m.contains_key(~"$options") {
                     match (m.find(~"$regex"), m.find(~"$options")) {
                         (Some(&UString(ref s1)), Some(&UString(ref s2))) =>
-                            return Some(Regex(copy *s1, copy *s2)),
+                            return Some(Regex(s1.clone(), s2.clone())),
+                        _ => return None
+                    }
+                }
+                else if m.fields.len() == 2 //dbref
+                    && m.contains_key(~"$ref")
+                    && m.contains_key(~"$id") {
+                    match (m.find(~"$ref"), m.find(~"$id")) {
+                        (Some(&UString(ref s)), Some(&ObjectId(ref d))) =>
+                            return Some(DBRef(s.clone(), ~ObjectId(d.clone()))),
                         _ => return None
                     }
                 }

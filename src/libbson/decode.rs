@@ -32,6 +32,7 @@ static BOOL: u8 = 0x08;
 static UTCDATE: u8 = 0x09;
 static NULL: u8 = 0x0A;
 static REGEX: u8 = 0x0B;
+static DBREF: u8 = 0x0C;
 static JSCRIPT: u8 = 0x0D;
 static JSCOPE: u8 = 0x0F;
 static INT32: u8 = 0x10;
@@ -65,7 +66,7 @@ impl<T:Stream<u8>> BsonParser<T> {
         let size = bytesum(self.stream.aggregate(4)) as i32;
         let mut elemcode = self.stream.expect(&[
             DOUBLE,STRING,EMBED,ARRAY,BINARY,OBJID,
-            BOOL,UTCDATE,NULL,REGEX,JSCRIPT,JSCOPE,
+            BOOL,UTCDATE,NULL,REGEX,DBREF,JSCRIPT,JSCOPE,
             INT32,TSTAMP,INT64,MINKEY,MAXKEY]);
         self.stream.pass(1);
         let mut ret = BsonDocument::new();
@@ -94,6 +95,13 @@ impl<T:Stream<u8>> BsonParser<T> {
                 Some(UTCDATE) => UTCDate(bytesum(self.stream.aggregate(8)) as i64),
                 Some(NULL) => Null,
                 Some(REGEX) => self._regex(),
+                Some(DBREF) => {
+                    let doc = self._dbref();
+                    match doc {
+                        Ok(d) => d,
+                        Err(e) => return Err(e)
+                    }
+                }
                 Some(JSCRIPT) => {
                     let doc = self._jscript();
                     match doc {
@@ -117,8 +125,9 @@ impl<T:Stream<u8>> BsonParser<T> {
                 _ => return Err(~"an invalid element code was found")
             };
             ret.put(key, val);
-            elemcode = self.stream.expect(&[DOUBLE,STRING,EMBED,ARRAY,BINARY,OBJID,
-                BOOL,UTCDATE,NULL,REGEX,JSCRIPT,JSCOPE,
+            elemcode = self.stream.expect(&[
+                DOUBLE,STRING,EMBED,ARRAY,BINARY,OBJID,
+                BOOL,UTCDATE,NULL,REGEX,DBREF,JSCRIPT,JSCOPE,
                 INT32,TSTAMP,INT64,MINKEY,MAXKEY]);
             if self.stream.has_next() { self.stream.pass(1); }
         }
@@ -180,7 +189,14 @@ impl<T:Stream<u8>> BsonParser<T> {
         let s2 = self.cstring();
         Regex(s1, s2)
     }
-
+    fn _dbref(&mut self) -> Result<Document, ~str> {
+        let s = match self._string() {
+            UString(rs) => rs,
+            _ => return Err(~"invalid string found in dbref")
+        };
+        let d = self.stream.aggregate(12);
+        Ok(DBRef(s, ~ObjectId(d)))
+    }
     ///Parse a javascript object.
     fn _jscript(&mut self) -> Result<Document, ~str> {
         let s = self._string();
@@ -265,6 +281,14 @@ mod tests {
         let stream: ~[u8] = ~[6,0,0,0,0,1,2,3,4,5,6];
         let mut parser = BsonParser::new(stream);
         assert_eq!(parser._binary(), Binary(0, ~[1,2,3,4,5,6]));
+    }
+
+    #[test]
+    fn test_dbref_encode() {
+        let mut doc = BsonDocument::new();
+        doc.put(~"foo", DBRef(~"bar", ~ObjectId(~[0u8,1,2,3,4,5,6,7,8,9,10,11])));
+        let stream: ~[u8] = ~[30,0,0,0,12,102,111,111,0,4,0,0,0,98,97,114,0,0,1,2,3,4,5,6,7,8,9,10,11,0];
+        assert_eq!(decode(stream).unwrap(), doc)
     }
 
     //TODO: get bson strings of torture-test objects
