@@ -6,6 +6,7 @@ before_install:
     - ./autogen.sh
     - make
     - sudo make install
+    - sudo ldconfig /usr/local/lib
 
 script:
     - cargo build --verbose
