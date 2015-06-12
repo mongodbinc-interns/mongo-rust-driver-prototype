@@ -1,5 +1,6 @@
 pub mod db;
 pub mod coll;
+pub mod command;
 pub mod common;
 pub mod connstring;
 pub mod wire_protocol;
