@@ -5,6 +5,7 @@ use client::wire_protocol::operations::Message;
 use std::io::{Read, Write};
 
 pub enum DatabaseCommand {
+    DropDatabase(String),
     IsMaster,
     ListDatabases,
 }
@@ -17,27 +18,17 @@ pub struct Command {
 impl DatabaseCommand {
     fn is_admin(&self) -> bool {
         match self {
+            &DatabaseCommand::DropDatabase(_) |
             &DatabaseCommand::IsMaster => false,
             &DatabaseCommand::ListDatabases => true
         }
     }
 }
 
-impl Command {
-    fn get_database_string(&self) -> String {
-        let string = if self.command.is_admin() {
-            "admin"
-        } else {
-            "local"
-        };
-
-        string.to_owned()
-    }
-}
-
 impl ToString for DatabaseCommand {
     fn to_string(&self) -> String {
         let string = match self {
+            &DatabaseCommand::DropDatabase(_) => "dropDatabase",
             &DatabaseCommand::IsMaster => "isMaster",
             &DatabaseCommand::ListDatabases => "listDatabases"
         };
@@ -49,6 +40,26 @@ impl ToString for DatabaseCommand {
 impl Command {
     pub fn new(request_id: i32, command: DatabaseCommand) -> Command {
         Command { request_id: request_id, command: command }
+    }
+
+    pub fn new_drop_database(request_id: i32, database: &str) -> Command {
+        Command { request_id: request_id,
+                  command: DatabaseCommand::DropDatabase(database.to_owned()) }
+    }
+
+    fn get_database_string(&self) -> String {
+        match self.command {
+            DatabaseCommand::DropDatabase(ref s) => return s.to_owned(),
+            _ => ()
+        };
+
+        let string = if self.command.is_admin() {
+            "admin"
+        } else {
+            "local"
+        };
+
+        string.to_owned()
     }
 
     // This function will eventually be merged into Client as methods, at which
