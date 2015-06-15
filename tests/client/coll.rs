@@ -7,7 +7,7 @@ use mongodb::client::coll::{Collection, FindOptions};
 use std::io::Write;
 use std::net::TcpStream;
 
-//#[test]
+#[test]
 fn find() {
     let client = MongoClient::with_uri("mongodb://localhost:27017").unwrap();
     let db = client.db("sample");
@@ -24,7 +24,7 @@ fn find() {
     };
 }
 
-//#[test]
+#[test]
 fn find_one() {
     let client = MongoClient::with_uri("mongodb://localhost:27017").unwrap();
     let db = client.db("sample");

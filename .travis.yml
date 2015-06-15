@@ -1,5 +1,8 @@
 language: rust
 
+services:
+    - "mongodb"
+
 before_install:
     - sudo apt-get install git-core automake autoconf libtool gcc
     - git clone git://github.com/mongodb/libbson.git
@@ -8,6 +11,8 @@ before_install:
     - make
     - sudo make install
     - sudo ldconfig /usr/local/lib
+
+before_script: "db.getSiblingDB('sample').movies.insert({ title: 'Jaws' });\" | mongo"
 
 script:
     - cargo build --verbose
