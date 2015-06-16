@@ -1,7 +1,7 @@
 language: rust
 
 before_script:
-    - npm -g install mongodb-version-manager
+    - npm install -g mongodb-version-manager
 
 script:
     - export PATH="`m path`:$PATH"
