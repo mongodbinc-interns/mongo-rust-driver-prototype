@@ -1,9 +1,12 @@
 language: rust
 
-services:
-    - "mongodb"
+before_script:
+    - npm install -g mongodb-version-manager
 
 script:
-    - cargo build --verbose
+    - export PATH="`m path`:$PATH"
     - export RUST_TEST_THREADS=1
+    - m 3.0.x
+    - mongod &
+    - cargo build --verbose
     - cargo test --verbose
