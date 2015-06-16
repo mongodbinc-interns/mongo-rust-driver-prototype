@@ -5,6 +5,7 @@ use std::io::{Read, Write};
 #[derive(Clone)]
 pub enum OpCode {
     Reply = 1,
+    Update = 2001,
     Insert = 2002,
     Query = 2004,
     GetMore = 2005,
@@ -24,6 +25,7 @@ impl OpCode {
     pub fn from_i32(i: i32) -> Option<OpCode> {
         match i {
             1 => Some(OpCode::Reply),
+            2001 => Some(OpCode::Update),
             2002 => Some(OpCode::Insert),
             2004 => Some(OpCode::Query),
             2005 => Some(OpCode::GetMore),
@@ -36,6 +38,7 @@ impl ToString for OpCode {
     fn to_string(&self) -> String {
         match self {
             &OpCode::Reply => "OP_REPLY".to_owned(),
+            &OpCode::Update => "OP_UPDATE".to_owned(),
             &OpCode::Insert => "OP_INSERT".to_owned(),
             &OpCode::Query => "OP_QUERY".to_owned(),
             &OpCode::GetMore => "OP_GET_MORE".to_owned(),
@@ -102,6 +105,10 @@ impl Header {
     fn new_reply(message_length: i32, response_to: i32,
                  op_code: OpCode) -> Header {
         Header::new(message_length, 0, response_to, op_code)
+    }
+
+    pub fn with_update(message_length: i32, request_id: i32) -> Header {
+        Header::new_request(message_length, request_id, OpCode::Update)
     }
 
     pub fn with_insert(message_length: i32, request_id: i32) -> Header {

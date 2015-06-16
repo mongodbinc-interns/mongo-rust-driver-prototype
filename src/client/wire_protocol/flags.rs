@@ -24,6 +24,13 @@ impl OpReplyFlags {
     }
 }
 
+pub struct OpUpdateFlags {
+    pub upsert: bool,        // Bit 0
+    pub multi_update: bool,  // Bit 1
+
+    // All bits remaining must be 0
+}
+
 /// Represents the bit vector of flags for an OP_INSERT message.
 pub struct OpInsertFlags {
     pub continue_on_error: bool,  // Bit 0
@@ -44,6 +51,25 @@ pub struct OpQueryFlags {
     // All bits remaining must be 0
 }
 
+impl OpUpdateFlags {
+    pub fn no_flags() -> OpUpdateFlags {
+        OpUpdateFlags { upsert: false, multi_update: false }
+    }
+
+    pub fn to_i32(&self) -> i32 {
+        let mut i = 0 as i32;
+
+        if self.upsert {
+            i = 1;
+        }
+
+        if self.multi_update {
+            i |= 1 << 1;
+        }
+
+        i
+    }
+}
 
 impl OpInsertFlags {
     /// Constructs a new struct with all flags set to false.
