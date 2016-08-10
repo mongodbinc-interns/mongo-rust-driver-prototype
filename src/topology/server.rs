@@ -132,8 +132,6 @@ impl ServerDescription {
             return;
         }
 
-        println!("{:#?}", ismaster);
-
         self.min_wire_version = ismaster.min_wire_version;
         self.max_wire_version = ismaster.max_wire_version;
         self.me = ismaster.me;
