@@ -53,6 +53,7 @@ pub struct IsMasterResult {
     pub election_id: Option<oid::ObjectId>,
     pub primary: Option<Host>,
     pub hidden: bool,
+    pub set_version: Option<i64>,
 }
 
 /// Monitors and updates server and topology information.
@@ -112,6 +113,7 @@ impl IsMasterResult {
             election_id: None,
             primary: None,
             hidden: false,
+            set_version: None,
         };
 
         if let Some(&Bson::Boolean(b)) = doc.get("ismaster") {
@@ -181,6 +183,10 @@ impl IsMasterResult {
 
         if let Some(&Bson::Boolean(ref h)) = doc.get("hidden") {
             result.hidden = *h;
+        }
+
+        if let Some(&Bson::I64(v)) = doc.get("setVersion") {
+            result.set_version = Some(v);
         }
 
         if let Some(&Bson::Document(ref doc)) = doc.get("tags") {
