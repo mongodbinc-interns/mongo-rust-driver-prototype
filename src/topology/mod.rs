@@ -57,6 +57,8 @@ pub struct TopologyDescription {
     pub server_selection_timeout_ms: i64,
     // The largest election id seen from a server in the topology.
     max_election_id: Option<oid::ObjectId>,
+    // The largest set version seen from a server in the topology.
+    max_set_version: Option<i64>,
     // If true, all servers in the topology fall within the compatible
     // mongodb version for this driver.
     compatible: bool,
@@ -98,6 +100,7 @@ impl TopologyDescription {
             max_election_id: None,
             compatible: true,
             compat_error: String::new(),
+            max_set_version: None,
         }
     }
 
@@ -576,6 +579,25 @@ impl TopologyDescription {
                     return;
                 } else {
                     self.max_election_id = description.election_id.clone();
+                }
+        }
+
+        if description.set_version.is_some() {
+            if self.max_set_version.is_some() &&
+                self.max_set_version.unwrap() > description.set_version.unwrap() {
+                    // Stale primary
+                    if let Some(server) = self.servers.get(&host) {
+                        {
+                            let mut server_description = server.description.write().unwrap();
+                            server_description.server_type = ServerType::Unknown;
+                            server_description.set_name = String::new();
+                            server_description.election_id = None;
+                        }
+                    }
+                    self.check_if_has_primary();
+                    return;
+                } else {
+                    self.max_set_version = description.set_version;
                 }
         }
 
