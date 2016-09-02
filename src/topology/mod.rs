@@ -731,29 +731,31 @@ impl Topology {
         let start_ms = time.sec * 1000 + (time.nsec as i64) / 1000000;
 
         loop {
-            let description = try!(self.description.read());
-            let result = if write {
-                match description.acquire_write_stream() {
-                    Ok(stream) => Ok((stream, false, false)),
-                    Err(err) => Err(err),
-                }
-            } else {
-                description.acquire_stream(read_preference.as_ref().unwrap())
-            };
-
-            match result {
-                Ok(stream) => return Ok(stream),
-                Err(err) => {
-                    // Check duration of current server selection and return an error if overdue.
-                    let end_time = time::get_time();
-                    let end_ms = end_time.sec * 1000 + (end_time.nsec as i64) / 1000000;
-                    if end_ms - start_ms >= description.server_selection_timeout_ms {
-                        return Err(err)
+            {
+                let description = try!(self.description.read());
+                let result = if write {
+                    match description.acquire_write_stream() {
+                        Ok(stream) => Ok((stream, false, false)),
+                        Err(err) => Err(err),
                     }
-                    // Otherwise, sleep for a little while.
-                    thread::sleep(Duration::from_millis(500));
-                },
+                } else {
+                    description.acquire_stream(read_preference.as_ref().unwrap())
+                };
+
+                match result {
+                    Ok(stream) => return Ok(stream),
+                    Err(err) => {
+                        // Check duration of current server selection and return an error if overdue.
+                        let end_time = time::get_time();
+                        let end_ms = end_time.sec * 1000 + (end_time.nsec as i64) / 1000000;
+                        if end_ms - start_ms >= description.server_selection_timeout_ms {
+                            return Err(err)
+                        }
+                    },
+                }
             }
+            // Otherwise, sleep for a little while.
+            thread::sleep(Duration::from_millis(500));
         }
     }
 
