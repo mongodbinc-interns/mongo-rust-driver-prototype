@@ -20,17 +20,22 @@ fn create_collection() {
 
     let results = cursor.next_n(5).unwrap();
 
-    assert_eq!(3, results.len());
+    let v3_0 = cfg!(feature = "mongodb_3_0");
+    let result_size = if v3_0 { 3 } else { 2 };
+    assert_eq!(result_size, results.len());
 
-    match results[0].get("name") {
-        Some(&Bson::String(ref name)) => assert_eq!("system.indexes", name),
-        _ => panic!("Expected BSON string!"),
+    if v3_0 {
+        match results[0].get("name") {
+            Some(&Bson::String(ref name)) => assert_eq!("system.indexes", name),
+            _ => panic!("Expected BSON string!"),
+        }
     }
-    match results[1].get("name") {
+
+    match results[result_size - 2].get("name") {
         Some(&Bson::String(ref name)) => assert_eq!("test1", name),
         _ => panic!("Expected BSON string!"),
     }
-    match results[2].get("name") {
+    match results[result_size - 1].get("name") {
         Some(&Bson::String(ref name)) => assert_eq!("test2", name),
         _ => panic!("Expected BSON string!"),
     }
@@ -56,19 +61,24 @@ fn list_collections() {
         .expect("Failed to execute list_collections command.");
 
     let results = cursor.next_n(5).unwrap();
-    assert_eq!(3, results.len());
 
-    match results[0].get("name") {
-        Some(&Bson::String(ref name)) => assert_eq!("system.indexes", name),
-        _ => panic!("Expected BSON string!"),
-    };
+    let v3_0 = cfg!(feature = "mongodb_3_0");
+    let result_size = if v3_0 { 3 } else { 2 };
+    assert_eq!(result_size, results.len());
 
-    match results[1].get("name") {
+    if v3_0 {
+        match results[0].get("name") {
+            Some(&Bson::String(ref name)) => assert_eq!("system.indexes", name),
+            _ => panic!("Expected BSON string!"),
+        };
+    }
+
+    match results[result_size - 2].get("name") {
         Some(&Bson::String(ref name)) => assert_eq!("test", name),
         _ => panic!("Expected BSON string!"),
     };
 
-    match results[2].get("name") {
+    match results[result_size - 1].get("name") {
         Some(&Bson::String(ref name)) => assert_eq!("test2", name),
         _ => panic!("Expected BSON string!"),
     }
