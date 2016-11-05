@@ -13,7 +13,7 @@ keywords = ["mongo", "mongodb", "database", "bson", "nosql"]
 license = "Apache-2.0"
 
 [dependencies]
-bson = "0.3"
+bson = "0.3.2"
 byteorder = "0.5"
 chrono = "0.2"
 rand = "0.3"
