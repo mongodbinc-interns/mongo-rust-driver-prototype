@@ -14,19 +14,19 @@ license = "Apache-2.0"
 
 [dependencies]
 bson = "0.3.2"
-byteorder = "0.5"
-chrono = "0.2"
-rand = "0.3"
+byteorder = "0.5.3"
+chrono = "0.2.25"
+rand = "0.3.14"
 rust-crypto = "0.2.31"
-rustc-serialize = "0.3"
+rustc-serialize = "0.3.19"
 scan_fmt = "0.1.0"
 separator = "0.3.1"
-textnonce = { version = "0.4", default-features = false }
-time = "0.1"
+textnonce = { version = "0.4.1", default-features = false }
+time = "0.1.35"
 bufstream = "0.1.1"
 
 [dev-dependencies]
-nalgebra = "0.10"
+nalgebra = "0.10.1"
 
 [features]
 default = []
