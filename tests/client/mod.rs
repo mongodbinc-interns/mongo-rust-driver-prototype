@@ -28,10 +28,8 @@ fn database_names() {
 
     let base_results = client.database_names().expect("Failed to execute database_names.");
 
-    let db_version = client.db("whatever").version().unwrap();
-    let v3_1 = db_version.major <= 3 && db_version.minor <= 1;
-    let admin_db_name = if v3_1 { "local" } else { "admin" };
-    assert_eq!(admin_db_name, base_results[0]);
+    assert!(results.contains(&"admin".to_owned()));
+    assert!(results.contains(&"local".to_owned()));
 
     assert!(!base_results.contains(&"test-client-mod-database_names".to_owned()));
     assert!(!base_results.contains(&"test-client-mod-database_names_2".to_owned()));
@@ -48,6 +46,7 @@ fn database_names() {
 
     // Check new dbs
     let results = client.database_names().expect("Failed to execute database_names.");
+    assert!(results.contains(&"admin".to_owned()));
     assert!(results.contains(&"local".to_owned()));
     assert!(results.contains(&"test-client-mod-database_names".to_owned()));
     assert!(results.contains(&"test-client-mod-database_names_2".to_owned()));
@@ -64,10 +63,8 @@ fn is_sync() {
 
     let base_results = client.database_names().expect("Failed to execute database_names.");
 
-    let db_version = client.db("whatever").version().unwrap();
-    let v3_1 = db_version.major <= 3 && db_version.minor <= 1;
-    let admin_db_name = if v3_1 { "local" } else { "admin" };
-    assert_eq!(admin_db_name, base_results[0]);
+    assert!(results.contains(&"admin".to_owned()));
+    assert!(results.contains(&"local".to_owned()));
 
     assert!(!base_results.contains(&"test-client-mod-is_sync".to_owned()));
     assert!(!base_results.contains(&"test-client-mod-is_sync_2".to_owned()));
@@ -95,6 +92,7 @@ fn is_sync() {
 
     // Check new dbs
     let results = client.database_names().expect("Failed to execute database_names.");
+    assert!(results.contains(&"admin".to_owned()));
     assert!(results.contains(&"local".to_owned()));
     assert!(results.contains(&"test-client-mod-is_sync".to_owned()));
     assert!(results.contains(&"test-client-mod-is_sync_2".to_owned()));
