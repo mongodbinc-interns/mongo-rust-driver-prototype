@@ -20,8 +20,9 @@ fn database_names() {
     client.drop_database("test-client-mod-database_names_2").expect("Failed to drop database");
 
     let base_results = client.database_names().expect("Failed to execute database_names.");
-    let base_db_count = base_results.len();
     assert_eq!("local", base_results[0]);
+    assert!(!results.contains(&"test-client-mod-database_names".to_owned()));
+    assert!(!results.contains(&"test-client-mod-database_names_2".to_owned()));
 
     // Build dbs
     let db1 = client.db("test-client-mod-database_names");
@@ -35,7 +36,6 @@ fn database_names() {
 
     // Check new dbs
     let results = client.database_names().expect("Failed to execute database_names.");
-    assert_eq!(base_db_count + 2, results.len());
     assert!(results.contains(&"local".to_owned()));
     assert!(results.contains(&"test-client-mod-database_names".to_owned()));
     assert!(results.contains(&"test-client-mod-database_names_2".to_owned()));
@@ -58,8 +58,9 @@ fn is_sync() {
     client.drop_database("test-client-mod-is_sync_2").expect("failed to drop database");
 
     let base_results = client.database_names().expect("Failed to execute database_names.");
-    let base_db_count = base_results.len();
     assert_eq!("local", base_results[0]);
+    assert!(!results.contains(&"test-client-mod-is_sync".to_owned()));
+    assert!(!results.contains(&"test-client-mod-is_sync_2".to_owned()));
 
     let child1 = thread::spawn(move || {
         let db = client1.db("test-client-mod-is_sync");
@@ -84,7 +85,6 @@ fn is_sync() {
 
     // Check new dbs
     let results = client.database_names().expect("Failed to execute database_names.");
-    assert_eq!(base_db_count + 2, results.len());
     assert!(results.contains(&"local".to_owned()));
     assert!(results.contains(&"test-client-mod-is_sync".to_owned()));
     assert!(results.contains(&"test-client-mod-is_sync_2".to_owned()));
