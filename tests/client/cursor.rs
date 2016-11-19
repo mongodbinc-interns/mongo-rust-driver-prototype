@@ -26,7 +26,7 @@ fn cursor_features() {
     let flags = OpQueryFlags::no_flags();
 
     let result = Cursor::query(client.clone(),
-                               "test.cursor_test".to_owned(),
+                               "test-client-cursor.cursor_test".to_owned(),
                                3,
                                flags,
                                0,

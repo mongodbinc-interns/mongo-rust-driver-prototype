@@ -132,7 +132,7 @@ fn successful_login() {
     };
 
     match user.get("db") {
-        Some(&Bson::String(ref s)) => assert_eq!(s, "auth"),
+        Some(&Bson::String(ref s)) => assert_eq!(s, "test-auth-mod-successful_login"),
         _ => panic!("Invalid `db` field of auth'd user"),
     };
 }

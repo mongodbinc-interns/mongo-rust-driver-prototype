@@ -104,7 +104,7 @@ fn logging() {
     line.clear();
     read_first_non_monitor_line(&mut file, &mut line);
     assert!(line.starts_with("COMMAND.drop_collection 127.0.0.1:27017 COMPLETED: { ns: \
-                              \"test.logging\", nIndexesWas: 1, ok: 1 } ("));
+                              \"test-apm-mod.logging\", nIndexesWas: 1, ok: 1 } ("));
     assert!(line.ends_with(" ns)\n"));
 
     // First insert started
@@ -157,7 +157,7 @@ fn logging() {
     line.clear();
     read_first_non_monitor_line(&mut file, &mut line);
     assert!(line.starts_with("COMMAND.find 127.0.0.1:27017 COMPLETED: { cursor: { id: 0, ns: \
-                              \"test.logging\", firstBatch: [{ _id: 2 }, { _id: 3 }] }, ok: 1 } \
+                              \"test-apm-mod.logging\", firstBatch: [{ _id: 2 }, { _id: 3 }] }, ok: 1 } \
                               ("));
     assert!(line.ends_with(" ns)\n"));
 

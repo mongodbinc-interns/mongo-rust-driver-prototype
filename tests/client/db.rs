@@ -122,7 +122,7 @@ fn create_and_get_users() {
     let user = db.get_user("saghm", None).unwrap();
 
     match user.get("db") {
-        Some(&Bson::String(ref s)) => assert_eq!("create_and_get_users", s),
+        Some(&Bson::String(ref s)) => assert_eq!("test-client-db-create_and_get_users", s),
         _ => {
             panic!("Invalid `db` specified for user 'saghm': {:?}",
                    user.get("db"))
