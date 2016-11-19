@@ -56,14 +56,21 @@ fn read_first_non_monitor_line(file: &mut BufReader<&File>, line: &mut String) {
 fn logging() {
     let _ = fs::remove_file("test_apm_log.txt");
 
+    // Reset State
+    let client = Client::connect("localhost", 27017).expect("Failed to connect to localhost:27017");
+    let coll = db.collection("logging");
+    coll.drop().unwrap();
+
+    // Start logging
     let client_options = ClientOptions::with_log_file("test_apm_log.txt");
     let client = Client::connect_with_options("localhost", 27017, client_options).unwrap();
 
     let db = client.db("test-apm-mod");
+
     db.create_collection("logging", None).unwrap();
     let coll = db.collection("logging");
     coll.drop().unwrap();
-
+    
     let doc1 = doc! { "_id" => 1 };
     let doc2 = doc! { "_id" => 2 };
     let doc3 = doc! { "_id" => 3 };
