@@ -18,7 +18,7 @@ script:
     - 3.0.12/bin/mongod --fork --nopreallocj --dbpath ./data/db --syslog --port 27017
     - 3.0.12/bin/mongod --fork --nopreallocj --dbpath ./data/test --syslog --port 27018
     - cargo build --verbose
-    - cargo test --features "mongodb_3_0" --verbose
+    - cargo test --verbose
     - killall mongod
     - 3.2.10/bin/mongod --fork --nopreallocj --dbpath ./data/db2 --syslog --port 27017
     - 3.2.10/bin/mongod --fork --nopreallocj --dbpath ./data/test2 --syslog --port 27018

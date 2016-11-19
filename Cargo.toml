@@ -28,7 +28,3 @@ bufstream = "0.1.1"
 
 [dev-dependencies]
 nalgebra = "0.10.1"
-
-[features]
-default = []
-mongodb_3_0 = []

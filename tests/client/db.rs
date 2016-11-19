@@ -20,11 +20,13 @@ fn create_collection() {
 
     let results = cursor.next_n(5).unwrap();
 
-    let v3_0 = cfg!(feature = "mongodb_3_0");
-    let result_size = if v3_0 { 3 } else { 2 };
+    let db_version = db.version().unwrap();
+    let v3_1 = db_version.major <= 3 && db_version.minor <= 1;
+
+    let result_size = if v3_1 { 3 } else { 2 };
     assert_eq!(result_size, results.len());
 
-    if v3_0 {
+    if v3_1 {
         match results[0].get("name") {
             Some(&Bson::String(ref name)) => assert_eq!("system.indexes", name),
             _ => panic!("Expected BSON string!"),
@@ -62,11 +64,13 @@ fn list_collections() {
 
     let results = cursor.next_n(5).unwrap();
 
-    let v3_0 = cfg!(feature = "mongodb_3_0");
-    let result_size = if v3_0 { 3 } else { 2 };
+    let db_version = db.version().unwrap();
+    let v3_1 = db_version.major <= 3 && db_version.minor <= 1;
+
+    let result_size = if v3_1 { 3 } else { 2 };
     assert_eq!(result_size, results.len());
 
-    if v3_0 {
+    if v3_1 {
         match results[0].get("name") {
             Some(&Bson::String(ref name)) => assert_eq!("system.indexes", name),
             _ => panic!("Expected BSON string!"),
@@ -172,5 +176,5 @@ fn create_and_get_users() {
 fn get_version() {
     let client = Client::connect("localhost", 27017).unwrap();
     let db = client.db("get_version");
-    let version = db.version().unwrap();
+    let _ = db.version().unwrap();
 }
