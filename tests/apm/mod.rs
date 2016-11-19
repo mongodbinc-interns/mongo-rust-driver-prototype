@@ -57,18 +57,18 @@ fn logging() {
     let _ = fs::remove_file("test_apm_log.txt");
 
     // Reset State
-    let client = Client::connect("localhost", 27017).expect("Failed to connect to localhost:27017");
-    let coll = db.collection("logging");
-    coll.drop().unwrap();
+    let reset_client = Client::connect("localhost", 27017).expect("Failed to connect to localhost:27017");
+    let reset_db = reset_client.db("test-apm-mod");
+    let reset_coll = reset_db.collection("logging");
+    reset_coll.drop().unwrap();
 
     // Start logging
     let client_options = ClientOptions::with_log_file("test_apm_log.txt");
     let client = Client::connect_with_options("localhost", 27017, client_options).unwrap();
 
     let db = client.db("test-apm-mod");
-
-    db.create_collection("logging", None).unwrap();
     let coll = db.collection("logging");
+    db.create_collection("logging", None).unwrap();
     coll.drop().unwrap();
     
     let doc1 = doc! { "_id" => 1 };
