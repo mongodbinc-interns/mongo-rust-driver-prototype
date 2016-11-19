@@ -33,12 +33,15 @@ fn create_collection() {
         }
     }
 
+    let db_1 = if v3_1 { "test1" } else { "test2" };
+    let db_2 = if v3_1 { "test2" } else { "test1" };
+    
     match results[result_size - 2].get("name") {
-        Some(&Bson::String(ref name)) => assert_eq!("test1", name),
+        Some(&Bson::String(ref name)) => assert_eq!(db_1, name),
         _ => panic!("Expected BSON string!"),
     }
     match results[result_size - 1].get("name") {
-        Some(&Bson::String(ref name)) => assert_eq!("test2", name),
+        Some(&Bson::String(ref name)) => assert_eq!(db_2, name),
         _ => panic!("Expected BSON string!"),
     }
 }
@@ -77,13 +80,16 @@ fn list_collections() {
         };
     }
 
+    let db_1 = if v3_1 { "test" } else { "test2" };
+    let db_2 = if v3_1 { "test2" } else { "test" };
+    
     match results[result_size - 2].get("name") {
-        Some(&Bson::String(ref name)) => assert_eq!("test", name),
+        Some(&Bson::String(ref name)) => assert_eq!(db_1, name),
         _ => panic!("Expected BSON string!"),
     };
 
     match results[result_size - 1].get("name") {
-        Some(&Bson::String(ref name)) => assert_eq!("test2", name),
+        Some(&Bson::String(ref name)) => assert_eq!(db_2, name),
         _ => panic!("Expected BSON string!"),
     }
 }

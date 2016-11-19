@@ -14,15 +14,27 @@ use mongodb::db::ThreadedDatabase;
 use std::thread;
 
 #[test]
+fn is_master() {
+    let client = Client::connect("localhost", 27017).unwrap();
+    let res = client.is_master().expect("Failed to execute is_master.");
+    assert!(res);
+}
+
+#[test]
 fn database_names() {
     let client = Client::connect("localhost", 27017).unwrap();
     client.drop_database("test-client-mod-database_names").expect("Failed to drop database");
     client.drop_database("test-client-mod-database_names_2").expect("Failed to drop database");
 
     let base_results = client.database_names().expect("Failed to execute database_names.");
-    assert_eq!("local", base_results[0]);
-    assert!(!results.contains(&"test-client-mod-database_names".to_owned()));
-    assert!(!results.contains(&"test-client-mod-database_names_2".to_owned()));
+
+    let db_version = client.db("whatever").version().unwrap();
+    let v3_1 = db_version.major <= 3 && db_version.minor <= 1;
+    let admin_db_name = if v3_1 { "local" } else { "admin" };
+    assert_eq!(admin_db_name, base_results[0]);
+
+    assert!(!base_results.contains(&"test-client-mod-database_names".to_owned()));
+    assert!(!base_results.contains(&"test-client-mod-database_names_2".to_owned()));
 
     // Build dbs
     let db1 = client.db("test-client-mod-database_names");
@@ -42,13 +54,6 @@ fn database_names() {
 }
 
 #[test]
-fn is_master() {
-    let client = Client::connect("localhost", 27017).unwrap();
-    let res = client.is_master().expect("Failed to execute is_master.");
-    assert!(res);
-}
-
-#[test]
 fn is_sync() {
     let client = Client::connect("localhost", 27017).unwrap();
     let client1 = client.clone();
@@ -58,9 +63,14 @@ fn is_sync() {
     client.drop_database("test-client-mod-is_sync_2").expect("failed to drop database");
 
     let base_results = client.database_names().expect("Failed to execute database_names.");
-    assert_eq!("local", base_results[0]);
-    assert!(!results.contains(&"test-client-mod-is_sync".to_owned()));
-    assert!(!results.contains(&"test-client-mod-is_sync_2".to_owned()));
+
+    let db_version = client.db("whatever").version().unwrap();
+    let v3_1 = db_version.major <= 3 && db_version.minor <= 1;
+    let admin_db_name = if v3_1 { "local" } else { "admin" };
+    assert_eq!(admin_db_name, base_results[0]);
+
+    assert!(!base_results.contains(&"test-client-mod-is_sync".to_owned()));
+    assert!(!base_results.contains(&"test-client-mod-is_sync_2".to_owned()));
 
     let child1 = thread::spawn(move || {
         let db = client1.db("test-client-mod-is_sync");
