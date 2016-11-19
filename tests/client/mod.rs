@@ -15,21 +15,17 @@ use std::thread;
 
 #[test]
 fn database_names() {
-    let client = Client::connect("localhost", 27018).unwrap();
-    let state_results = client.database_names().expect("Failed to execute database_names.");
-    for name in state_results {
-        if name != "local" {
-            client.drop_database(&name[..]).expect("Failed to drop database from server.");
-        }
-    }
+    let client = Client::connect("localhost", 27017).unwrap();
+    client.drop_database("test-client-mod-database_names").expect("Failed to drop database");
+    client.drop_database("test-client-mod-database_names_2").expect("Failed to drop database");
 
     let base_results = client.database_names().expect("Failed to execute database_names.");
-    assert_eq!(1, base_results.len());
+    let base_db_count = base_results.len();
     assert_eq!("local", base_results[0]);
 
     // Build dbs
-    let db1 = client.db("new_db");
-    let db2 = client.db("new_db_2");
+    let db1 = client.db("test-client-mod-database_names");
+    let db2 = client.db("test-client-mod-database_names_2");
     db1.collection("test1")
         .insert_one(bson::Document::new(), None)
         .expect("Failed to insert placeholder document into collection");
@@ -39,12 +35,11 @@ fn database_names() {
 
     // Check new dbs
     let results = client.database_names().expect("Failed to execute database_names.");
-    assert_eq!(3, results.len());
+    assert_eq!(base_db_count + 2, results.len());
     assert!(results.contains(&"local".to_owned()));
-    assert!(results.contains(&"new_db".to_owned()));
-    assert!(results.contains(&"new_db_2".to_owned()));
+    assert!(results.contains(&"test-client-mod-database_names".to_owned()));
+    assert!(results.contains(&"test-client-mod-database_names_2".to_owned()));
 }
-
 
 #[test]
 fn is_master() {
@@ -55,37 +50,33 @@ fn is_master() {
 
 #[test]
 fn is_sync() {
-    let client = Client::connect("localhost", 27018).unwrap();
-    let state_results = client.database_names().expect("Failed to execute database_names.");
-    for name in state_results {
-        if name != "local" {
-            client.drop_database(&name[..]).expect("Failed to drop database from server.");
-        }
-    }
-
+    let client = Client::connect("localhost", 27017).unwrap();
     let client1 = client.clone();
     let client2 = client.clone();
 
+    client.drop_database("test-client-mod-is_sync").expect("failed to drop database");
+    client.drop_database("test-client-mod-is_sync_2").expect("failed to drop database");
+
     let base_results = client.database_names().expect("Failed to execute database_names.");
-    assert_eq!(1, base_results.len());
+    let base_db_count = base_results.len();
     assert_eq!("local", base_results[0]);
 
     let child1 = thread::spawn(move || {
-        let db = client1.db("concurrent_db");
+        let db = client1.db("test-client-mod-is_sync");
         db.collection("test1")
             .insert_one(bson::Document::new(), None)
             .expect("Failed to insert placeholder document into collection");
         let results = client1.database_names().expect("Failed to execute database_names.");
-        assert!(results.contains(&"concurrent_db".to_owned()));
+        assert!(results.contains(&"test-client-mod-is_sync".to_owned()));
     });
 
     let child2 = thread::spawn(move || {
-        let db = client2.db("concurrent_db_2");
+        let db = client2.db("test-client-mod-is_sync_2");
         db.collection("test2")
             .insert_one(bson::Document::new(), None)
             .expect("Failed to insert placeholder document into collection");
         let results = client2.database_names().expect("Failed to execute database_names.");
-        assert!(results.contains(&"concurrent_db_2".to_owned()));
+        assert!(results.contains(&"test-client-mod-is_sync_2".to_owned()));
     });
 
     let _ = child1.join();
@@ -93,8 +84,8 @@ fn is_sync() {
 
     // Check new dbs
     let results = client.database_names().expect("Failed to execute database_names.");
-    assert_eq!(3, results.len());
+    assert_eq!(base_db_count + 2, results.len());
     assert!(results.contains(&"local".to_owned()));
-    assert!(results.contains(&"concurrent_db".to_owned()));
-    assert!(results.contains(&"concurrent_db_2".to_owned()));
+    assert!(results.contains(&"test-client-mod-is_sync".to_owned()));
+    assert!(results.contains(&"test-client-mod-is_sync_2".to_owned()));
 }

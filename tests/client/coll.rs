@@ -81,7 +81,7 @@ fn find_and_insert() {
 fn find_and_insert_one() {
     let client = Client::connect("localhost", 27017).unwrap();
     let db = client.db("test-client-coll");
-    let coll = db.collection("find_and_insert");
+    let coll = db.collection("find_and_insert_one");
 
     coll.drop().expect("Failed to drop database");
 
