@@ -27,7 +27,7 @@ fn timed_query(_client: Client, command_result: &CommandResult) {
 #[test]
 fn command_duration() {
     let mut client = Client::connect("localhost", 27017).expect("damn it!");
-    let db = client.db("test_apm_mod");
+    let db = client.db("test-apm-mod");
     let coll = db.collection("command_duration");
     coll.drop().unwrap();
 
@@ -59,7 +59,7 @@ fn logging() {
     let client_options = ClientOptions::with_log_file("test_apm_log.txt");
     let client = Client::connect_with_options("localhost", 27017, client_options).unwrap();
 
-    let db = client.db("test_apm_mod");
+    let db = client.db("test-apm-mod");
     db.create_collection("logging", None).unwrap();
     let coll = db.collection("logging");
     coll.drop().unwrap();

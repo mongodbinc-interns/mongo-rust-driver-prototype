@@ -6,7 +6,7 @@ use mongodb::error::Error::OperationError;
 #[test]
 fn invalid_user() {
     let client = Client::connect("localhost", 27017).unwrap();
-    let db = client.db("test_auth_mod_invalid_user");
+    let db = client.db("test-auth-mod-invalid_user");
     let _ = db.drop_all_users(None).unwrap();
     let doc = doc! { "connectionStatus" => 1};
     let before = db.command(doc.clone(), CommandType::Suppressed, None).unwrap();
@@ -21,7 +21,7 @@ fn invalid_user() {
         _ => panic!("Invalid array of authenticatedUsers for initial connectionStatus command"),
     };
 
-    match db.auth("test_auth_invalid_user", "some_password") {
+    match db.auth("test-auth-invalid_user", "some_password") {
         Err(OperationError(_)) => (),
         Err(_) => {
             panic!("Expected OperationError for invalid authentication, but got some other error \
@@ -47,7 +47,7 @@ fn invalid_user() {
 #[test]
 fn invalid_password() {
     let client = Client::connect("localhost", 27017).unwrap();
-    let db = client.db("test_auth_mod_invalid_password");
+    let db = client.db("test-auth-mod-invalid_password");
     let _ = db.drop_all_users(None).unwrap();
     let doc = doc! { "connectionStatus" => 1};
     let before = db.command(doc.clone(), CommandType::Suppressed, None).unwrap();
@@ -89,7 +89,7 @@ fn invalid_password() {
 #[test]
 fn successful_login() {
     let client = Client::connect("localhost", 27017).unwrap();
-    let db = client.db("test_auth_mod_successful_login");
+    let db = client.db("test-auth-mod-successful_login");
     let _ = db.drop_all_users(None).unwrap();
     let doc = doc! { "connectionStatus" => 1};
     let before = db.command(doc.clone(), CommandType::Suppressed, None).unwrap();
