@@ -5,15 +5,12 @@ use mongodb::wire_protocol::flags::{OpInsertFlags, OpQueryFlags, OpUpdateFlags};
 use mongodb::wire_protocol::operations::Message;
 use std::net::TcpStream;
 
-fn drop_db() {
-    let client = Client::connect("localhost", 27017).unwrap();
-    let db = client.db("test");
-    db.drop_database().unwrap();
-}
-
 #[test]
 fn insert_single_key_doc() {
-    drop_db();
+    let client = Client::connect("localhost", 27017).unwrap();
+    let db = client.db("test-client-wire_protocol-insert_single_key_doc");
+    db.drop_database().unwrap();
+    
     match TcpStream::connect("localhost:27017") {
         Ok(mut stream) => {
             let doc = doc! { "foo" => 42.0 };
@@ -71,7 +68,10 @@ fn insert_single_key_doc() {
 
 #[test]
 fn insert_multi_key_doc() {
-    drop_db();
+    let client = Client::connect("localhost", 27017).unwrap();
+    let db = client.db("test-client-wire_protocol-insert_multi_key_doc");
+    db.drop_database().unwrap();
+
     match TcpStream::connect("localhost:27017") {
         Ok(mut stream) => {
             let doc = doc! {
@@ -137,7 +137,10 @@ fn insert_multi_key_doc() {
 
 #[test]
 fn insert_docs() {
-    drop_db();
+    let client = Client::connect("localhost", 27017).unwrap();
+    let db = client.db("test-client-wire_protocol-insert_docs");
+    db.drop_database().unwrap();
+
     match TcpStream::connect("localhost:27017") {
         Ok(mut stream) => {
             let doc1 = doc! {
@@ -214,7 +217,10 @@ fn insert_docs() {
 
 #[test]
 fn insert_update_then_query() {
-    drop_db();
+    let client = Client::connect("localhost", 27017).unwrap();
+    let db = client.db("test-client-wire_protocol-insert_update_then_query");
+    db.drop_database().unwrap();
+
     match TcpStream::connect("localhost:27017") {
         Ok(mut stream) => {
             let doc = doc! { "foo" => 42.0 };

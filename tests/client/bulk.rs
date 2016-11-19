@@ -6,9 +6,8 @@ use mongodb::db::ThreadedDatabase;
 #[test]
 fn bulk_ordered_insert_only() {
     let client = Client::connect("localhost", 27017).unwrap();
-    let db = client.db("test");
+    let db = client.db("test-client-bulk");
     let coll = db.collection("bulk_ordered_insert_only");
-
     coll.drop().unwrap();
 
     let models = (1..5)
@@ -47,7 +46,7 @@ fn bulk_ordered_insert_only() {
 #[test]
 fn bulk_unordered_insert_only() {
     let client = Client::connect("localhost", 27017).unwrap();
-    let db = client.db("test");
+    let db = client.db("test-client-bulk");
     let coll = db.collection("bulk_unordered_insert_only");
 
     coll.drop().unwrap();
@@ -148,9 +147,8 @@ fn bulk_ordered_mix() {
     ];
 
     let client = Client::connect("localhost", 27017).unwrap();
-    let db = client.db("test");
+    let db = client.db("test-client-bulk");
     let coll = db.collection("bulk_ordered_mix");
-
     coll.drop().unwrap();
 
     let result = coll.bulk_write(models, true);

@@ -31,7 +31,7 @@ fn gen_rand_file(len: usize) -> Vec<u8> {
 
 #[test]
 fn put_get() {
-    let (fs, _, fschunks) = init_gridfs("grid_put");
+    let (fs, _, fschunks) = init_gridfs("test-client-gridfs-grid_put");
 
     let name = "grid_put_file";
     let src_len = (DEFAULT_CHUNK_SIZE as f32 * 2.5) as usize;
@@ -100,7 +100,7 @@ fn put_get() {
 
 #[test]
 fn remove() {
-    let (fs, fsfiles, fschunks) = init_gridfs("grid_remove");
+    let (fs, fsfiles, fschunks) = init_gridfs("test-client-gridfs-grid_remove");
 
     let name = "grid_remove_file";
     let src_len = (DEFAULT_CHUNK_SIZE as f32 * 1.5) as usize;
@@ -127,7 +127,7 @@ fn remove() {
 
 #[test]
 fn remove_id() {
-    let (fs, fsfiles, fschunks) = init_gridfs("grid_remove_id");
+    let (fs, fsfiles, fschunks) = init_gridfs("test-client-gridfs-grid_remove_id");
 
     let name = "grid_remove_id_file";
     let src_len = (DEFAULT_CHUNK_SIZE as f32 * 1.5) as usize;
@@ -152,7 +152,7 @@ fn remove_id() {
 
 #[test]
 fn find() {
-    let (fs, _, _) = init_gridfs("grid_find");
+    let (fs, _, _) = init_gridfs("test-client-gridfs-grid_find");
 
     let name = "grid_find_file";
     let name2 = "grid_find_file_2";

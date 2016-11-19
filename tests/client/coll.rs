@@ -8,10 +8,10 @@ use mongodb::coll::options::{FindOptions, FindOneAndUpdateOptions, IndexModel, I
 #[test]
 fn find_sorted() {
     let client = Client::connect("localhost", 27017).unwrap();
-    let db = client.db("test");
+    let db = client.db("test-client-coll");
     let coll = db.collection("find_sorted");
 
-    coll.drop().expect("Failed to drop database");
+    coll.drop().expect("Failed to drop collection");
 
     // Insert document
     let doc1 = doc! { "title" => "Jaws" };
@@ -51,10 +51,10 @@ fn find_sorted() {
 #[test]
 fn find_and_insert() {
     let client = Client::connect("localhost", 27017).unwrap();
-    let db = client.db("test");
+    let db = client.db("test-client-coll");
     let coll = db.collection("find_and_insert");
 
-    coll.drop().expect("Failed to drop database");
+    coll.drop().expect("Failed to drop collection");
 
     // Insert document
     let doc = doc! { "title" => "Jaws" };
@@ -80,7 +80,7 @@ fn find_and_insert() {
 #[test]
 fn find_and_insert_one() {
     let client = Client::connect("localhost", 27017).unwrap();
-    let db = client.db("test");
+    let db = client.db("test-client-coll");
     let coll = db.collection("find_and_insert");
 
     coll.drop().expect("Failed to drop database");
@@ -103,7 +103,7 @@ fn find_and_insert_one() {
 #[test]
 fn find_one_and_delete() {
     let client = Client::connect("localhost", 27017).unwrap();
-    let db = client.db("test");
+    let db = client.db("test-client-coll");
     let coll = db.collection("find_one_and_delete");
 
     coll.drop().expect("Failed to drop database");
@@ -143,7 +143,7 @@ fn find_one_and_delete() {
 #[test]
 fn find_one_and_replace() {
     let client = Client::connect("localhost", 27017).unwrap();
-    let db = client.db("test");
+    let db = client.db("test-client-coll");
     let coll = db.collection("find_one_and_replace");
 
     coll.drop().expect("Failed to drop database");
@@ -199,7 +199,7 @@ fn find_one_and_replace() {
 #[test]
 fn find_one_and_update() {
     let client = Client::connect("localhost", 27017).unwrap();
-    let db = client.db("test");
+    let db = client.db("test-client-coll");
     let coll = db.collection("find_one_and_update");
 
     coll.drop().expect("Failed to drop database");
@@ -240,7 +240,7 @@ fn find_one_and_update() {
 #[test]
 fn aggregate() {
     let client = Client::connect("localhost", 27017).unwrap();
-    let db = client.db("test");
+    let db = client.db("test-client-coll");
     let coll = db.collection("aggregate");
 
     coll.drop().expect("Failed to drop database");
@@ -288,7 +288,7 @@ fn aggregate() {
 #[test]
 fn count() {
     let client = Client::connect("localhost", 27017).unwrap();
-    let db = client.db("test");
+    let db = client.db("test-client-coll");
     let coll = db.collection("count");
 
     coll.drop().expect("Failed to drop database");
@@ -320,7 +320,7 @@ fn count() {
 #[test]
 fn distinct_none() {
     let client = Client::connect("localhost", 27017).unwrap();
-    let db = client.db("test");
+    let db = client.db("test-client-coll");
     let coll = db.collection("distinct_none");
 
     coll.drop().expect("Failed to drop database");
@@ -332,7 +332,7 @@ fn distinct_none() {
 #[test]
 fn distinct_one() {
     let client = Client::connect("localhost", 27017).unwrap();
-    let db = client.db("test");
+    let db = client.db("test-client-coll");
     let coll = db.collection("distinct_none");
 
     coll.drop().expect("Failed to drop database");
@@ -347,7 +347,7 @@ fn distinct_one() {
 #[test]
 fn distinct() {
     let client = Client::connect("localhost", 27017).unwrap();
-    let db = client.db("test");
+    let db = client.db("test-client-coll");
     let coll = db.collection("distinct");
 
     coll.drop().expect("Failed to drop database");
@@ -410,7 +410,7 @@ fn distinct() {
 #[test]
 fn insert_many() {
     let client = Client::connect("localhost", 27017).unwrap();
-    let db = client.db("test");
+    let db = client.db("test-client-coll");
     let coll = db.collection("insert_many");
 
     coll.drop().expect("Failed to drop database");
@@ -440,7 +440,7 @@ fn insert_many() {
 #[test]
 fn delete_one() {
     let client = Client::connect("localhost", 27017).unwrap();
-    let db = client.db("test");
+    let db = client.db("test-client-coll");
     let coll = db.collection("delete_one");
 
     coll.drop().expect("Failed to drop database");
@@ -472,7 +472,7 @@ fn delete_one() {
 #[test]
 fn delete_many() {
     let client = Client::connect("localhost", 27017).unwrap();
-    let db = client.db("test");
+    let db = client.db("test-client-coll");
     let coll = db.collection("delete_many");
 
     coll.drop().expect("Failed to drop database");
@@ -504,7 +504,7 @@ fn delete_many() {
 #[test]
 fn replace_one() {
     let client = Client::connect("localhost", 27017).unwrap();
-    let db = client.db("test");
+    let db = client.db("test-client-coll");
     let coll = db.collection("replace_one");
 
     coll.drop().expect("Failed to drop database");
@@ -541,7 +541,7 @@ fn replace_one() {
 #[test]
 fn update_one() {
     let client = Client::connect("localhost", 27017).unwrap();
-    let db = client.db("test");
+    let db = client.db("test-client-coll");
     let coll = db.collection("update_one");
 
     coll.drop().expect("Failed to drop database");
@@ -575,7 +575,7 @@ fn update_one() {
 #[test]
 fn update_many() {
     let client = Client::connect("localhost", 27017).unwrap();
-    let db = client.db("test");
+    let db = client.db("test-client-coll");
     let coll = db.collection("update_many");
 
     coll.drop().expect("Failed to drop database");
@@ -616,7 +616,7 @@ fn update_many() {
 #[test]
 fn create_list_drop_indexes() {
     let client = Client::connect("localhost", 27017).unwrap();
-    let db = client.db("test");
+    let db = client.db("test-client-coll");
     let coll = db.collection("create_list_drop_indexes");
 
     coll.drop().expect("Failed to drop database.");
@@ -693,7 +693,7 @@ fn create_list_drop_indexes() {
 #[test]
 fn drop_all_indexes() {
     let client = Client::connect("localhost", 27017).unwrap();
-    let db = client.db("test");
+    let db = client.db("test-client-coll");
     let coll = db.collection("drop_all_indexes");
 
     coll.drop().expect("Failed to drop database.");

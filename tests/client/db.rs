@@ -7,7 +7,7 @@ use mongodb::db::roles::{AllDatabaseRole, SingleDatabaseRole, Role};
 #[test]
 fn create_collection() {
     let client = Client::connect("localhost", 27017).unwrap();
-    let db = client.db("create_collection");
+    let db = client.db("test-client-db-create_collection");
     db.drop_database().unwrap();
 
     // Build collections
@@ -46,7 +46,7 @@ fn create_collection() {
 #[test]
 fn list_collections() {
     let client = Client::connect("localhost", 27017).unwrap();
-    let db = client.db("list_collections");
+    let db = client.db("test-client-db-list_collections");
 
     db.drop_database().expect("Failed to drop database");
 
@@ -91,7 +91,7 @@ fn list_collections() {
 #[test]
 fn create_and_get_users() {
     let client = Client::connect("localhost", 27017).unwrap();
-    let db = client.db("create_and_get_users");
+    let db = client.db("test-client-db-create_and_get_users");
     db.drop_database().unwrap();
     db.drop_all_users(None).unwrap();
 
@@ -175,6 +175,6 @@ fn create_and_get_users() {
 #[test]
 fn get_version() {
     let client = Client::connect("localhost", 27017).unwrap();
-    let db = client.db("get_version");
+    let db = client.db("test-client-db-get_version");
     let _ = db.version().unwrap();
 }
