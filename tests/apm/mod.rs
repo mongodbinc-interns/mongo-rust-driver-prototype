@@ -27,8 +27,8 @@ fn timed_query(_client: Client, command_result: &CommandResult) {
 #[test]
 fn command_duration() {
     let mut client = Client::connect("localhost", 27017).expect("damn it!");
-    let db = client.db("test");
-    let coll = db.collection("event_hooks");
+    let db = client.db("test_apm_mod");
+    let coll = db.collection("command_duration");
     coll.drop().unwrap();
 
     let docs = (1..4).map(|i| doc! { "_id" => i, "x" => (rand::random::<u8>() as u32) }).collect();
@@ -54,12 +54,12 @@ fn read_first_non_monitor_line(file: &mut BufReader<&File>, line: &mut String) {
 
 #[test]
 fn logging() {
-    let _ = fs::remove_file("test_log.txt");
+    let _ = fs::remove_file("test_apm_log.txt");
 
-    let client_options = ClientOptions::with_log_file("test_log.txt");
+    let client_options = ClientOptions::with_log_file("test_apm_log.txt");
     let client = Client::connect_with_options("localhost", 27017, client_options).unwrap();
 
-    let db = client.db("test");
+    let db = client.db("test_apm_mod");
     db.create_collection("logging", None).unwrap();
     let coll = db.collection("logging");
     coll.drop().unwrap();
@@ -78,7 +78,7 @@ fn logging() {
 
     coll.find(Some(filter), None).unwrap();
 
-    let f = File::open("test_log.txt").unwrap();
+    let f = File::open("test_apm_log.txt").unwrap();
     let mut file = BufReader::new(&f);
     let mut line = String::new();
 
@@ -88,7 +88,7 @@ fn logging() {
                 capped: false, auto_index_id: true, flags: 1 }\n",
                &line);
 
-    // Create Collection completed
+    // Create collection completed
     line.clear();
     read_first_non_monitor_line(&mut file, &mut line);
     assert!(line.starts_with("COMMAND.create_collection 127.0.0.1:27017 COMPLETED: { ok: 1 } ("));
@@ -163,5 +163,5 @@ fn logging() {
 
     coll.drop().unwrap();
 
-    fs::remove_file("test_log.txt").unwrap();
+    fs::remove_file("test_apm_log.txt").unwrap();
 }
