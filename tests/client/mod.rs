@@ -28,9 +28,8 @@ fn database_names() {
 
     let base_results = client.database_names().expect("Failed to execute database_names.");
 
-    assert!(results.contains(&"admin".to_owned()));
-    assert!(results.contains(&"local".to_owned()));
-
+    assert!(base_results.contains(&"admin".to_owned()));
+    assert!(base_results.contains(&"local".to_owned()));
     assert!(!base_results.contains(&"test-client-mod-database_names".to_owned()));
     assert!(!base_results.contains(&"test-client-mod-database_names_2".to_owned()));
 
@@ -63,8 +62,8 @@ fn is_sync() {
 
     let base_results = client.database_names().expect("Failed to execute database_names.");
 
-    assert!(results.contains(&"admin".to_owned()));
-    assert!(results.contains(&"local".to_owned()));
+    assert!(base_results.contains(&"admin".to_owned()));
+    assert!(base_results.contains(&"local".to_owned()));
 
     assert!(!base_results.contains(&"test-client-mod-is_sync".to_owned()));
     assert!(!base_results.contains(&"test-client-mod-is_sync_2".to_owned()));
