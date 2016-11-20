@@ -333,7 +333,7 @@ fn distinct_none() {
 fn distinct_one() {
     let client = Client::connect("localhost", 27017).unwrap();
     let db = client.db("test-client-coll");
-    let coll = db.collection("distinct_none");
+    let coll = db.collection("distinct_one");
 
     coll.drop().expect("Failed to drop database");
     let doc2 = doc! { "title" => "Back to the Future" };
