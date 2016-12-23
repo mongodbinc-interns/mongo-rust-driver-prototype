@@ -4,7 +4,7 @@ use Error::{self, OperationError};
 
 use bson::oid;
 use connstring::Host;
-use pool::{ConnectionPool, PooledStream};
+use pool::{ConnectionPool, PooledStream, SslConfig};
 
 use std::collections::BTreeMap;
 use std::str::FromStr;
@@ -208,6 +208,15 @@ impl Server {
                top_description: Arc<RwLock<TopologyDescription>>,
                run_monitor: bool)
                -> Server {
+        Server::with_ssl(client, host, top_description, run_monitor, None)
+    }
+
+    pub fn with_ssl(client: Client,
+                    host: Host,
+                    top_description: Arc<RwLock<TopologyDescription>>,
+                    run_monitor: bool,
+                    ssl: Option<SslConfig>)
+                    -> Server {
 
         let description = Arc::new(RwLock::new(ServerDescription::new()));
 
@@ -215,14 +224,15 @@ impl Server {
         let host_clone = host.clone();
         let desc_clone = description.clone();
 
-        let pool = Arc::new(ConnectionPool::new(host.clone()));
+        let pool = Arc::new(ConnectionPool::with_ssl(host.clone(), ssl.clone()));
 
         // Fails silently
-        let monitor = Arc::new(Monitor::new(client,
-                                            host_clone,
-                                            pool.clone(),
-                                            top_description,
-                                            desc_clone));
+        let monitor = Arc::new(Monitor::with_ssl(client,
+                                                 host_clone,
+                                                 pool.clone(),
+                                                 top_description,
+                                                 desc_clone,
+                                                 ssl));
 
         if run_monitor {
             let monitor_clone = monitor.clone();

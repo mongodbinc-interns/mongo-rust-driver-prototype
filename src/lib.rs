@@ -90,9 +90,12 @@
 #[doc(html_root_url = "https://mongodbinc-interns.github.io/mongo-rust-driver-prototype")]
 #[macro_use(bson, doc)]
 extern crate bson;
+extern crate bufstream;
 extern crate byteorder;
 extern crate chrono;
 extern crate crypto;
+#[cfg(feature = "ssl")]
+extern crate openssl;
 extern crate rand;
 extern crate rustc_serialize;
 #[macro_use]
@@ -101,7 +104,7 @@ extern crate semver;
 extern crate separator;
 extern crate textnonce;
 extern crate time;
-extern crate bufstream;
+
 
 pub mod db;
 pub mod coll;
@@ -134,7 +137,7 @@ use common::{ReadPreference, ReadMode, WriteConcern};
 use connstring::ConnectionString;
 use db::{Database, ThreadedDatabase};
 use error::Error::ResponseError;
-use pool::PooledStream;
+use pool::{PooledStream, SslConfig};
 use topology::{Topology, TopologyDescription, TopologyType, DEFAULT_HEARTBEAT_FREQUENCY_MS,
                DEFAULT_LOCAL_THRESHOLD_MS, DEFAULT_SERVER_SELECTION_TIMEOUT_MS};
 use topology::server::Server;
@@ -167,6 +170,8 @@ pub struct ClientOptions {
     pub server_selection_timeout_ms: i64,
     /// The size of the latency window for selecting suitable servers; default 15 ms.
     pub local_threshold_ms: i64,
+    /// SSL configuration.
+    pub ssl: Option<SslConfig>,
 }
 
 impl ClientOptions {
@@ -179,6 +184,7 @@ impl ClientOptions {
             heartbeat_frequency_ms: DEFAULT_HEARTBEAT_FREQUENCY_MS,
             server_selection_timeout_ms: DEFAULT_SERVER_SELECTION_TIMEOUT_MS,
             local_threshold_ms: DEFAULT_LOCAL_THRESHOLD_MS,
+            ssl: None,
         }
     }
 
@@ -186,6 +192,15 @@ impl ClientOptions {
     pub fn with_log_file(file: &str) -> ClientOptions {
         let mut options = ClientOptions::new();
         options.log_file = Some(String::from(file));
+        options
+    }
+
+    /// Creates a new options struct with a specified SSL certificate and key files.
+    pub fn with_ssl(ca_file: &str, certificate_file: &str, key_file: &str) -> ClientOptions {
+        let mut options = ClientOptions::new();
+        options.ssl = Some(SslConfig::new(String::from(ca_file),
+                                          String::from(certificate_file),
+                                          String::from(key_file)));
         options
     }
 }
@@ -245,7 +260,7 @@ impl ThreadedClient for Client {
 
     fn connect_with_options(host: &str, port: u16, options: ClientOptions) -> Result<Client> {
         let config = ConnectionString::new(host, port);
-        let mut description = TopologyDescription::new();
+        let mut description = TopologyDescription::with_ssl(options.ssl.clone());
         description.topology_type = TopologyType::Single;
         Client::with_config(config, Some(options), Some(description))
     }
@@ -303,8 +318,11 @@ impl ThreadedClient for Client {
             top.local_threshold_ms = client_options.local_threshold_ms;
 
             for host in &config.hosts {
-                let server =
-                    Server::new(client.clone(), host.clone(), top_description.clone(), true);
+                let server = Server::with_ssl(client.clone(),
+                                              host.clone(),
+                                              top_description.clone(),
+                                              true,
+                                              client_options.ssl.clone());
                 top.servers.insert(host.clone(), server);
             }
         }

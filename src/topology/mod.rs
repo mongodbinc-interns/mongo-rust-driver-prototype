@@ -9,7 +9,7 @@ use bson::oid;
 
 use common::{ReadPreference, ReadMode};
 use connstring::{ConnectionString, Host};
-use pool::PooledStream;
+use pool::{PooledStream, SslConfig};
 
 use rand::{thread_rng, Rng};
 
@@ -63,6 +63,8 @@ pub struct TopologyDescription {
     // The largest set version seen from a primary in the topology.
     max_set_version: Option<i64>,
     compat_error: String,
+    /// SSL configuration
+    ssl: Option<SslConfig>,
 }
 
 /// Holds status and connection information about a server set.
@@ -107,7 +109,14 @@ impl TopologyDescription {
             compatible: true,
             compat_error: String::new(),
             max_set_version: None,
+            ssl: None,
         }
+    }
+
+    pub fn with_ssl(ssl: Option<SslConfig>) -> TopologyDescription {
+        let mut description = TopologyDescription::new();
+        description.ssl = ssl;
+        description
     }
 
     /// Returns the nearest server stream, calculated by round trip time.
@@ -751,24 +760,33 @@ impl TopologyDescription {
 
         for host in &description.hosts {
             if !self.servers.contains_key(host) {
-                let server =
-                    Server::new(client.clone(), host.clone(), top_arc.clone(), run_monitor);
+                let server = Server::with_ssl(client.clone(),
+                                              host.clone(),
+                                              top_arc.clone(),
+                                              run_monitor,
+                                              self.ssl.clone());
                 self.servers.insert(host.clone(), server);
             }
         }
 
         for host in &description.passives {
             if !self.servers.contains_key(host) {
-                let server =
-                    Server::new(client.clone(), host.clone(), top_arc.clone(), run_monitor);
+                let server = Server::with_ssl(client.clone(),
+                                              host.clone(),
+                                              top_arc.clone(),
+                                              run_monitor,
+                                              self.ssl.clone());
                 self.servers.insert(host.clone(), server);
             }
         }
 
         for host in &description.arbiters {
             if !self.servers.contains_key(host) {
-                let server =
-                    Server::new(client.clone(), host.clone(), top_arc.clone(), run_monitor);
+                let server = Server::with_ssl(client.clone(),
+                                              host.clone(),
+                                              top_arc.clone(),
+                                              run_monitor,
+                                              self.ssl.clone());
                 self.servers.insert(host.clone(), server);
             }
         }
