@@ -231,7 +231,7 @@ impl ConnectionPool {
     }
 
 
-    // Connects to a MongoDB server as defined by the initial
+    // Connects to a MongoDB server as defined by the initial configuration.
     #[allow(unreachable_code)] // Suppresses warning for `panic` when ssl is enabled.
     fn connect(&self) -> Result<BufStream<Stream>> {
         let host_name = &self.host.host_name;
