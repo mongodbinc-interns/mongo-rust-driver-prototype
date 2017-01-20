@@ -4,7 +4,9 @@ use Error::{self, OperationError};
 
 use bson::oid;
 use connstring::Host;
-use pool::{ConnectionPool, PooledStream, SslConfig};
+use pool::{ConnectionPool, PooledStream};
+#[cfg(feature = "ssl")]
+use ssl::SslConfig;
 
 use std::collections::BTreeMap;
 use std::str::FromStr;
@@ -208,16 +210,41 @@ impl Server {
                top_description: Arc<RwLock<TopologyDescription>>,
                run_monitor: bool)
                -> Server {
-        Server::with_ssl(client, host, top_description, run_monitor, None)
+        let description = Arc::new(RwLock::new(ServerDescription::new()));
+
+        // Create new monitor thread
+        let host_clone = host.clone();
+        let desc_clone = description.clone();
+
+        let pool = Arc::new(ConnectionPool::new(host.clone()));
+
+        // Fails silently
+        let monitor = Arc::new(Monitor::new(client,
+                                            host_clone,
+                                            pool.clone(),
+                                            top_description,
+                                            desc_clone));
+
+        if run_monitor {
+            let monitor_clone = monitor.clone();
+            thread::spawn(move || { monitor_clone.run(); });
+        }
+
+        Server {
+            host: host,
+            pool: pool,
+            description: description.clone(),
+            monitor: monitor,
+        }
     }
 
+    #[cfg(feature = "ssl")]
     pub fn with_ssl(client: Client,
                     host: Host,
                     top_description: Arc<RwLock<TopologyDescription>>,
                     run_monitor: bool,
-                    ssl: Option<SslConfig>)
+                    ssl: SslConfig)
                     -> Server {
-
         let description = Arc::new(RwLock::new(ServerDescription::new()));
 
         // Create new monitor thread
@@ -236,9 +263,7 @@ impl Server {
 
         if run_monitor {
             let monitor_clone = monitor.clone();
-            thread::spawn(move || {
-                monitor_clone.run();
-            });
+            thread::spawn(move || { monitor_clone.run(); });
         }
 
         Server {

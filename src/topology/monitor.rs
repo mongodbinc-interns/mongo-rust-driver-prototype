@@ -9,7 +9,9 @@ use coll::options::FindOptions;
 use command_type::CommandType;
 use connstring::{self, Host};
 use cursor::Cursor;
-use pool::{ConnectionPool, SslConfig};
+use pool::ConnectionPool;
+#[cfg(feature = "ssl")]
+use ssl::SslConfig;
 use wire_protocol::flags::OpQueryFlags;
 
 use std::collections::BTreeMap;
@@ -225,21 +227,27 @@ impl Monitor {
                top_description: Arc<RwLock<TopologyDescription>>,
                server_description: Arc<RwLock<ServerDescription>>)
                -> Monitor {
-
-        Monitor::with_ssl(client,
-                          host,
-                          pool,
-                          top_description,
-                          server_description,
-                          None)
+        Monitor {
+            client: client,
+            host: host.clone(),
+            server_pool: pool,
+            personal_pool: Arc::new(ConnectionPool::with_size(host, 1)),
+            top_description: top_description,
+            server_description: server_description,
+            heartbeat_frequency_ms: AtomicUsize::new(DEFAULT_HEARTBEAT_FREQUENCY_MS as usize),
+            dummy_lock: Mutex::new(()),
+            condvar: Condvar::new(),
+            running: Arc::new(AtomicBool::new(false)),
+        }
     }
 
+    #[cfg(feature = "ssl")]
     pub fn with_ssl(client: Client,
                     host: Host,
                     pool: Arc<ConnectionPool>,
                     top_description: Arc<RwLock<TopologyDescription>>,
                     server_description: Arc<RwLock<ServerDescription>>,
-                    ssl: Option<SslConfig>)
+                    ssl: SslConfig)
                     -> Monitor {
         Monitor {
             client: client,

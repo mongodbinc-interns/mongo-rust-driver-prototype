@@ -3,83 +3,16 @@ use Error::{ArgumentError, OperationError};
 use Result;
 
 use connstring::Host;
+use stream::Stream;
+#[cfg(feature = "ssl")]
+use ssl::SslConfig;
 
 use bufstream::BufStream;
-use std::io::{self, Read, Write};
-use std::net::{SocketAddr, TcpStream};
+use std::net::TcpStream;
 use std::sync::{Arc, Condvar, Mutex};
 use std::sync::atomic::{AtomicUsize, Ordering, ATOMIC_USIZE_INIT};
 
-#[cfg(feature = "ssl")]
-use openssl::ssl::{Ssl, SslMethod, SslContext, SslStream, SSL_VERIFY_NONE};
-#[cfg(feature = "ssl")]
-use openssl::x509::X509_FILETYPE_PEM;
-
 pub static DEFAULT_POOL_SIZE: usize = 5;
-
-pub enum Stream {
-    #[cfg(feature = "ssl")]
-    Ssl(SslStream<TcpStream>),
-    Tcp(TcpStream),
-}
-
-impl Stream {
-    pub fn peer_addr(&self) -> io::Result<SocketAddr> {
-        match *self {
-            #[cfg(feature = "ssl")]
-            Stream::Ssl(ref stream) => stream.get_ref().peer_addr(),
-            Stream::Tcp(ref stream) => stream.peer_addr(),
-        }
-    }
-}
-
-impl Read for Stream {
-    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        match *self {
-            #[cfg(feature = "ssl")]
-            Stream::Ssl(ref mut stream) => stream.read(buf),
-            Stream::Tcp(ref mut stream) => stream.read(buf),
-        }
-    }
-}
-
-impl Write for Stream {
-    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        match *self {
-            #[cfg(feature = "ssl")]
-            Stream::Ssl(ref mut stream) => stream.write(buf),
-            Stream::Tcp(ref mut stream) => stream.write(buf),
-        }
-    }
-
-    fn flush(&mut self) -> io::Result<()> {
-        match *self {
-            #[cfg(feature = "ssl")]
-            Stream::Ssl(ref mut stream) => stream.flush(),
-            Stream::Tcp(ref mut stream) => stream.flush(),
-        }
-    }
-}
-
-#[derive(Clone, Debug)]
-pub struct SslConfig {
-    /// Path file containing list of trusted CA certificates.
-    pub ca_file: String,
-    /// Path to file containing client certificate.
-    pub certificate_file: String,
-    /// Path to file containing client private key.
-    pub key_file: String,
-}
-
-impl SslConfig {
-    pub fn new(ca_file: String, certificate_file: String, key_file: String) -> Self {
-        SslConfig {
-            ca_file: ca_file,
-            certificate_file: certificate_file,
-            key_file: key_file,
-        }
-    }
-}
 
 /// Handles threaded connections to a MongoDB server.
 #[derive(Clone)]
@@ -91,6 +24,8 @@ pub struct ConnectionPool {
     // A condition variable used for threads waiting for the pool
     // to be repopulated with available connections.
     wait_lock: Arc<Condvar>,
+
+    #[cfg(feature = "ssl")]
     ssl: Option<SslConfig>,
 }
 
@@ -100,7 +35,7 @@ struct Pool {
     // The current number of open connections.
     pub len: Arc<AtomicUsize>,
     // The idle socket pool.
-    sockets: Vec<BufStream<Stream>>,
+    sockets: Vec<BufStream<Box<Stream>>>,
     // The pool iteration. When a server monitor fails to execute ismaster,
     // the connection pool is cleared and the iteration is incremented.
     iteration: usize,
@@ -111,7 +46,7 @@ struct Pool {
 pub struct PooledStream {
     // This socket option will always be Some(stream) until it is
     // returned to the pool using take().
-    socket: Option<BufStream<Stream>>,
+    socket: Option<BufStream<Box<Stream>>>,
     // A reference to the pool that the stream was taken from.
     pool: Arc<Mutex<Pool>>,
     // A reference to the waiting condvar associated with the pool.
@@ -122,7 +57,7 @@ pub struct PooledStream {
 
 impl PooledStream {
     /// Returns a reference to the socket.
-    pub fn get_socket(&mut self) -> &mut BufStream<Stream> {
+    pub fn get_socket(&mut self) -> &mut BufStream<Box<Stream>> {
         self.socket.as_mut().unwrap()
     }
 }
@@ -147,17 +82,9 @@ impl ConnectionPool {
         ConnectionPool::with_size(host, DEFAULT_POOL_SIZE)
     }
 
+    #[cfg(not(feature = "ssl"))]
     /// Returns a connection pool with a specified capped size.
     pub fn with_size(host: Host, size: usize) -> ConnectionPool {
-        ConnectionPool::with_size_and_ssl(host, size, None)
-    }
-
-    pub fn with_ssl(host: Host, ssl: Option<SslConfig>) -> ConnectionPool {
-        ConnectionPool::with_size_and_ssl(host, DEFAULT_POOL_SIZE, ssl)
-    }
-
-    /// Returns a connection pool with a specified capped size.
-    pub fn with_size_and_ssl(host: Host, size: usize, ssl: Option<SslConfig>) -> ConnectionPool {
         ConnectionPool {
             host: host,
             wait_lock: Arc::new(Condvar::new()),
@@ -167,8 +94,37 @@ impl ConnectionPool {
                 sockets: Vec::with_capacity(size),
                 iteration: 0,
             })),
-            ssl: ssl,
         }
+    }
+
+    #[cfg(feature = "ssl")]
+    /// Returns a connection pool with a specified capped size.
+    pub fn with_size(host: Host, size: usize) -> ConnectionPool {
+        ConnectionPool {
+            host: host,
+            wait_lock: Arc::new(Condvar::new()),
+            inner: Arc::new(Mutex::new(Pool {
+                len: Arc::new(ATOMIC_USIZE_INIT),
+                size: size,
+                sockets: Vec::with_capacity(size),
+                iteration: 0,
+            })),
+            ssl: None,
+        }
+    }
+
+    #[cfg(feature = "ssl")]
+    pub fn with_ssl(host: Host, ssl: SslConfig) -> ConnectionPool {
+        ConnectionPool::with_size_and_ssl(host, DEFAULT_POOL_SIZE, ssl)
+    }
+
+    #[cfg(feature = "ssl")]
+    /// Returns a connection pool with a specified capped size.
+    pub fn with_size_and_ssl(host: Host, size: usize, ssl: SslConfig) -> ConnectionPool {
+        let mut pool = ConnectionPool::with_size(host, size);
+        pool.ssl = Some(ssl);
+
+        pool
     }
 
     /// Sets the maximum number of open connections.
@@ -231,36 +187,23 @@ impl ConnectionPool {
     }
 
 
+    #[cfg(not(feature = "ssl"))]
     // Connects to a MongoDB server as defined by the initial configuration.
-    #[allow(unreachable_code)] // Suppresses warning for `panic` when ssl is enabled.
-    fn connect(&self) -> Result<BufStream<Stream>> {
-        let host_name = &self.host.host_name;
+    fn connect(&self) -> Result<BufStream<Box<Stream>>> {
+        Ok(BufStream::new(Box::new(TcpStream::connect((&self.host.host_name[..],
+                                                       self.host.port))?)))
+    }
+
+
+    #[cfg(feature = "ssl")]
+    fn connect(&self) -> Result<BufStream<Box<Stream>>> {
+        let host = &self.host.host_name[..];
         let port = self.host.port;
-        let inner_stream = try!(TcpStream::connect((&host_name[..], port)));
+        let stream: Box<Stream> = match self.ssl {
+            Some(ref cfg) => Box::new(::ssl::connect(host, port, cfg.clone())?),
+            None => Box::new(TcpStream::connect((host, port))?),
+        };
 
-        if let Some(SslConfig { ca_file: ref _ca_file,
-                                certificate_file: ref _certificate_file,
-                                key_file: ref _key_file }) = self.ssl {
-            #[cfg(feature = "ssl")]
-            {
-                let mut ssl_context = SslContext::builder(SslMethod::tls())?;
-                ssl_context.set_cipher_list("DEFAULT")?;
-                ssl_context.set_ca_file(_ca_file)?;
-                ssl_context.set_certificate_file(_certificate_file, X509_FILETYPE_PEM)?;
-                ssl_context.set_private_key_file(_key_file, X509_FILETYPE_PEM)?;
-
-                ssl_context.set_verify(SSL_VERIFY_NONE);
-                let ssl = Ssl::new(&ssl_context.build())?;
-
-                return Ok(BufStream::new(Stream::Ssl(ssl.connect(inner_stream)?)));
-            }
-
-            panic!("The client is trying to connect with SSL, but the `mongodb` crate was not \
-                    compile with SSL enabled. To connect with SSL, first install OpenSSL (if you \
-                    haven't already) and then recompile with the \"ssl\" feature enabled.");
-
-        }
-
-        Ok(BufStream::new(Stream::Tcp(inner_stream)))
+        Ok(BufStream::new(stream))
     }
 }

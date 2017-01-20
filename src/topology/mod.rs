@@ -9,7 +9,9 @@ use bson::oid;
 
 use common::{ReadPreference, ReadMode};
 use connstring::{ConnectionString, Host};
-use pool::{PooledStream, SslConfig};
+use pool::PooledStream;
+#[cfg(feature = "ssl")]
+use ssl::SslConfig;
 
 use rand::{thread_rng, Rng};
 
@@ -63,6 +65,7 @@ pub struct TopologyDescription {
     // The largest set version seen from a primary in the topology.
     max_set_version: Option<i64>,
     compat_error: String,
+    #[cfg(feature = "ssl")]
     /// SSL configuration
     ssl: Option<SslConfig>,
 }
@@ -90,14 +93,24 @@ impl FromStr for TopologyType {
 }
 
 impl Default for TopologyDescription {
+    #[cfg(not(feature = "ssl"))]
     fn default() -> Self {
-        Self::new()
+        TopologyDescription {
+            topology_type: TopologyType::Unknown,
+            set_name: String::new(),
+            heartbeat_frequency_ms: DEFAULT_HEARTBEAT_FREQUENCY_MS,
+            server_selection_timeout_ms: DEFAULT_SERVER_SELECTION_TIMEOUT_MS,
+            local_threshold_ms: DEFAULT_LOCAL_THRESHOLD_MS,
+            servers: HashMap::new(),
+            max_election_id: None,
+            compatible: true,
+            compat_error: String::new(),
+            max_set_version: None,
+        }
     }
-}
 
-impl TopologyDescription {
-    /// Returns a default, unknown topology description.
-    pub fn new() -> TopologyDescription {
+    #[cfg(feature = "ssl")]
+    fn default() -> Self {
         TopologyDescription {
             topology_type: TopologyType::Unknown,
             set_name: String::new(),
@@ -112,7 +125,15 @@ impl TopologyDescription {
             ssl: None,
         }
     }
+}
 
+impl TopologyDescription {
+    /// Returns a default, unknown topology description.
+    pub fn new() -> TopologyDescription {
+        Default::default()
+    }
+
+    #[cfg(feature = "ssl")]
     pub fn with_ssl(ssl: Option<SslConfig>) -> TopologyDescription {
         let mut description = TopologyDescription::new();
         description.ssl = ssl;
@@ -319,13 +340,11 @@ impl TopologyDescription {
                    (read_preference.mode == ReadMode::Primary ||
                     read_preference.mode == ReadMode::PrimaryPreferred) {
                     // Retain primaries.
-                    hosts.retain(|host| {
-                        if let Some(server) = self.servers.get(host) {
-                            let description = server.description.read().unwrap();
-                            description.server_type == ServerType::RSPrimary
-                        } else {
-                            false
-                        }
+                    hosts.retain(|host| if let Some(server) = self.servers.get(host) {
+                        let description = server.description.read().unwrap();
+                        description.server_type == ServerType::RSPrimary
+                    } else {
+                        false
                     });
                 } else {
                     // If no tags match and the above case does not occur,
@@ -427,8 +446,8 @@ impl TopologyDescription {
             // Only primary replica set members are suitable.
             _ => {
                 (self.servers
-                    .keys()
-                    .filter_map(|host| {
+                     .keys()
+                     .filter_map(|host| {
                         if let Some(server) = self.servers.get(host) {
                             if let Ok(description) = server.description.read() {
                                 if description.server_type == ServerType::RSPrimary {
@@ -438,7 +457,7 @@ impl TopologyDescription {
                         }
                         None
                     })
-                    .collect(),
+                     .collect(),
                  true)
             }
         }
@@ -751,6 +770,30 @@ impl TopologyDescription {
         self.check_if_has_primary();
     }
 
+    #[cfg(not(feature = "ssl"))]
+    fn new_server(&self,
+                  client: Client,
+                  host: Host,
+                  top_arc: Arc<RwLock<TopologyDescription>>,
+                  run_monitor: bool)
+                  -> Server {
+        Server::new(client, host, top_arc, run_monitor)
+    }
+
+    #[cfg(feature = "ssl")]
+    fn new_server(&self,
+                  client: Client,
+                  host: Host,
+                  top_arc: Arc<RwLock<TopologyDescription>>,
+                  run_monitor: bool)
+                  -> Server {
+        match self.ssl {
+            Some(ref ssl) => Server::with_ssl(client, host, top_arc, run_monitor, ssl.clone()),
+            None => Server::new(client, host, top_arc, run_monitor),
+        }
+
+    }
+
     // Begins monitoring hosts that are not currently being monitored.
     fn add_missing_hosts(&mut self,
                          description: &ServerDescription,
@@ -760,33 +803,24 @@ impl TopologyDescription {
 
         for host in &description.hosts {
             if !self.servers.contains_key(host) {
-                let server = Server::with_ssl(client.clone(),
-                                              host.clone(),
-                                              top_arc.clone(),
-                                              run_monitor,
-                                              self.ssl.clone());
+                let server =
+                    self.new_server(client.clone(), host.clone(), top_arc.clone(), run_monitor);
                 self.servers.insert(host.clone(), server);
             }
         }
 
         for host in &description.passives {
             if !self.servers.contains_key(host) {
-                let server = Server::with_ssl(client.clone(),
-                                              host.clone(),
-                                              top_arc.clone(),
-                                              run_monitor,
-                                              self.ssl.clone());
+                let server =
+                    self.new_server(client.clone(), host.clone(), top_arc.clone(), run_monitor);
                 self.servers.insert(host.clone(), server);
             }
         }
 
         for host in &description.arbiters {
             if !self.servers.contains_key(host) {
-                let server = Server::with_ssl(client.clone(),
-                                              host.clone(),
-                                              top_arc.clone(),
-                                              run_monitor,
-                                              self.ssl.clone());
+                let server =
+                    self.new_server(client.clone(), host.clone(), top_arc.clone(), run_monitor);
                 self.servers.insert(host.clone(), server);
             }
         }

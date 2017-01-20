@@ -235,8 +235,9 @@ impl ThreadedDatabase for Database {
         options.read_preference = read_preference;
         let res = try!(coll.find_one_with_command_type(Some(spec.clone()), Some(options),
                                                        cmd_type));
-        res.ok_or_else(|| OperationError(
-                format!("Failed to execute command with spec {:?}.", spec)))
+        res.ok_or_else(|| {
+            OperationError(format!("Failed to execute command with spec {:?}.", spec))
+        })
     }
 
     fn list_collections(&self, filter: Option<bson::Document>) -> Result<Cursor> {
@@ -281,15 +282,15 @@ impl ThreadedDatabase for Database {
 
     fn version(&self) -> Result<Version> {
         let doc = doc! { "buildinfo" => 1 };
-        let out = try!(self.command(doc,
-                                    CommandType::BuildInfo,
-                                    None));
+        let out = try!(self.command(doc, CommandType::BuildInfo, None));
 
         match out.get("version") {
-            Some(&Bson::String(ref s)) => match Version::parse(s) {
-                Ok(v) => Ok(v),
-                Err(e) => Err(ResponseError(String::from(e.description()))),
-            },
+            Some(&Bson::String(ref s)) => {
+                match Version::parse(s) {
+                    Ok(v) => Ok(v),
+                    Err(e) => Err(ResponseError(String::from(e.description()))),
+                }
+            }
             _ => Err(ResponseError(String::from("No version received from server"))),
         }
     }

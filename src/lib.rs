@@ -105,7 +105,6 @@ extern crate separator;
 extern crate textnonce;
 extern crate time;
 
-
 pub mod db;
 pub mod coll;
 pub mod common;
@@ -120,6 +119,9 @@ pub mod wire_protocol;
 mod apm;
 mod auth;
 mod command_type;
+mod stream;
+#[cfg(feature = "ssl")]
+mod ssl;
 
 pub use apm::{CommandStarted, CommandResult};
 pub use command_type::CommandType;
@@ -137,7 +139,9 @@ use common::{ReadPreference, ReadMode, WriteConcern};
 use connstring::ConnectionString;
 use db::{Database, ThreadedDatabase};
 use error::Error::ResponseError;
-use pool::{PooledStream, SslConfig};
+use pool::PooledStream;
+#[cfg(feature = "ssl")]
+use ssl::SslConfig;
 use topology::{Topology, TopologyDescription, TopologyType, DEFAULT_HEARTBEAT_FREQUENCY_MS,
                DEFAULT_LOCAL_THRESHOLD_MS, DEFAULT_SERVER_SELECTION_TIMEOUT_MS};
 use topology::server::Server;
@@ -170,11 +174,26 @@ pub struct ClientOptions {
     pub server_selection_timeout_ms: i64,
     /// The size of the latency window for selecting suitable servers; default 15 ms.
     pub local_threshold_ms: i64,
+    #[cfg(feature = "ssl")]
     /// SSL configuration.
     pub ssl: Option<SslConfig>,
 }
 
 impl ClientOptions {
+    #[cfg(not(feature = "ssl"))]
+    /// Creates a new default options struct.
+    pub fn new() -> ClientOptions {
+        ClientOptions {
+            log_file: None,
+            read_preference: None,
+            write_concern: None,
+            heartbeat_frequency_ms: DEFAULT_HEARTBEAT_FREQUENCY_MS,
+            server_selection_timeout_ms: DEFAULT_SERVER_SELECTION_TIMEOUT_MS,
+            local_threshold_ms: DEFAULT_LOCAL_THRESHOLD_MS,
+        }
+    }
+
+    #[cfg(feature = "ssl")]
     /// Creates a new default options struct.
     pub fn new() -> ClientOptions {
         ClientOptions {
@@ -188,6 +207,7 @@ impl ClientOptions {
         }
     }
 
+
     /// Creates a new options struct with a specified log file.
     pub fn with_log_file(file: &str) -> ClientOptions {
         let mut options = ClientOptions::new();
@@ -195,12 +215,18 @@ impl ClientOptions {
         options
     }
 
+    #[cfg(feature = "ssl")]
     /// Creates a new options struct with a specified SSL certificate and key files.
-    pub fn with_ssl(ca_file: &str, certificate_file: &str, key_file: &str) -> ClientOptions {
+    pub fn with_ssl(ca_file: &str,
+                    certificate_file: &str,
+                    key_file: &str,
+                    verify_peer: bool)
+                    -> ClientOptions {
         let mut options = ClientOptions::new();
         options.ssl = Some(SslConfig::new(String::from(ca_file),
                                           String::from(certificate_file),
-                                          String::from(key_file)));
+                                          String::from(key_file),
+                                          verify_peer));
         options
     }
 }
@@ -260,7 +286,11 @@ impl ThreadedClient for Client {
 
     fn connect_with_options(host: &str, port: u16, options: ClientOptions) -> Result<Client> {
         let config = ConnectionString::new(host, port);
+        #[cfg(feature = "ssl")]
         let mut description = TopologyDescription::with_ssl(options.ssl.clone());
+        #[cfg(not(feature = "ssl"))]
+        let mut description = TopologyDescription::new();
+
         description.topology_type = TopologyType::Single;
         Client::with_config(config, Some(options), Some(description))
     }
@@ -318,11 +348,24 @@ impl ThreadedClient for Client {
             top.local_threshold_ms = client_options.local_threshold_ms;
 
             for host in &config.hosts {
-                let server = Server::with_ssl(client.clone(),
-                                              host.clone(),
-                                              top_description.clone(),
-                                              true,
-                                              client_options.ssl.clone());
+                #[cfg(feature = "ssl")]
+                let server = match client_options.ssl {
+                    Some(ref ssl) => {
+                        Server::with_ssl(client.clone(),
+                                         host.clone(),
+                                         top_description.clone(),
+                                         true,
+                                         ssl.clone())
+                    }
+                    None => {
+                        Server::new(client.clone(), host.clone(), top_description.clone(), true)
+                    }
+                };
+
+                #[cfg(not(feature = "ssl"))]
+                let server =
+                    Server::new(client.clone(), host.clone(), top_description.clone(), true);
+
                 top.servers.insert(host.clone(), server);
             }
         }

@@ -170,12 +170,10 @@ impl Cursor {
 
                         // Extract first batch documents
                         let map = batch.iter()
-                            .filter_map(|bdoc| {
-                                if let Bson::Document(ref doc) = *bdoc {
-                                    Some(doc.clone())
-                                } else {
-                                    None
-                                }
+                            .filter_map(|bdoc| if let Bson::Document(ref doc) = *bdoc {
+                                Some(doc.clone())
+                            } else {
+                                None
                             })
                             .collect();
 

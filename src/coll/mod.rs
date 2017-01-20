@@ -415,11 +415,7 @@ impl Collection {
             }
         }
 
-        vec![
-            Batch::Insert(inserts),
-            Batch::Delete(deletes),
-            Batch::Update(updates),
-        ]
+        vec![Batch::Insert(inserts), Batch::Delete(deletes), Batch::Update(updates)]
     }
 
     pub fn get_ordered_batches(mut requests: VecDeque<WriteModel>) -> Vec<Batch> {
@@ -472,12 +468,10 @@ impl Collection {
                             exception: &mut BulkWriteException)
                             -> bool {
         let original_models = models.iter()
-            .map(|model| {
-                if model.multi {
-                    WriteModel::DeleteMany { filter: model.filter.clone() }
-                } else {
-                    WriteModel::DeleteOne { filter: model.filter.clone() }
-                }
+            .map(|model| if model.multi {
+                WriteModel::DeleteMany { filter: model.filter.clone() }
+            } else {
+                WriteModel::DeleteOne { filter: model.filter.clone() }
             })
             .collect();
 
@@ -500,12 +494,10 @@ impl Collection {
                             exception: &mut BulkWriteException)
                             -> bool {
         let original_models = models.iter()
-            .map(|model| {
-                if model.multi {
-                    WriteModel::DeleteMany { filter: model.filter.clone() }
-                } else {
-                    WriteModel::DeleteOne { filter: model.filter.clone() }
-                }
+            .map(|model| if model.multi {
+                WriteModel::DeleteMany { filter: model.filter.clone() }
+            } else {
+                WriteModel::DeleteOne { filter: model.filter.clone() }
             })
             .collect();
 
