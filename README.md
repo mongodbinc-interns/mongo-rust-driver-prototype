@@ -74,3 +74,45 @@ fn main() {
     }
 }
 ```
+
+Testing
+-------
+
+The driver test suite is largely composed of a mixture of integration tests and behavioral unit-tests, relying on the official [MongoDB specifications repo](https://github.com/mongodb/specifications). The easiest way to thoroughly test the driver is to set your fork up with TravisCI.
+
+To test the driver locally, you'll need to setup integration tests and specification tests.
+
+#### Setting up integration tests
+
+All integration tests run on the default MongoDB port, 27017. Before running the tests, ensure that you setup a test database on that port.
+
+Download a version of MongoDB:
+```
+wget http://fastdl.mongodb.org/linux/mongodb-linux-x86_64-3.2.11.tgz
+tar xvf mongodb-linux-x86_64-3.2.11.tgz
+mv mongodb-linux-x86_64-3.2.11 3.2.11
+```
+
+And run a MongoDB server on 27017:
+```
+mkdir -p ./data/test_db_3_2
+3.2.11/bin/mongod --fork --nopreallocj --dbpath ./data/test_db_3_2 --syslog --port 27017
+```
+
+To see a full list of versions being tested on Travis, check [our travis config](/.travis.yml).
+
+#### Setting up the specifications submodule
+
+Pull in the specifications submodule at `tests/json/data/specs`.
+
+```
+git submodule update --init
+```
+
+#### Running Tests
+
+Run tests like a regular Rust program:
+
+```
+cargo test --verbose
+```
