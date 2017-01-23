@@ -82,6 +82,8 @@ The driver test suite is largely composed of a mixture of integration tests and 
 
 To test the driver locally, you'll need to setup integration tests and specification tests.
 
+> NOTE: Each integration test uses a unique database/collection to allow tests to be parallelized, and will drop their dependencies before running. However, effects are _not_ cleaned up afterwards.
+
 #### Setting up integration tests
 
 All integration tests run on the default MongoDB port, 27017. Before running the tests, ensure that you setup a test database on that port.
@@ -93,13 +95,13 @@ tar xvf mongodb-linux-x86_64-3.2.11.tgz
 mv mongodb-linux-x86_64-3.2.11 3.2.11
 ```
 
-And run a MongoDB server on 27017:
+Run a MongoDB server on 27017:
 ```
 mkdir -p ./data/test_db_3_2
 3.2.11/bin/mongod --fork --nopreallocj --dbpath ./data/test_db_3_2 --syslog --port 27017
 ```
 
-To see a full list of versions being tested on Travis, check [our travis config](/.travis.yml).
+See a full list of versions being tested on Travis in [the travis config](/.travis.yml).
 
 #### Setting up the specifications submodule
 
