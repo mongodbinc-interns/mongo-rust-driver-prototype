@@ -114,7 +114,7 @@ impl Message {
                  -> Message {
         Message::OpReply {
             header: header,
-            flags: OpReplyFlags::from_i32(flags),
+            flags: OpReplyFlags::from_bits_truncate(flags),
             cursor_id: cursor_id,
             starting_from: starting_from,
             number_returned: number_returned,
@@ -305,7 +305,7 @@ impl Message {
         // Writes the null terminator for the collection name string.
         try!(buffer.write_u8(0));
 
-        try!(buffer.write_i32::<LittleEndian>(flags.to_i32()));
+        try!(buffer.write_i32::<LittleEndian>(flags.bits()));
 
         try!(Message::write_bson_document(buffer, selector));
         try!(Message::write_bson_document(buffer, update));
@@ -336,7 +336,7 @@ impl Message {
                               -> Result<()> {
 
         try!(header.write(buffer));
-        try!(buffer.write_i32::<LittleEndian>(flags.to_i32()));
+        try!(buffer.write_i32::<LittleEndian>(flags.bits()));
 
         for byte in namespace.bytes() {
             try!(buffer.write_u8(byte));
@@ -385,7 +385,7 @@ impl Message {
                              -> Result<()> {
 
         try!(header.write(buffer));
-        try!(buffer.write_i32::<LittleEndian>(flags.to_i32()));
+        try!(buffer.write_i32::<LittleEndian>(flags.bits()));
 
         for byte in namespace.bytes() {
             try!(buffer.write_u8(byte));

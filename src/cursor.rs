@@ -30,7 +30,7 @@ use bson::{self, Bson};
 use common::{ReadMode, ReadPreference};
 use pool::PooledStream;
 use time;
-use wire_protocol::flags::OpQueryFlags;
+use wire_protocol::flags::{self, OpQueryFlags};
 use wire_protocol::operations::Message;
 
 use std::collections::vec_deque::VecDeque;
@@ -110,7 +110,7 @@ impl Cursor {
         Cursor::query(client.clone(),
                       format!("{}.$cmd", db),
                       1,
-                      OpQueryFlags::no_flags(),
+                      OpQueryFlags::empty(),
                       0,
                       0,
                       doc,
@@ -234,7 +234,7 @@ impl Cursor {
         let new_flags = if !slave_ok {
             flags
         } else {
-            OpQueryFlags { slave_ok: true, ..flags }
+            flags | flags::SLAVE_OK
         };
 
         // Send read_preference to the server based on the result from server selection.

@@ -16,7 +16,7 @@ fn insert_single_key_doc() {
             let doc = doc! { "foo" => 42.0 };
 
             let docs = vec![doc];
-            let flags = OpInsertFlags::no_flags();
+            let flags = OpInsertFlags::empty();
             let name = "test-client-wire_protocol-insert_single_key_doc.single_key".to_owned();
             let res = Message::new_insert(1, flags, name, docs);
 
@@ -31,7 +31,7 @@ fn insert_single_key_doc() {
             };
 
             let doc = Document::new();
-            let flags = OpQueryFlags::no_flags();
+            let flags = OpQueryFlags::empty();
             let name = "test-client-wire_protocol-insert_single_key_doc.single_key".to_owned();
             let res = Message::new_query(1, flags, name, 0, 0, doc, None);
 
@@ -80,7 +80,7 @@ fn insert_multi_key_doc() {
             };
 
             let docs = vec![doc];
-            let flags = OpInsertFlags::no_flags();
+            let flags = OpInsertFlags::empty();
             let name = "test-client-wire_protocol-insert_multi_key_doc.multi_key".to_owned();
             let res = Message::new_insert(1, flags, name, docs);
 
@@ -95,7 +95,7 @@ fn insert_multi_key_doc() {
             };
 
             let doc = Document::new();
-            let flags = OpQueryFlags::no_flags();
+            let flags = OpQueryFlags::empty();
             let name = "test-client-wire_protocol-insert_multi_key_doc.multi_key".to_owned();
             let res = Message::new_query(1, flags, name, 0, 0, doc, None);
 
@@ -153,7 +153,7 @@ fn insert_docs() {
             };
 
             let docs = vec![doc1, doc2];
-            let flags = OpInsertFlags::no_flags();
+            let flags = OpInsertFlags::empty();
             let name = "test-client-wire_protocol-insert_docs.multi_doc".to_owned();
             let res = Message::new_insert(1, flags, name, docs);
 
@@ -168,7 +168,7 @@ fn insert_docs() {
             };
 
             let doc = Document::new();
-            let flags = OpQueryFlags::no_flags();
+            let flags = OpQueryFlags::empty();
             let name = "test-client-wire_protocol-insert_docs.multi_doc".to_owned();
             let res = Message::new_query(1, flags, name, 0, 0, doc, None);
 
@@ -226,7 +226,7 @@ fn insert_update_then_query() {
             let doc = doc! { "foo" => 42.0 };
 
             let docs = vec![doc];
-            let flags = OpInsertFlags::no_flags();
+            let flags = OpInsertFlags::empty();
             let name = "test-client-wire_protocol-insert_update_then_query.update".to_owned();
             let res = Message::new_insert(1, flags, name, docs);
 
@@ -244,7 +244,7 @@ fn insert_update_then_query() {
 
             let update = doc! { "foo" => "bar" };
 
-            let flags = OpUpdateFlags::no_flags();
+            let flags = OpUpdateFlags::empty();
             let name = "test-client-wire_protocol-insert_update_then_query.update".to_owned();
             let res = Message::new_update(2, name, flags, selector, update);
 
@@ -259,7 +259,7 @@ fn insert_update_then_query() {
             };
 
             let doc = Document::new();
-            let flags = OpQueryFlags::no_flags();
+            let flags = OpQueryFlags::empty();
             let name = "test-client-wire_protocol-insert_update_then_query.update".to_owned();
             let res = Message::new_query(3, flags, name, 0, 0, doc, None);
 

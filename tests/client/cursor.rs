@@ -23,7 +23,7 @@ fn cursor_features() {
     assert!(coll.insert_many(docs, None).is_ok());
 
     let doc = Document::new();
-    let flags = OpQueryFlags::no_flags();
+    let flags = OpQueryFlags::empty();
 
     let result = Cursor::query(client.clone(),
                                "test-client-cursor.cursor_test".to_owned(),

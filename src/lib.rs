@@ -88,6 +88,8 @@
 //! pool. By default, each pool has a maximum of 5 concurrent open connections.
 
 #[doc(html_root_url = "https://docs.rs/mongodb")]
+#[macro_use(bitflags)]
+extern crate bitflags;
 #[macro_use(bson, doc)]
 extern crate bson;
 extern crate byteorder;
