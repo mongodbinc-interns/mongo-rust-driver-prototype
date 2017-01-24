@@ -2,6 +2,7 @@ use mongodb::{Client, ThreadedClient};
 use mongodb::Error::OperationError;
 use mongodb::connstring::{self, ConnectionString};
 use mongodb::topology::{Topology, TopologyDescription, TopologyType};
+use mongodb::stream::StreamConnector;
 use mongodb::topology::monitor::IsMasterResult;
 use mongodb::topology::server::Server;
 
@@ -28,9 +29,12 @@ pub fn run_suite(file: &str, description: Option<TopologyDescription>) {
     };
 
     let topology = if should_ignore_description {
-        Topology::new(connection_string.clone(), None).unwrap()
+        Topology::new(connection_string.clone(), None, StreamConnector::default()).unwrap()
     } else {
-        Topology::new(connection_string.clone(), description).unwrap()
+        Topology::new(connection_string.clone(),
+                      description,
+                      StreamConnector::default())
+            .unwrap()
     };
 
     let top_description_arc = topology.description.clone();
@@ -43,7 +47,8 @@ pub fn run_suite(file: &str, description: Option<TopologyDescription>) {
         let server = Server::new(dummy_client.clone(),
                                  host.clone(),
                                  top_description_arc.clone(),
-                                 false);
+                                 false,
+                                 StreamConnector::default());
         topology_description.servers.insert(host.clone(), server);
     }
 
@@ -89,7 +94,8 @@ pub fn run_suite(file: &str, description: Option<TopologyDescription>) {
         // Check server and topology descriptions.
         let topology_description = topology.description.read().unwrap();
 
-        assert_eq!(phase.outcome.servers.len(), topology_description.servers.len());
+        assert_eq!(phase.outcome.servers.len(),
+                   topology_description.servers.len());
         for (host, server) in &phase.outcome.servers {
             match topology_description.servers.get(host) {
                 Some(top_server) => {

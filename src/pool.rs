@@ -1,14 +1,11 @@
 //! Connection pooling for a single MongoDB server.
-use Error::{ArgumentError, OperationError};
-use Result;
+use error::Error::{self, ArgumentError, OperationError};
+use error::Result;
 
 use connstring::Host;
-use stream::Stream;
-#[cfg(feature = "ssl")]
-use ssl::SslConfig;
+use stream::{Stream, StreamConnector};
 
 use bufstream::BufStream;
-use std::net::TcpStream;
 use std::sync::{Arc, Condvar, Mutex};
 use std::sync::atomic::{AtomicUsize, Ordering, ATOMIC_USIZE_INIT};
 
@@ -24,9 +21,7 @@ pub struct ConnectionPool {
     // A condition variable used for threads waiting for the pool
     // to be repopulated with available connections.
     wait_lock: Arc<Condvar>,
-
-    #[cfg(feature = "ssl")]
-    ssl: Option<SslConfig>,
+    stream_connector: StreamConnector,
 }
 
 struct Pool {
@@ -35,7 +30,7 @@ struct Pool {
     // The current number of open connections.
     pub len: Arc<AtomicUsize>,
     // The idle socket pool.
-    sockets: Vec<BufStream<Box<Stream>>>,
+    sockets: Vec<BufStream<Stream>>,
     // The pool iteration. When a server monitor fails to execute ismaster,
     // the connection pool is cleared and the iteration is incremented.
     iteration: usize,
@@ -46,7 +41,7 @@ struct Pool {
 pub struct PooledStream {
     // This socket option will always be Some(stream) until it is
     // returned to the pool using take().
-    socket: Option<BufStream<Box<Stream>>>,
+    socket: Option<BufStream<Stream>>,
     // A reference to the pool that the stream was taken from.
     pool: Arc<Mutex<Pool>>,
     // A reference to the waiting condvar associated with the pool.
@@ -57,7 +52,7 @@ pub struct PooledStream {
 
 impl PooledStream {
     /// Returns a reference to the socket.
-    pub fn get_socket(&mut self) -> &mut BufStream<Box<Stream>> {
+    pub fn get_socket(&mut self) -> &mut BufStream<Stream> {
         self.socket.as_mut().unwrap()
     }
 }
@@ -78,13 +73,12 @@ impl Drop for PooledStream {
 
 impl ConnectionPool {
     /// Returns a connection pool with a default size.
-    pub fn new(host: Host) -> ConnectionPool {
-        ConnectionPool::with_size(host, DEFAULT_POOL_SIZE)
+    pub fn new(host: Host, connector: StreamConnector) -> ConnectionPool {
+        ConnectionPool::with_size(host, connector, DEFAULT_POOL_SIZE)
     }
 
-    #[cfg(not(feature = "ssl"))]
     /// Returns a connection pool with a specified capped size.
-    pub fn with_size(host: Host, size: usize) -> ConnectionPool {
+    pub fn with_size(host: Host, connector: StreamConnector, size: usize) -> ConnectionPool {
         ConnectionPool {
             host: host,
             wait_lock: Arc::new(Condvar::new()),
@@ -94,37 +88,8 @@ impl ConnectionPool {
                 sockets: Vec::with_capacity(size),
                 iteration: 0,
             })),
+            stream_connector: connector,
         }
-    }
-
-    #[cfg(feature = "ssl")]
-    /// Returns a connection pool with a specified capped size.
-    pub fn with_size(host: Host, size: usize) -> ConnectionPool {
-        ConnectionPool {
-            host: host,
-            wait_lock: Arc::new(Condvar::new()),
-            inner: Arc::new(Mutex::new(Pool {
-                len: Arc::new(ATOMIC_USIZE_INIT),
-                size: size,
-                sockets: Vec::with_capacity(size),
-                iteration: 0,
-            })),
-            ssl: None,
-        }
-    }
-
-    #[cfg(feature = "ssl")]
-    pub fn with_ssl(host: Host, ssl: SslConfig) -> ConnectionPool {
-        ConnectionPool::with_size_and_ssl(host, DEFAULT_POOL_SIZE, ssl)
-    }
-
-    #[cfg(feature = "ssl")]
-    /// Returns a connection pool with a specified capped size.
-    pub fn with_size_and_ssl(host: Host, size: usize, ssl: SslConfig) -> ConnectionPool {
-        let mut pool = ConnectionPool::with_size(host, size);
-        pool.ssl = Some(ssl);
-
-        pool
     }
 
     /// Sets the maximum number of open connections.
@@ -187,23 +152,11 @@ impl ConnectionPool {
     }
 
 
-    #[cfg(not(feature = "ssl"))]
     // Connects to a MongoDB server as defined by the initial configuration.
-    fn connect(&self) -> Result<BufStream<Box<Stream>>> {
-        Ok(BufStream::new(Box::new(TcpStream::connect((&self.host.host_name[..],
-                                                       self.host.port))?)))
-    }
-
-
-    #[cfg(feature = "ssl")]
-    fn connect(&self) -> Result<BufStream<Box<Stream>>> {
-        let host = &self.host.host_name[..];
-        let port = self.host.port;
-        let stream: Box<Stream> = match self.ssl {
-            Some(ref cfg) => Box::new(::ssl::connect(host, port, cfg.clone())?),
-            None => Box::new(TcpStream::connect((host, port))?),
-        };
-
-        Ok(BufStream::new(stream))
+    fn connect(&self) -> Result<BufStream<Stream>> {
+        match self.stream_connector.connect(&self.host.host_name[..], self.host.port) {
+            Ok(s) => Ok(BufStream::new(s)),
+            Err(e) => Err(Error::from(e)),
+        }
     }
 }

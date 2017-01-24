@@ -5,8 +5,7 @@ use Error::{self, OperationError};
 use bson::oid;
 use connstring::Host;
 use pool::{ConnectionPool, PooledStream};
-#[cfg(feature = "ssl")]
-use ssl::SslConfig;
+use stream::StreamConnector;
 
 use std::collections::BTreeMap;
 use std::str::FromStr;
@@ -208,7 +207,8 @@ impl Server {
     pub fn new(client: Client,
                host: Host,
                top_description: Arc<RwLock<TopologyDescription>>,
-               run_monitor: bool)
+               run_monitor: bool,
+               connector: StreamConnector)
                -> Server {
         let description = Arc::new(RwLock::new(ServerDescription::new()));
 
@@ -216,50 +216,15 @@ impl Server {
         let host_clone = host.clone();
         let desc_clone = description.clone();
 
-        let pool = Arc::new(ConnectionPool::new(host.clone()));
+        let pool = Arc::new(ConnectionPool::new(host.clone(), connector.clone()));
 
         // Fails silently
         let monitor = Arc::new(Monitor::new(client,
                                             host_clone,
                                             pool.clone(),
                                             top_description,
-                                            desc_clone));
-
-        if run_monitor {
-            let monitor_clone = monitor.clone();
-            thread::spawn(move || { monitor_clone.run(); });
-        }
-
-        Server {
-            host: host,
-            pool: pool,
-            description: description.clone(),
-            monitor: monitor,
-        }
-    }
-
-    #[cfg(feature = "ssl")]
-    pub fn with_ssl(client: Client,
-                    host: Host,
-                    top_description: Arc<RwLock<TopologyDescription>>,
-                    run_monitor: bool,
-                    ssl: SslConfig)
-                    -> Server {
-        let description = Arc::new(RwLock::new(ServerDescription::new()));
-
-        // Create new monitor thread
-        let host_clone = host.clone();
-        let desc_clone = description.clone();
-
-        let pool = Arc::new(ConnectionPool::with_ssl(host.clone(), ssl.clone()));
-
-        // Fails silently
-        let monitor = Arc::new(Monitor::with_ssl(client,
-                                                 host_clone,
-                                                 pool.clone(),
-                                                 top_description,
-                                                 desc_clone,
-                                                 ssl));
+                                            desc_clone,
+                                            connector));
 
         if run_monitor {
             let monitor_clone = monitor.clone();
