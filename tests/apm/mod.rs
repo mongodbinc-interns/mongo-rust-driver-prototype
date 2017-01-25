@@ -92,7 +92,7 @@ fn logging() {
     // Create collection started
     read_first_non_monitor_line(&mut file, &mut line);
     assert_eq!("COMMAND.create_collection 127.0.0.1:27017 STARTED: { create: \"logging\", \
-                capped: false, auto_index_id: true, flags: 1 }\n",
+                capped: false, flags: 1 }\n",
                &line);
 
     // Create collection completed

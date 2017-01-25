@@ -6,7 +6,6 @@ use db::roles::Role;
 #[derive(Default)]
 pub struct CreateCollectionOptions {
     pub capped: bool,
-    pub auto_index_id: bool,
     pub size: Option<i64>,
     pub max: Option<i64>,
     pub use_power_of_two_sizes: bool,
@@ -17,7 +16,6 @@ impl CreateCollectionOptions {
     pub fn new() -> CreateCollectionOptions {
         CreateCollectionOptions {
             capped: false,
-            auto_index_id: true,
             size: None,
             max: None,
             use_power_of_two_sizes: true,
