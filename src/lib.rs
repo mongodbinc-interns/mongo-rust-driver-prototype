@@ -185,7 +185,7 @@ impl ClientOptions {
             heartbeat_frequency_ms: DEFAULT_HEARTBEAT_FREQUENCY_MS,
             server_selection_timeout_ms: DEFAULT_SERVER_SELECTION_TIMEOUT_MS,
             local_threshold_ms: DEFAULT_LOCAL_THRESHOLD_MS,
-            stream_connector: StreamConnector::Tcp,
+            stream_connector: StreamConnector::default(),
         }
     }
 

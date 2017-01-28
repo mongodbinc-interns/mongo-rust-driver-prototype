@@ -54,7 +54,7 @@ use mongodb::db::ThreadedDatabase;
 
 fn main() {
     let client = Client::connect("localhost", 27017)
-        .ok().expect("Failed to initialize standalone client.");
+        .expect("Failed to initialize standalone client.");
 
     let coll = client.db("test").collection("movies");
 
@@ -80,5 +80,35 @@ fn main() {
         Some(Err(_)) => panic!("Failed to get next from server!"),
         None => panic!("Server returned no results!"),
     }
+}
+```
+
+To connect with SSL, use `ClientOptions::with_ssl` and `Client::connect_with_options`. Afterwards, the client can be used as above (note that the server will have to be configured to accept SSL connections and that you'll have to generate your own keys and certificates):
+
+```rust
+use bson::Bson;
+use mongodb::{Client, ClientOptions, ThreadedClient};
+use mongodb::db::ThreadedDatabase;
+
+fn main() {
+    // Path to file containing trusted server certificates.
+    let ca_file = "path/to/ca.crt";
+    // Path to file containing client certificate.
+    let certificate = "path/to/client.crt";
+    // Path to file containing the client private key.
+    let key_file = "path/to/client.key";
+    // Whether or not to verify that the server certificate is valid. Unless you're just testing out something locally, this should ALWAYS be true.
+    let verify_peer = true;
+
+    let options = ClientOptions::with_ssl(ca_file, certificate, key_file, verify_peer);
+
+    let client = Client::connect_with_options("localhost", 27017, options)
+        .expect("Failed to initialize standalone client.");
+
+    // Insert document into 'test.movies' collection
+    coll.insert_one(doc.clone(), None)
+        .ok().expect("Failed to insert document.");
+
+    ...
 }
 ```

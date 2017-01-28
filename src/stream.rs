@@ -9,10 +9,13 @@ use openssl::ssl::{Ssl, SslMethod, SslContext, SslStream, SSL_OP_NO_COMPRESSION,
 #[cfg(feature = "ssl")]
 use openssl::x509::X509_FILETYPE_PEM;
 
+/// Encapsulates the functionality for how to connect to the server.
 #[derive(Clone)]
 pub enum StreamConnector {
+    /// Connect to the server through a regular TCP stream.
     Tcp,
     #[cfg(feature = "ssl")]
+    /// Connect to the server through a TCP stream encrypted with SSL.
     Ssl {
         ca_file: String,
         certificate_file: String,
@@ -29,6 +32,24 @@ impl Default for StreamConnector {
 
 impl StreamConnector {
     #[cfg(feature = "ssl")]
+    /// Creates a StreamConnector that will connect with SSL encryption.
+    /// 
+    /// The SSL connection will use the cipher with the longest key length available to both the
+    /// server and client, with the following caveats:
+    ///   * SSLv2 and SSlv3 are disabled
+    ///   * Export-strength ciphers are disabled
+    ///   * Ciphers not offering encryption are disabled
+    ///   * Ciphers not offering authentication are disabled
+    ///   * Ciphers with key lengths of 128 or fewer bits are disabled.
+    ///
+    /// Note that TLS compression is disabled for SSL connections.
+    ///
+    /// # Arguments
+    ///
+    /// `ca_file` - Path to the file containing trusted CA certificates.
+    /// `certificate_file` - Path to the file containing the client certificate.
+    /// `key_file` - Path to the file containing the client private key.
+    /// `verify_peer` - Whether or not to verify that the server's certificate is trusted.
     pub fn with_ssl(ca_file: &str,
                     certificate_file: &str,
                     key_file: &str,
@@ -114,7 +135,6 @@ impl Write for Stream {
         }
     }
 }
-
 
 impl Stream {
     pub fn peer_addr(&self) -> Result<SocketAddr> {
