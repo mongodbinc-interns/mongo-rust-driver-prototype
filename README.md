@@ -78,30 +78,24 @@ fn main() {
 Testing
 -------
 
-The driver test suite is largely composed of a mixture of integration tests and behavioral unit-tests, relying on the official [MongoDB specifications repo](https://github.com/mongodb/specifications). The easiest way to thoroughly test the driver is to set your fork up with TravisCI.
+The driver test suite is largely composed of integration tests and behavioral unit-tests, relying on the official [MongoDB specifications repo](https://github.com/mongodb/specifications). 
 
-To test the driver locally, you'll need to setup integration tests and specification tests.
+The easiest way to thoroughly test the driver is to set your fork up with TravisCI. However, if you'd rather test the driver locally, you'll need to setup integration and specification tests.
 
 > NOTE: Each integration test uses a unique database/collection to allow tests to be parallelized, and will drop their dependencies before running. However, effects are _not_ cleaned up afterwards.
 
 #### Setting up integration tests
 
-All integration tests run on the default MongoDB port, 27017. Before running the tests, ensure that you setup a test database on that port.
+All integration tests run on the default MongoDB port, 27017. Before running the tests, ensure that a test database is setup to listen on that port.
 
-Download a version of MongoDB:
-```
-wget http://fastdl.mongodb.org/linux/mongodb-linux-x86_64-3.2.11.tgz
-tar xvf mongodb-linux-x86_64-3.2.11.tgz
-mv mongodb-linux-x86_64-3.2.11 3.2.11
-```
+If you don't have mongodb installed, download and install a version from [the MongoDB Download Center](https://www.mongodb.com/download-center). You can see a full list of versions being tested on Travis in [the travis config](/.travis.yml).
 
-Run a MongoDB server on 27017:
-```
-mkdir -p ./data/test_db_3_2
-3.2.11/bin/mongod --fork --nopreallocj --dbpath ./data/test_db_3_2 --syslog --port 27017
-```
+After installation, run a MongoDB server on 27017:
 
-See a full list of versions being tested on Travis in [the travis config](/.travis.yml).
+```
+mkdir -p ./data/test_db
+mongod --dbpath ./data/test_db
+```
 
 #### Setting up the specifications submodule
 
