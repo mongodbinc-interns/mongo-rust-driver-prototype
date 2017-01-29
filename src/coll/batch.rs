@@ -1,7 +1,7 @@
 //! Models for collection-level batch operations.
 use super::options::WriteModel;
 
-use bson::Document;
+use bson::{Bson, Document};
 use std::convert::From;
 
 #[derive(Debug)]
@@ -10,33 +10,54 @@ pub struct DeleteModel {
     pub multi: bool,
 }
 
-#[derive(Debug)]
-pub struct UpdateModel {
-    pub filter: Document,
-    pub update: Document,
-    pub upsert: bool,
-    pub multi: bool,
-    pub is_replace: bool,
-}
-
-impl UpdateModel {
-    pub fn new(filter: Document, update: Document, upsert: bool, multi: bool) -> UpdateModel {
-        UpdateModel {
-            filter: filter,
-            update: update,
-            upsert: upsert,
-            multi: multi,
-            is_replace: false,
-        }
-    }
-}
-
 impl DeleteModel {
     pub fn new(filter: Document, multi: bool) -> DeleteModel {
         DeleteModel {
             filter: filter,
             multi: multi,
         }
+    }
+}
+
+#[derive(Debug)]
+pub struct UpdateModel {
+    pub filter: Document,
+    pub update: Document,
+    pub upsert: Option<bool>,
+    pub multi: bool,
+}
+
+impl UpdateModel {
+    pub fn new(filter: Document,
+               update: Document,
+               upsert: Option<bool>,
+               multi: bool)
+               -> UpdateModel {
+        UpdateModel {
+            filter: filter,
+            update: update,
+            upsert: upsert,
+            multi: multi,
+        }
+    }
+}
+
+impl From<UpdateModel> for Document {
+    fn from(model: UpdateModel) -> Self {
+        let mut document = doc! {
+            "q" => (model.filter),
+            "u" => (model.update)
+        };
+
+        if let Some(upsert) = model.upsert {
+            document.insert("upsert", Bson::Boolean(upsert));
+        }
+
+        if model.multi {
+            document.insert("multi", Bson::Boolean(true));
+        }
+
+        document
     }
 }
 
@@ -69,7 +90,6 @@ impl From<WriteModel> for Batch {
                                        update: update,
                                        upsert: upsert,
                                        multi: false,
-                                       is_replace: true,
                                    }])
             }
             WriteModel::UpdateOne { filter, update, upsert } => {
@@ -78,7 +98,6 @@ impl From<WriteModel> for Batch {
                                        update: update,
                                        upsert: upsert,
                                        multi: false,
-                                       is_replace: false,
                                    }])
             }
             WriteModel::UpdateMany { filter, update, upsert } => {
@@ -87,7 +106,6 @@ impl From<WriteModel> for Batch {
                                        update: update,
                                        upsert: upsert,
                                        multi: true,
-                                       is_replace: false,
                                    }])
             }
         }
@@ -148,7 +166,6 @@ impl Batch {
                             update: update,
                             upsert: upsert,
                             multi: false,
-                            is_replace: true,
                         })
                     }
                     WriteModel::UpdateOne { filter, update, upsert } => {
@@ -157,7 +174,6 @@ impl Batch {
                             update: update,
                             upsert: upsert,
                             multi: false,
-                            is_replace: false,
                         })
                     }
                     WriteModel::UpdateMany { filter, update, upsert } => {
@@ -166,7 +182,6 @@ impl Batch {
                             update: update,
                             upsert: upsert,
                             multi: true,
-                            is_replace: false,
                         })
                     }
                     _ => return Some(model),

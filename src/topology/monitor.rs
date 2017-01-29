@@ -250,7 +250,11 @@ impl Monitor {
 
     /// Returns an isMaster server response using an owned monitor socket.
     pub fn is_master(&self) -> Result<(Cursor, i64)> {
-        let options = FindOptions::new().with_limit(1);
+        let mut options = FindOptions::new();
+        options.limit = Some(1);
+        options.batch_size = Some(1);
+
+
         let flags = OpQueryFlags::with_find_options(&options);
         let mut filter = bson::Document::new();
         filter.insert("isMaster", Bson::I32(1));
@@ -262,12 +266,9 @@ impl Monitor {
         let cursor = try!(Cursor::query_with_stream(stream,
                                                     self.client.clone(),
                                                     String::from("local.$cmd"),
-                                                    1,
                                                     flags,
-                                                    options.skip as i32,
-                                                    1,
                                                     filter.clone(),
-                                                    options.projection.clone(),
+                                                    options,
                                                     CommandType::IsMaster,
                                                     false,
                                                     None));

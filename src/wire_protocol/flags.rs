@@ -55,7 +55,7 @@ impl OpQueryFlags {
             flags.insert(TAILABLE_CURSOR);
         }
 
-        if options.op_log_replay {
+        if options.oplog_replay {
             flags.insert(OPLOG_RELAY);
         }
 

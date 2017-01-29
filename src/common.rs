@@ -95,3 +95,8 @@ impl WriteConcern {
         bson
     }
 }
+
+pub fn merge_options<T: Into<bson::Document>>(document: bson::Document, options: T) -> bson::Document {
+    let options_doc: bson::Document = options.into();
+    document.into_iter().chain(options_doc.into_iter()).collect()
+}

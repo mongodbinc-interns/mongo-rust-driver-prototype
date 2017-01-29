@@ -106,12 +106,12 @@ fn bulk_ordered_mix() {
         WriteModel::ReplaceOne {
             filter: doc! { "_id" => (3) },
             replacement: doc! { "x" => (37) },
-            upsert: true,
+            upsert: Some(true),
         },
         WriteModel::UpdateMany {
             filter: doc! { "_id" => { "$lt" => (3) } },
             update: doc! { "$inc" => { "x" => (1) } },
-            upsert: false,
+            upsert: Some(false),
         },
         WriteModel::DeleteOne { filter: doc! {
             "_id" => (4)
@@ -123,7 +123,7 @@ fn bulk_ordered_mix() {
         WriteModel::UpdateOne {
             filter: doc! { "_id" => (6) },
             update: doc! { "$set" =>  { "x" => (62) } },
-            upsert: true
+            upsert: Some(true)
         },
         WriteModel::InsertOne { document: doc! {
             "_id" => (101),

@@ -65,10 +65,9 @@ use {Client, CommandType, ThreadedClient, Result};
 use Error::{CursorNotFoundError, OperationError, ResponseError};
 use coll::Collection;
 use coll::options::FindOptions;
-use common::{ReadPreference, WriteConcern};
+use common::{ReadPreference, merge_options, WriteConcern};
 use cursor::{Cursor, DEFAULT_BATCH_SIZE};
 use self::options::{CreateCollectionOptions, CreateUserOptions, UserInfoOptions};
-use self::roles::Role;
 use semver::Version;
 use std::error::Error;
 use std::sync::Arc;
@@ -231,7 +230,7 @@ impl ThreadedDatabase for Database {
 
         let coll = self.collection("$cmd");
         let mut options = FindOptions::new();
-        options.batch_size = 1;
+        options.batch_size = Some(1);
         options.read_preference = read_preference;
         let res = try!(coll.find_one_with_command_type(Some(spec.clone()), Some(options),
                                                        cmd_type));
@@ -299,29 +298,11 @@ impl ThreadedDatabase for Database {
                          name: &str,
                          options: Option<CreateCollectionOptions>)
                          -> Result<()> {
-        let coll_options = options.unwrap_or_else(CreateCollectionOptions::new);
-        let mut doc = doc! {
-            "create" => name,
-            "capped" => (coll_options.capped),
-            "auto_index_id" => (coll_options.auto_index_id)
-        };
+        let mut doc = doc! { "create" => name };
 
-        if let Some(i) = coll_options.size {
-            doc.insert("size", Bson::I64(i));
+        if let Some(create_collection_options) = options {
+            doc = merge_options(doc, create_collection_options);
         }
-
-        if let Some(i) = coll_options.max {
-            doc.insert("max", Bson::I64(i));
-        }
-
-        let flag_one = if coll_options.use_power_of_two_sizes {
-            1
-        } else {
-            0
-        };
-        let flag_two = if coll_options.no_padding { 2 } else { 0 };
-
-        doc.insert("flags", Bson::I32(flag_one + flag_two));
 
         self.command(doc, CommandType::CreateCollection, None).map(|_| ())
     }
@@ -331,21 +312,19 @@ impl ThreadedDatabase for Database {
                    password: &str,
                    options: Option<CreateUserOptions>)
                    -> Result<()> {
-        let user_options = options.unwrap_or_else(CreateUserOptions::new);
         let mut doc = doc! {
             "createUser" => name,
             "pwd" => password
         };
 
-        if let Some(data) = user_options.custom_data {
-            doc.insert("customData", Bson::Document(data));
-        }
-
-        doc.insert("roles", Role::to_bson_array(user_options.roles));
-
-        if let Some(concern) = user_options.write_concern {
-            doc.insert("writeConcern", Bson::Document(concern.to_bson()));
-        }
+        match options {
+            Some(user_options) => {
+                doc = merge_options(doc, user_options);
+            }
+            None => {
+                doc.insert("roles", Bson::Array(Vec::new()));
+            }
+        };
 
         self.command(doc, CommandType::CreateUser, None).map(|_| ())
     }
@@ -384,7 +363,7 @@ impl ThreadedDatabase for Database {
         let mut doc = doc! { "dropUser" => name };
 
         if let Some(concern) = write_concern {
-            doc.insert("writeConcern", Bson::Document(concern.to_bson()));
+            doc.insert("writeConcern", (concern.to_bson()));
         }
 
         self.command(doc, CommandType::DropUser, None).map(|_| ())
@@ -415,13 +394,13 @@ impl ThreadedDatabase for Database {
     }
 
     fn get_user(&self, user: &str, options: Option<UserInfoOptions>) -> Result<bson::Document> {
-        let info_options = options.unwrap_or_else(UserInfoOptions::new);
-
-        let doc = doc! {
-            "usersInfo" => { "user" => user, "db" => (Bson::String(self.name.to_owned())) },
-            "showCredentials" => (info_options.show_credentials),
-            "showPrivileges" => (info_options.show_privileges)
+        let mut doc = doc! {
+            "usersInfo" => { "user" => user, "db" => (self.name.to_owned()) }
         };
+
+        if let Some(user_info_options) = options {
+            doc = merge_options(doc, user_info_options);
+        }
 
         let out = match self.command(doc, CommandType::GetUser, None) {
             Ok(doc) => doc,
@@ -443,19 +422,18 @@ impl ThreadedDatabase for Database {
                  users: Vec<&str>,
                  options: Option<UserInfoOptions>)
                  -> Result<Vec<bson::Document>> {
-        let info_options = options.unwrap_or_else(UserInfoOptions::new);
-        let vec = users.into_iter()
+        let vec: Vec<_> = users.into_iter()
             .map(|user| {
-                let doc = doc! { "user" => user, "db" => (Bson::String(self.name.to_owned())) };
+                let doc = doc! { "user" => user, "db" => (self.name.to_owned()) };
                 Bson::Document(doc)
             })
             .collect();
 
-        let doc = doc! {
-            "usersInfo" => (Bson::Array(vec)),
-            "showCredentials" => (info_options.show_credentials),
-            "showPrivileges" => (info_options.show_privileges)
-        };
+        let mut doc = doc! { "usersInfo" => vec };
+
+        if let Some(user_info_options) = options {
+            doc = merge_options(doc, user_info_options);
+        }
 
         let out = try!(self.command(doc, CommandType::GetUsers, None));
         let vec = match out.get("users") {

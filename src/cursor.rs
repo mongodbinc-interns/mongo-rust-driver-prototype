@@ -27,7 +27,8 @@ use {Client, CommandType, Error, ErrorCode, Result, ThreadedClient};
 use apm::{CommandStarted, CommandResult, EventRunner};
 
 use bson::{self, Bson};
-use common::{ReadMode, ReadPreference};
+use common::{merge_options, ReadMode, ReadPreference};
+use coll::options::FindOptions;
 use pool::PooledStream;
 use time;
 use wire_protocol::flags::{self, OpQueryFlags};
@@ -107,14 +108,14 @@ impl Cursor {
                           cmd_type: CommandType,
                           read_pref: ReadPreference)
                           -> Result<Cursor> {
+        let mut options = FindOptions::new();
+        options.batch_size = Some(1);
+
         Cursor::query(client.clone(),
                       format!("{}.$cmd", db),
-                      1,
                       OpQueryFlags::empty(),
-                      0,
-                      0,
                       doc,
-                      None,
+                      options,
                       cmd_type,
                       true,
                       read_pref)
@@ -210,12 +211,9 @@ impl Cursor {
     /// failure.
     pub fn query(client: Client,
                  namespace: String,
-                 batch_size: i32,
                  flags: OpQueryFlags,
-                 number_to_skip: i32,
-                 number_to_return: i32,
                  query: bson::Document,
-                 return_field_selector: Option<bson::Document>,
+                 options: FindOptions,
                  cmd_type: CommandType,
                  is_cmd_cursor: bool,
                  read_pref: ReadPreference)
@@ -238,32 +236,24 @@ impl Cursor {
         // Send read_preference to the server based on the result from server selection.
         let new_query = if !send_read_pref {
             query
+        } else if query.get("$query").is_some() {
+            // Query is already formatted as a $query document; add onto it.
+            let mut nq = query.clone();
+            nq.insert("read_preference", Bson::Document(read_pref.to_document()));
+            nq
         } else {
-            match query.get("$query") {
-                Some(_) => {
-                    // Query is already formatted as a $query document; add onto it.
-                    let mut nq = query.clone();
-                    nq.insert("read_preference", Bson::Document(read_pref.to_document()));
-                    nq
-                }
-                None => {
-                    // Convert the query to a $query document.
-                    let mut nq = doc! { "$query" => query };
-                    nq.insert("read_preference", Bson::Document(read_pref.to_document()));
-                    nq
-                }
-            }
+            // Convert the query to a $query document.
+            let mut nq = doc! { "$query" => query };
+            nq.insert("read_preference", Bson::Document(read_pref.to_document()));
+            nq
         };
 
         Cursor::query_with_stream(stream,
                                   client,
                                   namespace,
-                                  batch_size,
                                   new_flags,
-                                  number_to_skip,
-                                  number_to_return,
                                   new_query,
-                                  return_field_selector,
+                                  options,
                                   cmd_type,
                                   is_cmd_cursor,
                                   Some(read_pref))
@@ -272,12 +262,9 @@ impl Cursor {
     pub fn query_with_stream(stream: PooledStream,
                              client: Client,
                              namespace: String,
-                             batch_size: i32,
                              flags: OpQueryFlags,
-                             number_to_skip: i32,
-                             number_to_return: i32,
                              query: bson::Document,
-                             return_field_selector: Option<bson::Document>,
+                             options: FindOptions,
                              cmd_type: CommandType,
                              is_cmd_cursor: bool,
                              read_pref: Option<ReadPreference>)
@@ -293,45 +280,32 @@ impl Cursor {
         let cmd_name = cmd_type.to_str();
         let connstring = format!("{}", try!(socket.get_ref().peer_addr()));
 
-        let filter: bson::Document = match query.get("$query") {
+        let filter = match query.get("$query") {
             Some(&Bson::Document(ref doc)) => doc.clone(),
-            _ => doc!{},
-        };
-
-        let projection = match return_field_selector {
-            Some(ref doc) => doc.clone(),
-            None => doc!{},
-        };
-
-        let sort = match query.get("$orderby") {
-            Some(&Bson::Document(ref doc)) => doc.clone(),
-            _ => doc!{},
-        };
-
-        let command = match cmd_type {
-            CommandType::Find => {
-                doc! {
-                "find" => coll_name,
-                "filter" => filter,
-                "projection" => projection,
-                "skip" => number_to_skip,
-                "limit" => number_to_return,
-                "batchSize" => batch_size,
-                "sort" => sort
-            }
-            }
             _ => query.clone(),
         };
 
 
+        let command = match cmd_type {
+            CommandType::Find => {
+                let document = doc! { 
+                    "find" => coll_name,
+                    "filter" => filter
+                };
+
+                merge_options(document, options.clone())
+            }
+            _ => query.clone(),
+        };
+
         let init_time = time::precise_time_ns();
         let result = Message::new_query(req_id,
                                         flags,
-                                        namespace.to_owned(),
-                                        number_to_skip,
-                                        batch_size,
-                                        query.clone(),
-                                        return_field_selector);
+                                        namespace.clone(),
+                                        options.skip.unwrap_or(0) as i32,
+                                        options.batch_size.unwrap_or(DEFAULT_BATCH_SIZE),
+                                        query,
+                                        options.projection);
 
         let message = try!(result);
 
@@ -413,9 +387,9 @@ impl Cursor {
         Ok(Cursor {
             client: client,
             namespace: namespace,
-            batch_size: batch_size,
+            batch_size: options.batch_size.unwrap_or(DEFAULT_BATCH_SIZE),
             cursor_id: cursor_id,
-            limit: number_to_return,
+            limit: options.limit.unwrap_or(0) as i32,
             count: 0,
             buffer: buf,
             read_preference: read_preference,

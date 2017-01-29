@@ -57,7 +57,8 @@ fn logging() {
     let _ = fs::remove_file("test_apm_log.txt");
 
     // Reset State
-    let reset_client = Client::connect("localhost", 27017).expect("Failed to connect to localhost:27017");
+    let reset_client = Client::connect("localhost", 27017)
+        .expect("Failed to connect to localhost:27017");
     let reset_db = reset_client.db("test-apm-mod");
     let reset_coll = reset_db.collection("logging");
     reset_coll.drop().unwrap();
@@ -70,7 +71,7 @@ fn logging() {
     let coll = db.collection("logging");
     db.create_collection("logging", None).unwrap();
     coll.drop().unwrap();
-    
+
     let doc1 = doc! { "_id" => 1 };
     let doc2 = doc! { "_id" => 2 };
     let doc3 = doc! { "_id" => 3 };
@@ -91,8 +92,7 @@ fn logging() {
 
     // Create collection started
     read_first_non_monitor_line(&mut file, &mut line);
-    assert_eq!("COMMAND.create_collection 127.0.0.1:27017 STARTED: { create: \"logging\", \
-                capped: false, auto_index_id: true, flags: 1 }\n",
+    assert_eq!("COMMAND.create_collection 127.0.0.1:27017 STARTED: { create: \"logging\" }\n",
                &line);
 
     // Create collection completed
@@ -118,7 +118,7 @@ fn logging() {
     line.clear();
     read_first_non_monitor_line(&mut file, &mut line);
     assert_eq!("COMMAND.insert_one 127.0.0.1:27017 STARTED: { insert: \"logging\", documents: [{ \
-                _id: 1 }], ordered: true, writeConcern: { w: 1, wtimeout: 0, j: false } }\n",
+                _id: 1 }] }\n",
                &line);
 
     // First insert completed
@@ -131,7 +131,7 @@ fn logging() {
     line.clear();
     read_first_non_monitor_line(&mut file, &mut line);
     assert_eq!("COMMAND.insert_one 127.0.0.1:27017 STARTED: { insert: \"logging\", documents: [{ \
-                _id: 2 }], ordered: true, writeConcern: { w: 1, wtimeout: 0, j: false } }\n",
+                _id: 2 }] }\n",
                &line);
 
     // Second insert completed
@@ -144,7 +144,7 @@ fn logging() {
     line.clear();
     read_first_non_monitor_line(&mut file, &mut line);
     assert_eq!("COMMAND.insert_one 127.0.0.1:27017 STARTED: { insert: \"logging\", documents: [{ \
-                _id: 3 }], ordered: true, writeConcern: { w: 1, wtimeout: 0, j: false } }\n",
+                _id: 3 }] }\n",
                &line);
 
     // Third insert completed
@@ -156,16 +156,16 @@ fn logging() {
     // Find command started
     line.clear();
     read_first_non_monitor_line(&mut file, &mut line);
-    assert_eq!("COMMAND.find 127.0.0.1:27017 STARTED: { find: \"logging\", filter: {  }, \
-                projection: {  }, skip: 0, limit: 0, batchSize: 20, sort: {  } }\n",
+    assert_eq!("COMMAND.find 127.0.0.1:27017 STARTED: { find: \"logging\", filter: { _id: { \
+                $gt: 1 } } }\n",
                &line);
 
     // Find command completed
     line.clear();
     read_first_non_monitor_line(&mut file, &mut line);
     assert!(line.starts_with("COMMAND.find 127.0.0.1:27017 COMPLETED: { cursor: { id: 0, ns: \
-                              \"test-apm-mod.logging\", firstBatch: [{ _id: 2 }, { _id: 3 }] }, ok: 1 } \
-                              ("));
+                              \"test-apm-mod.logging\", firstBatch: [{ _id: 2 }, { _id: 3 }] }, \
+                              ok: 1 } ("));
     assert!(line.ends_with(" ns)\n"));
 
     coll.drop().unwrap();

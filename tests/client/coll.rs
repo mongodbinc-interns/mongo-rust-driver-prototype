@@ -186,7 +186,7 @@ fn find_one_and_replace() {
 
     // Replace with 'new' option
     let mut opts = FindOneAndUpdateOptions::new();
-    opts.return_document = ReturnDocument::After;
+    opts.return_document = Some(ReturnDocument::After);
     let result = coll.find_one_and_replace(doc3.clone(), doc2.clone(), Some(opts))
         .expect("Failed to execute find_one_and_replace command.");
 
@@ -267,11 +267,9 @@ fn aggregate() {
 
     // Grab ids from aggregated docs
     let vec: Vec<_> = results.iter()
-        .filter_map(|bdoc| {
-            match bdoc.get("_id") {
-                Some(&Bson::String(ref tag)) => Some(tag.to_owned()),
-                _ => None,
-            }
+        .filter_map(|bdoc| match bdoc.get("_id") {
+            Some(&Bson::String(ref tag)) => Some(tag.to_owned()),
+            _ => None,
         })
         .collect();
 

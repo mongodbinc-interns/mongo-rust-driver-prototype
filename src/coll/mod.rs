@@ -13,7 +13,7 @@ use self::options::*;
 use self::results::*;
 
 use ThreadedClient;
-use common::{ReadPreference, WriteConcern};
+use common::{merge_options, ReadPreference, WriteConcern};
 use cursor::Cursor;
 use db::{Database, ThreadedDatabase};
 
@@ -96,24 +96,32 @@ impl Collection {
                      pipeline: Vec<bson::Document>,
                      options: Option<AggregateOptions>)
                      -> Result<Cursor> {
-        let opts = options.unwrap_or_else(AggregateOptions::new);
-
-        let pipeline_map = pipeline.iter()
-            .map(|bdoc| Bson::Document(bdoc.to_owned()))
+        let pipeline_map: Vec<_> = pipeline.into_iter()
+            .map(|bdoc| Bson::Document(bdoc))
             .collect();
 
-        let mut spec = bson::Document::new();
-        let mut cursor = bson::Document::new();
-        cursor.insert("batchSize", Bson::I32(opts.batch_size));
-        spec.insert("aggregate", Bson::String(self.name()));
-        spec.insert("pipeline", Bson::Array(pipeline_map));
-        spec.insert("cursor", Bson::Document(cursor));
-        if opts.allow_disk_use {
-            spec.insert("allowDiskUse", Bson::Boolean(opts.allow_disk_use));
-        }
+        let mut spec = doc! {
+            "aggregate" => (self.name()),
+            "pipeline" => pipeline_map
+        };
 
-        let read_pref = opts.read_preference.unwrap_or(self.read_preference.to_owned());
-        self.db.command_cursor(spec, CommandType::Aggregate, read_pref)
+        let mut read_preference = self.read_preference.clone();
+
+        match options {
+            Some(aggregate_options) => {
+                if let Some(ref read_preference_option) = aggregate_options.read_preference {
+                    read_preference = read_preference_option.clone();
+                }
+
+                spec = merge_options(spec, aggregate_options);
+            }
+            None => {
+                let cursor = doc! { "batchSize" => (::cursor::DEFAULT_BATCH_SIZE) };
+                spec.insert("cursor", cursor);
+            }
+        };
+
+        self.db.command_cursor(spec, CommandType::Aggregate, read_preference)
     }
 
     /// Gets the number of documents matching the filter.
@@ -121,28 +129,27 @@ impl Collection {
                  filter: Option<bson::Document>,
                  options: Option<CountOptions>)
                  -> Result<i64> {
-        let opts = options.unwrap_or_else(CountOptions::new);
-
         let mut spec = bson::Document::new();
         spec.insert("count", Bson::String(self.name()));
-        spec.insert("skip", Bson::I64(opts.skip as i64));
-        spec.insert("limit", Bson::I64(opts.limit));
-        if filter.is_some() {
-            spec.insert("query", Bson::Document(filter.unwrap()));
+
+        if let Some(filter_doc) = filter {
+            spec.insert("query", Bson::Document(filter_doc));
         }
 
-        // Favor specified hint document over string
-        if opts.hint_doc.is_some() {
-            spec.insert("hint", Bson::Document(opts.hint_doc.unwrap()));
-        } else if opts.hint.is_some() {
-            spec.insert("hint", Bson::String(opts.hint.unwrap()));
+        let mut read_preference = self.read_preference.clone();
+
+        if let Some(count_options) = options {
+            if let Some(ref read_preference_option) = count_options.read_preference {
+                read_preference = read_preference_option.clone();
+            }
+
+            spec = merge_options(spec, count_options);
         }
 
-        let read_pref = opts.read_preference.unwrap_or(self.read_preference.to_owned());
-        let result = try!(self.db.command(spec, CommandType::Count, Some(read_pref)));
+        let result = try!(self.db.command(spec, CommandType::Count, Some(read_preference)));
         match result.get("n") {
-            Some(&Bson::I32(ref n)) => Ok(*n as i64),
-            Some(&Bson::I64(ref n)) => Ok(*n),
+            Some(&Bson::I32(n)) => Ok(n as i64),
+            Some(&Bson::I64(n)) => Ok(n),
             _ => Err(ResponseError(String::from("No count received from server."))),
         }
     }
@@ -153,18 +160,18 @@ impl Collection {
                     filter: Option<bson::Document>,
                     options: Option<DistinctOptions>)
                     -> Result<Vec<Bson>> {
-
-        let opts = options.unwrap_or_else(DistinctOptions::new);
-
         let mut spec = bson::Document::new();
         spec.insert("distinct", Bson::String(self.name()));
         spec.insert("key", Bson::String(String::from(field_name)));
-        if filter.is_some() {
-            spec.insert("query", Bson::Document(filter.unwrap()));
+
+        if let Some(filter_doc) = filter {
+            spec.insert("query", Bson::Document(filter_doc));
         }
 
-        let read_pref = opts.read_preference.unwrap_or(self.read_preference.to_owned());
-        let result = try!(self.db.command(spec, CommandType::Distinct, Some(read_pref)));
+        let read_preference = options.and_then(|o| o.read_preference)
+            .unwrap_or(self.read_preference.clone());
+
+        let result = try!(self.db.command(spec, CommandType::Distinct, Some(read_preference)));
         match result.get("values") {
             Some(&Bson::Array(ref vals)) => Ok(vals.to_owned()),
             _ => Err(ResponseError(String::from("No values received from server."))),
@@ -184,35 +191,32 @@ impl Collection {
                               options: Option<FindOptions>,
                               cmd_type: CommandType)
                               -> Result<Cursor> {
-        let options = options.unwrap_or_else(FindOptions::new);
-        let flags = OpQueryFlags::with_find_options(&options);
+        let find_options = options.unwrap_or_else(FindOptions::new);
+        let flags = OpQueryFlags::with_find_options(&find_options);
 
-        let doc = if options.sort.is_some() {
-            let mut doc = bson::Document::new();
-            doc.insert(String::from("$query"),
-                       Bson::Document(filter.unwrap_or_else(bson::Document::new)));
-
-            doc.insert(String::from("$orderby"),
-                       Bson::Document(options.sort.as_ref().unwrap().clone()));
-
-            doc
-        } else {
-            filter.unwrap_or_else(bson::Document::new)
+        let doc = match find_options.sort {
+            Some(ref sort_opt) => {
+                doc! {
+                    "$query" => (filter.unwrap_or_else(bson::Document::new)),
+                    "$orderby" => (Bson::Document(sort_opt.clone()))
+                }
+            }
+            None => filter.unwrap_or_else(bson::Document::new),
         };
 
-        let read_pref = options.read_preference.unwrap_or(self.read_preference.to_owned());
+        let read_preference = match find_options.read_preference {
+            Some(ref read_preference_option) => read_preference_option.clone(),
+            None => self.read_preference.clone(), 
+        };
 
         Cursor::query(self.db.client.clone(),
                       self.namespace.to_owned(),
-                      options.batch_size,
                       flags,
-                      options.skip as i32,
-                      options.limit,
                       doc,
-                      options.projection.clone(),
+                      find_options,
                       cmd_type,
                       false,
-                      read_pref)
+                      read_preference)
     }
 
     /// Returns the first document within the collection that matches the filter, or None.
@@ -228,9 +232,12 @@ impl Collection {
                                       options: Option<FindOptions>,
                                       cmd_type: CommandType)
                                       -> Result<Option<bson::Document>> {
-        let options = options.unwrap_or_else(FindOptions::new);
-        let mut cursor = try!(self.find_with_command_type(filter, Some(options.with_limit(1)),
-                                                          cmd_type));
+        let mut find_one_options = options.unwrap_or_default();
+        find_one_options.limit = Some(1);
+
+        let mut cursor =
+            try!(self.find_with_command_type(filter, Some(find_one_options), cmd_type));
+
         match cursor.next() {
             Some(Ok(bson)) => Ok(Some(bson)),
             Some(Err(err)) => Err(err),
@@ -240,34 +247,23 @@ impl Collection {
 
     // Helper method for all findAndModify commands.
     fn find_and_modify(&self,
-                       cmd: &mut bson::Document,
                        filter: bson::Document,
+                       options: bson::Document,
                        _max_time_ms: Option<i64>,
-                       projection: Option<bson::Document>,
-                       sort: Option<bson::Document>,
                        write_concern: Option<WriteConcern>,
                        cmd_type: CommandType)
                        -> Result<Option<bson::Document>> {
+        let mut cmd = doc! {
+            "findAndModify" => (self.name()),
+            "query" => filter
+        };
 
+        cmd = merge_options(cmd, options);
+
+        let res = try!(self.db.command(cmd, cmd_type, None));
         let wc = write_concern.unwrap_or(self.write_concern.clone());
-
-        let mut new_cmd = bson::Document::new();
-        new_cmd.insert("findAndModify", Bson::String(self.name()));
-        new_cmd.insert("query", Bson::Document(filter));
-        new_cmd.insert("writeConcern", Bson::Document(wc.to_bson()));
-        if sort.is_some() {
-            new_cmd.insert("sort", Bson::Document(sort.unwrap()));
-        }
-        if projection.is_some() {
-            new_cmd.insert("fields", Bson::Document(projection.unwrap()));
-        }
-
-        for (key, val) in cmd.iter() {
-            new_cmd.insert(key.to_owned(), val.to_owned());
-        }
-
-        let res = try!(self.db.command(new_cmd, cmd_type, None));
         try!(WriteException::validate_write_result(res.clone(), wc));
+
         let doc = match res.get("value") {
             Some(&Bson::Document(ref nested_doc)) => Some(nested_doc.to_owned()),
             _ => None,
@@ -276,52 +272,26 @@ impl Collection {
         Ok(doc)
     }
 
-    // Helper method for validated replace and update commands.
-    fn find_one_and_replace_or_update(&self,
-                                      filter: bson::Document,
-                                      update: bson::Document,
-                                      after: bool,
-                                      max_time_ms: Option<i64>,
-                                      projection: Option<bson::Document>,
-                                      sort: Option<bson::Document>,
-                                      upsert: bool,
-                                      write_concern: Option<WriteConcern>,
-                                      cmd_type: CommandType)
-                                      -> Result<Option<bson::Document>> {
-
-        let mut cmd = bson::Document::new();
-        cmd.insert("update", Bson::Document(update));
-        if after {
-            cmd.insert("new", Bson::Boolean(true));
-        }
-        if upsert {
-            cmd.insert("upsert", Bson::Boolean(true));
-        }
-
-        self.find_and_modify(&mut cmd,
-                             filter,
-                             max_time_ms,
-                             projection,
-                             sort,
-                             write_concern,
-                             cmd_type)
-    }
-
     /// Finds a single document and deletes it, returning the original.
     pub fn find_one_and_delete(&self,
                                filter: bson::Document,
                                options: Option<FindOneAndDeleteOptions>)
                                -> Result<Option<bson::Document>> {
+        let (max_time_ms, write_concern) = match options {
+            Some(ref opts) => (opts.max_time_ms, opts.write_concern.clone()),
+            None => (None, None),
+        };
 
-        let opts = options.unwrap_or_else(FindOneAndDeleteOptions::new);
-        let mut cmd = bson::Document::new();
-        cmd.insert("remove", Bson::Boolean(true));
-        self.find_and_modify(&mut cmd,
-                             filter,
-                             opts.max_time_ms,
-                             opts.projection,
-                             opts.sort,
-                             opts.write_concern,
+        let mut options_doc = doc! { "remove" => true };
+
+        if let Some(find_one_and_delete_options) = options {
+            options_doc = merge_options(options_doc, find_one_and_delete_options);
+        }
+
+        self.find_and_modify(filter,
+                             options_doc,
+                             max_time_ms,
+                             write_concern,
                              CommandType::FindOneAndDelete)
     }
 
@@ -332,17 +302,24 @@ impl Collection {
                                 replacement: bson::Document,
                                 options: Option<FindOneAndUpdateOptions>)
                                 -> Result<Option<bson::Document>> {
-        let opts = options.unwrap_or_else(FindOneAndUpdateOptions::new);
         try!(Collection::validate_replace(&replacement));
-        self.find_one_and_replace_or_update(filter,
-                                            replacement,
-                                            opts.return_document.to_bool(),
-                                            opts.max_time_ms,
-                                            opts.projection,
-                                            opts.sort,
-                                            opts.upsert,
-                                            opts.write_concern,
-                                            CommandType::FindOneAndReplace)
+
+        let (max_time_ms, write_concern) = match options {
+            Some(ref opts) => (opts.max_time_ms, opts.write_concern.clone()),
+            None => (None, None),
+        };
+
+        let mut options_doc = doc! { "update" => replacement };
+
+        if let Some(find_one_and_replace_options) = options {
+            options_doc = merge_options(options_doc, find_one_and_replace_options);
+        }
+
+        self.find_and_modify(filter,
+                             options_doc,
+                             max_time_ms,
+                             write_concern,
+                             CommandType::FindOneAndReplace)
     }
 
     /// Finds a single document and updates it, returning either the original
@@ -352,17 +329,24 @@ impl Collection {
                                update: bson::Document,
                                options: Option<FindOneAndUpdateOptions>)
                                -> Result<Option<bson::Document>> {
-        let opts = options.unwrap_or_else(FindOneAndUpdateOptions::new);
         try!(Collection::validate_update(&update));
-        self.find_one_and_replace_or_update(filter,
-                                            update,
-                                            opts.return_document.to_bool(),
-                                            opts.max_time_ms,
-                                            opts.projection,
-                                            opts.sort,
-                                            opts.upsert,
-                                            opts.write_concern,
-                                            CommandType::FindOneAndUpdate)
+
+        let (max_time_ms, write_concern) = match options {
+            Some(ref opts) => (opts.max_time_ms, opts.write_concern.clone()),
+            None => (None, None),
+        };
+
+        let mut options_doc = doc! { "update" => update };
+
+        if let Some(find_one_and_update_options) = options {
+            options_doc = merge_options(options_doc, find_one_and_update_options);
+        }
+
+        self.find_and_modify(filter,
+                             options_doc,
+                             max_time_ms,
+                             write_concern,
+                             CommandType::FindOneAndUpdate)
     }
 
     fn get_unordered_batches(requests: Vec<WriteModel>) -> Vec<Batch> {
@@ -391,7 +375,6 @@ impl Collection {
                         update: replacement,
                         upsert: upsert,
                         multi: false,
-                        is_replace: true,
                     })
                 }
                 WriteModel::UpdateOne { filter, update, upsert } => {
@@ -400,7 +383,6 @@ impl Collection {
                         update: update,
                         upsert: upsert,
                         multi: false,
-                        is_replace: false,
                     })
                 }
                 WriteModel::UpdateMany { filter, update, upsert } => {
@@ -409,7 +391,6 @@ impl Collection {
                         update: update,
                         upsert: upsert,
                         multi: true,
-                        is_replace: false,
                     })
                 }
             }
@@ -418,7 +399,7 @@ impl Collection {
         vec![Batch::Insert(inserts), Batch::Delete(deletes), Batch::Update(updates)]
     }
 
-    pub fn get_ordered_batches(mut requests: VecDeque<WriteModel>) -> Vec<Batch> {
+    fn get_ordered_batches(mut requests: VecDeque<WriteModel>) -> Vec<Batch> {
         let first_model = match requests.pop_front() {
             Some(model) => model,
             None => return vec![],
@@ -448,7 +429,7 @@ impl Collection {
             .map(|doc| WriteModel::InsertOne { document: doc.clone() })
             .collect();
 
-        let options = Some(InsertManyOptions::new(ordered, None));
+        let options = Some(InsertManyOptions { ordered: Some(ordered), ..Default::default() });
 
         match self.insert_many(documents, options) {
             Ok(insert_result) => {
@@ -568,7 +549,7 @@ impl Collection {
     // Internal insertion helper function. Returns a vec of collected ids and a possible exception.
     fn insert(&self,
               docs: Vec<bson::Document>,
-              ordered: bool,
+              options: Option<InsertManyOptions>,
               write_concern: Option<WriteConcern>,
               cmd_type: CommandType)
               -> Result<(Vec<Bson>, Option<BulkWriteException>)> {
@@ -591,11 +572,14 @@ impl Collection {
             converted_docs.push(Bson::Document(cdoc));
         }
 
-        let mut cmd = bson::Document::new();
-        cmd.insert("insert", Bson::String(self.name()));
-        cmd.insert("documents", Bson::Array(converted_docs));
-        cmd.insert("ordered", Bson::Boolean(ordered));
-        cmd.insert("writeConcern", Bson::Document(wc.to_bson()));
+        let mut cmd = doc! {
+            "insert" => (self.name()),
+            "documents" => converted_docs
+        };
+
+        if let Some(insert_options) = options {
+            cmd = merge_options(cmd, insert_options);
+        }
 
         let result = try!(self.db.command(cmd, cmd_type, None));
 
@@ -616,9 +600,12 @@ impl Collection {
                       doc: bson::Document,
                       write_concern: Option<WriteConcern>)
                       -> Result<InsertOneResult> {
+        let options =
+            InsertManyOptions { write_concern: write_concern.clone(), ..Default::default() };
+
         let (ids, bulk_exception) = try!(self.insert(vec![doc],
-                                                     true,
-                                                     write_concern.clone(),
+                                                     Some(options),
+                                                     write_concern,
                                                      CommandType::InsertOne));
 
         if ids.is_empty() {
@@ -650,11 +637,10 @@ impl Collection {
                        docs: Vec<bson::Document>,
                        options: Option<InsertManyOptions>)
                        -> Result<InsertManyResult> {
-        let options = options.unwrap_or_else(|| InsertManyOptions::new(false, None));
-        let (ids, exception) = try!(self.insert(docs,
-                                                options.ordered,
-                                                options.write_concern,
-                                                CommandType::InsertMany));
+        let write_concern = options.as_ref().map(|opts| opts.write_concern.clone()).unwrap_or(None);
+
+        let (ids, exception) =
+            try!(self.insert(docs, options, write_concern, CommandType::InsertMany));
 
         let mut map = BTreeMap::new();
         for i in 0..ids.len() {
@@ -757,23 +743,20 @@ impl Collection {
 
         let mut updates = Vec::new();
         for model in models {
-            let mut update = bson::Document::new();
-            update.insert("q", Bson::Document(model.filter));
-            update.insert("u", Bson::Document(model.update));
-            update.insert("upsert", Bson::Boolean(model.upsert));
+            let mut update = bson::Document::from(model);
+
             if !ordered {
                 update.insert("ordered", Bson::Boolean(ordered));
             }
-            if model.multi {
-                update.insert("multi", Bson::Boolean(model.multi));
-            }
+
             updates.push(Bson::Document(update));
         }
 
-        let mut cmd = bson::Document::new();
-        cmd.insert("update", Bson::String(self.name()));
-        cmd.insert("updates", Bson::Array(updates));
-        cmd.insert("writeConcern", Bson::Document(wc.to_bson()));
+        let cmd = doc! {
+            "update" => (self.name()),
+            "updates" => updates,
+            "writeConcern" => (wc.to_bson())
+        };
 
         let result = try!(self.db.command(cmd, cmd_type, None));
 
@@ -792,7 +775,7 @@ impl Collection {
     fn update(&self,
               filter: bson::Document,
               update: bson::Document,
-              upsert: bool,
+              upsert: Option<bool>,
               multi: bool,
               write_concern: Option<WriteConcern>)
               -> Result<UpdateResult> {
@@ -817,7 +800,7 @@ impl Collection {
                        replacement: bson::Document,
                        options: Option<ReplaceOptions>)
                        -> Result<UpdateResult> {
-        let options = options.unwrap_or_else(|| ReplaceOptions::new(false, None));
+        let options = options.unwrap_or_else(ReplaceOptions::new);
         try!(Collection::validate_replace(&replacement));
         self.update(filter,
                     replacement,
@@ -832,7 +815,7 @@ impl Collection {
                       update: bson::Document,
                       options: Option<UpdateOptions>)
                       -> Result<UpdateResult> {
-        let options = options.unwrap_or_else(|| UpdateOptions::new(false, None));
+        let options = options.unwrap_or_else(UpdateOptions::new);
         try!(Collection::validate_update(&update));
         self.update(filter, update, options.upsert, false, options.write_concern)
     }
@@ -843,7 +826,7 @@ impl Collection {
                        update: bson::Document,
                        options: Option<UpdateOptions>)
                        -> Result<UpdateResult> {
-        let options = options.unwrap_or_else(|| UpdateOptions::new(false, None));
+        let options = options.unwrap_or_else(UpdateOptions::new);
         try!(Collection::validate_update(&update));
         self.update(filter, update, options.upsert, true, options.write_concern)
     }

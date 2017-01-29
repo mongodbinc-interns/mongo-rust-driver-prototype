@@ -1,23 +1,37 @@
 //! Options for collection-level operations.
 use bson::{self, Bson};
-use cursor;
 use common::{ReadPreference, WriteConcern};
 use Error::ArgumentError;
 use Result;
 
 /// Describes the type of cursor to return on collection queries.
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum CursorType {
     NonTailable,
     Tailable,
     TailableAwait,
 }
 
+impl Default for CursorType {
+    fn default() -> Self {
+        CursorType::NonTailable
+    }
+}
+
 /// Describes the type of document to return on write operations.
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ReturnDocument {
     Before,
     After,
+}
+
+impl ReturnDocument {
+    pub fn as_bool(&self) -> bool {
+        match *self {
+            ReturnDocument::Before => false,
+            ReturnDocument::After => true,
+        }
+    }
 }
 
 /// Marker interface for writes that can be batched together.
@@ -29,58 +43,126 @@ pub enum WriteModel {
     ReplaceOne {
         filter: bson::Document,
         replacement: bson::Document,
-        upsert: bool,
+        upsert: Option<bool>,
     },
     UpdateOne {
         filter: bson::Document,
         update: bson::Document,
-        upsert: bool,
+        upsert: Option<bool>,
     },
     UpdateMany {
         filter: bson::Document,
         update: bson::Document,
-        upsert: bool,
+        upsert: Option<bool>,
     },
 }
 
 /// Options for aggregation queries.
-#[derive(Clone, Default)]
+#[derive(Clone, Debug, Default)]
 pub struct AggregateOptions {
-    pub allow_disk_use: bool,
-    pub use_cursor: bool,
+    pub allow_disk_use: Option<bool>,
+    pub use_cursor: Option<bool>,
     pub batch_size: i32,
     pub max_time_ms: Option<i64>,
     pub read_preference: Option<ReadPreference>,
 }
 
+impl AggregateOptions {
+    pub fn new() -> Self {
+        Default::default()
+    }
+}
+
+impl From<AggregateOptions> for bson::Document {
+    fn from(options: AggregateOptions) -> Self {
+        let mut document = bson::Document::new();
+
+        if let Some(allow_disk_use) = options.allow_disk_use {
+            document.insert("allowDiskUse", Bson::Boolean(allow_disk_use));
+        }
+
+        // useCursor not currently used by the driver.
+
+
+        let cursor = doc! { "batchSize" => (options.batch_size) };
+        document.insert("cursor", Bson::Document(cursor));
+
+        // maxTimeMS is not currently used by the driver.
+
+        // read_preference is used directly by Collection::aggregate.
+
+        document
+    }
+}
+
 /// Options for count queries.
-#[derive(Clone, Default)]
+#[derive(Clone, Debug, Default)]
 pub struct CountOptions {
-    pub skip: u64,
-    pub limit: i64,
+    pub skip: Option<i64>,
+    pub limit: Option<i64>,
     pub hint: Option<String>,
     pub hint_doc: Option<bson::Document>,
     pub max_time_ms: Option<i64>,
     pub read_preference: Option<ReadPreference>,
 }
 
+impl CountOptions {
+    pub fn new() -> Self {
+        Default::default()
+    }
+}
+
+impl From<CountOptions> for bson::Document {
+    fn from(options: CountOptions) -> Self {
+        let mut document = bson::Document::new();
+
+        if let Some(skip) = options.skip {
+            document.insert("skip", Bson::I64(skip));
+        }
+
+        if let Some(limit) = options.limit {
+            document.insert("limit", Bson::I64(limit));
+        }
+
+        if let Some(hint) = options.hint {
+            document.insert("hint", Bson::String(hint));
+        }
+
+        if let Some(hint_doc) = options.hint_doc {
+            document.insert("hint_doc", Bson::Document(hint_doc));
+        }
+
+        // maxTimeMS is not currently used by the driver.
+
+        // read_preference is used directly by Collection::count.
+
+        document
+    }
+}
+
 /// Options for distinct queries.
-#[derive(Clone, Default)]
+#[derive(Clone, Debug, Default)]
 pub struct DistinctOptions {
     pub max_time_ms: Option<i64>,
     pub read_preference: Option<ReadPreference>,
 }
 
+impl DistinctOptions {
+    pub fn new() -> Self {
+        Default::default()
+    }
+}
+
 /// Options for collection queries.
-#[derive(Clone)]
+#[derive(Clone, Debug, Default)]
 pub struct FindOptions {
     pub allow_partial_results: bool,
     pub no_cursor_timeout: bool,
-    pub op_log_replay: bool,
-    pub skip: u32,
-    pub limit: i32,
+    pub oplog_replay: bool,
+    pub skip: Option<i64>,
+    pub limit: Option<i64>,
     pub cursor_type: CursorType,
-    pub batch_size: i32,
+    pub batch_size: Option<i32>,
     pub comment: Option<String>,
     pub max_time_ms: Option<i64>,
     pub modifiers: Option<bson::Document>,
@@ -89,8 +171,50 @@ pub struct FindOptions {
     pub read_preference: Option<ReadPreference>,
 }
 
+impl FindOptions {
+    /// Creates a new FindOptions struct with default parameters.
+    pub fn new() -> Self {
+        Default::default()
+    }
+}
+
+impl From<FindOptions> for bson::Document {
+    fn from(options: FindOptions) -> Self {
+        let mut document = bson::Document::new();
+
+        // `allow_partial_results`, `no_cursor_timeout`, `oplog_relay`, and `cursor_type` are used by
+        // wire_protocol::OpQueryFlags.
+        //
+        // `max_time_ms` and `modifiers` are not currently used by the driver.
+        //
+        // read_preference is used directly by Collection::find_with_command_type.
+
+        if let Some(projection) = options.projection {
+            document.insert("projection", Bson::Document(projection));
+        }
+
+        if let Some(skip) = options.skip {
+            document.insert("skip", Bson::I64(skip));
+        }
+
+        if let Some(limit) = options.limit {
+            document.insert("limit", Bson::I64(limit));
+        }
+
+        if let Some(batch_size) = options.batch_size {
+            document.insert("batchSize", Bson::I32(batch_size));
+        }
+
+        if let Some(sort) = options.sort {
+            document.insert("sort", Bson::Document(sort));
+        }
+
+        document
+    }
+}
+
 /// Options for `findOneAndDelete` operations.
-#[derive(Clone, Default)]
+#[derive(Clone, Debug, Default)]
 pub struct FindOneAndDeleteOptions {
     pub max_time_ms: Option<i64>,
     pub projection: Option<bson::Document>,
@@ -98,19 +222,83 @@ pub struct FindOneAndDeleteOptions {
     pub write_concern: Option<WriteConcern>,
 }
 
+impl FindOneAndDeleteOptions {
+    pub fn new() -> Self {
+        Default::default()
+    }
+}
+
+impl From<FindOneAndDeleteOptions> for bson::Document {
+    fn from(options: FindOneAndDeleteOptions) -> Self {
+        let mut document = bson::Document::new();
+
+        // max_time_ms is not currently used by the driver
+
+        if let Some(projection) = options.projection {
+            document.insert("fields", Bson::Document(projection));
+        }
+
+        if let Some(sort) = options.sort {
+            document.insert("sort", Bson::Document(sort));
+        }
+
+        if let Some(write_concern) = options.write_concern {
+            document.insert("writeConcern", Bson::Document(write_concern.to_bson()));
+        }
+
+        return document;
+    }
+}
+
 /// Options for `findOneAndUpdate` operations.
-#[derive(Clone)]
+#[derive(Clone, Debug, Default)]
 pub struct FindOneAndUpdateOptions {
-    pub return_document: ReturnDocument,
+    pub return_document: Option<ReturnDocument>,
     pub max_time_ms: Option<i64>,
     pub projection: Option<bson::Document>,
     pub sort: Option<bson::Document>,
-    pub upsert: bool,
+    pub upsert: Option<bool>,
     pub write_concern: Option<WriteConcern>,
 }
 
+impl FindOneAndUpdateOptions {
+    pub fn new() -> Self {
+        Default::default()
+    }
+}
+
+impl From<FindOneAndUpdateOptions> for bson::Document {
+    fn from(options: FindOneAndUpdateOptions) -> Self {
+        let mut document = bson::Document::new();
+
+        if let Some(return_document) = options.return_document {
+            document.insert("new", Bson::Boolean(return_document.as_bool()));
+        }
+
+        // max_time_ms is not currently used by the driver
+
+        if let Some(projection) = options.projection {
+            document.insert("fields", Bson::Document(projection));
+        }
+
+        if let Some(sort) = options.sort {
+            document.insert("sort", Bson::Document(sort));
+        }
+
+        if let Some(upsert) = options.upsert {
+            document.insert("upsert", upsert);
+        }
+
+        if let Some(write_concern) = options.write_concern {
+            document.insert("writeConcern", Bson::Document(write_concern.to_bson()));
+        }
+
+        return document;
+    }
+}
+
 /// Options for index operations.
-#[derive(Clone, Default)]
+#[derive(Clone, Debug, Default)]
 pub struct IndexOptions {
     pub background: Option<bool>,
     pub expire_after_seconds: Option<i32>,
@@ -134,148 +322,17 @@ pub struct IndexOptions {
     pub bucket_size: Option<i32>,
 }
 
+impl IndexOptions {
+    pub fn new() -> Self {
+        Default::default()
+    }
+}
+
 /// A single index model.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct IndexModel {
     pub keys: bson::Document,
     pub options: IndexOptions,
-}
-
-/// Options for insertMany operations.
-#[derive(Clone, Default)]
-pub struct InsertManyOptions {
-    pub ordered: bool,
-    pub write_concern: Option<WriteConcern>,
-}
-
-/// Options for update operations.
-#[derive(Clone, Default)]
-pub struct UpdateOptions {
-    pub upsert: bool,
-    pub write_concern: Option<WriteConcern>,
-}
-
-pub type ReplaceOptions = UpdateOptions;
-
-impl AggregateOptions {
-    pub fn new() -> AggregateOptions {
-        AggregateOptions {
-            allow_disk_use: false,
-            use_cursor: true,
-            batch_size: cursor::DEFAULT_BATCH_SIZE,
-            max_time_ms: None,
-            read_preference: None,
-        }
-    }
-}
-
-impl CountOptions {
-    pub fn new() -> CountOptions {
-        CountOptions {
-            skip: 0,
-            limit: 0,
-            hint: None,
-            hint_doc: None,
-            max_time_ms: None,
-            read_preference: None,
-        }
-    }
-}
-
-impl DistinctOptions {
-    pub fn new() -> DistinctOptions {
-        DistinctOptions {
-            max_time_ms: None,
-            read_preference: None,
-        }
-    }
-}
-
-impl Default for FindOptions {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl FindOptions {
-    /// Creates a new FindOptions struct with default parameters.
-    pub fn new() -> FindOptions {
-        FindOptions {
-            allow_partial_results: false,
-            no_cursor_timeout: false,
-            op_log_replay: false,
-            skip: 0,
-            limit: 0,
-            cursor_type: CursorType::NonTailable,
-            batch_size: cursor::DEFAULT_BATCH_SIZE,
-            comment: None,
-            max_time_ms: None,
-            modifiers: None,
-            projection: None,
-            sort: None,
-            read_preference: None,
-        }
-    }
-
-    /// Clone the current options struct with a new limit.
-    pub fn with_limit(&self, limit: i32) -> FindOptions {
-        let mut new_opts = self.clone();
-        new_opts.limit = limit;
-        new_opts
-    }
-}
-
-impl FindOneAndDeleteOptions {
-    pub fn new() -> FindOneAndDeleteOptions {
-        FindOneAndDeleteOptions {
-            max_time_ms: None,
-            projection: None,
-            sort: None,
-            write_concern: None,
-        }
-    }
-}
-
-impl Default for FindOneAndUpdateOptions {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl FindOneAndUpdateOptions {
-    pub fn new() -> FindOneAndUpdateOptions {
-        FindOneAndUpdateOptions {
-            return_document: ReturnDocument::Before,
-            max_time_ms: None,
-            projection: None,
-            sort: None,
-            upsert: false,
-            write_concern: None,
-        }
-    }
-}
-
-impl IndexOptions {
-    pub fn new() -> IndexOptions {
-        IndexOptions {
-            background: None,
-            expire_after_seconds: None,
-            name: None,
-            sparse: None,
-            storage_engine: None,
-            unique: None,
-            version: None,
-            default_language: None,
-            language_override: None,
-            text_version: None,
-            weights: None,
-            sphere_version: None,
-            bits: None,
-            max: None,
-            min: None,
-            bucket_size: None,
-        }
-    }
 }
 
 impl IndexModel {
@@ -374,29 +431,46 @@ impl IndexModel {
     }
 }
 
+/// Options for insertMany operations.
+#[derive(Clone, Debug, Default)]
+pub struct InsertManyOptions {
+    pub ordered: Option<bool>,
+    pub write_concern: Option<WriteConcern>,
+}
+
 impl InsertManyOptions {
-    pub fn new(ordered: bool, write_concern: Option<WriteConcern>) -> InsertManyOptions {
-        InsertManyOptions {
-            ordered: ordered,
-            write_concern: write_concern,
-        }
+    pub fn new() -> Self {
+        Default::default()
     }
 }
 
-impl ReturnDocument {
-    pub fn to_bool(&self) -> bool {
-        match *self {
-            ReturnDocument::Before => false,
-            ReturnDocument::After => true,
+impl From<InsertManyOptions> for bson::Document {
+    fn from(options: InsertManyOptions) -> Self {
+        let mut document = bson::Document::new();
+
+        if let Some(ordered) = options.ordered {
+            document.insert("ordered", Bson::Boolean(ordered));
         }
+
+        if let Some(write_concern) = options.write_concern {
+            document.insert("writeConcern", Bson::Document(write_concern.to_bson()));
+        }
+
+        document
     }
+}
+
+/// Options for update operations.
+#[derive(Clone, Debug, Default)]
+pub struct UpdateOptions {
+    pub upsert: Option<bool>,
+    pub write_concern: Option<WriteConcern>,
 }
 
 impl UpdateOptions {
-    pub fn new(upsert: bool, write_concern: Option<WriteConcern>) -> UpdateOptions {
-        UpdateOptions {
-            upsert: upsert,
-            write_concern: write_concern,
-        }
+    pub fn new() -> UpdateOptions {
+        Default::default()
     }
 }
+
+pub type ReplaceOptions = UpdateOptions;

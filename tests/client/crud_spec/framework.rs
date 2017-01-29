@@ -132,7 +132,7 @@ macro_rules! run_find_test {
 
 macro_rules! run_insert_many_test {
     ( $db:expr, $coll:expr, $docs:expr, $outcome:expr ) => {{
-        let options = Some(InsertManyOptions::new(true, None));
+        let options = Some(InsertManyOptions::new());
         let inserted = $coll.insert_many($docs, options).unwrap().inserted_ids.unwrap();
         let ids_bson = match $outcome.result {
             Bson::Document(ref doc) => doc.get("insertedIds").unwrap(),
@@ -170,7 +170,7 @@ macro_rules! run_insert_one_test {
 macro_rules! run_replace_one_test {
     ( $db:expr, $coll:expr, $filter:expr, $replacement:expr, $upsert:expr,
         $outcome:expr ) => {{
-            let options = ReplaceOptions::new($upsert, None);
+            let options = ReplaceOptions { upsert: $upsert, write_concern: None };
             let actual = $coll.replace_one($filter, $replacement, Some(options)).unwrap();
 
             let (matched, modified, upserted) = match $outcome.result {
@@ -251,7 +251,7 @@ macro_rules! run_suite {
 
         for test in suite.tests {
             coll.drop().unwrap();
-            let options = Some(InsertManyOptions::new(true, None));
+            let options = Some(InsertManyOptions::new());
             coll.insert_many(suite.data.clone(), options).unwrap();
 
             match test.operation {
@@ -267,25 +267,23 @@ macro_rules! run_suite {
                 Arguments::Find { filter, options } =>
                     run_find_test!(db, coll, filter, Some(options), test.outcome),
                 Arguments::FindOneAndDelete { filter, options } =>
-                    run_find_one_and_delete_test!(db, coll, filter,
-                                                  Some(options), test.outcome),
+                    run_find_one_and_delete_test!(db, coll, filter, Some(options), test.outcome),
                 Arguments::FindOneAndReplace { filter, replacement, options } =>
-                    run_find_one_and_replace_test!(db, coll, filter, replacement,
-                                                   Some(options), test.outcome),
+                    run_find_one_and_replace_test!(db, coll, filter, replacement, Some(options), test.outcome),
                 Arguments::FindOneAndUpdate { filter, update, options } =>
-                    run_find_one_and_update_test!(db, coll, filter, update,
-                                                  Some(options), test.outcome),
+                    run_find_one_and_update_test!(db, coll, filter, update, Some(options), test.outcome),
                 Arguments::InsertMany { documents } =>
                     run_insert_many_test!(db, coll, documents, test.outcome),
                 Arguments::InsertOne { document } =>
                     run_insert_one_test!(db, coll, document, test.outcome),
                 Arguments::ReplaceOne { filter, replacement, upsert } =>
-                    run_replace_one_test!(db, coll, filter, replacement, upsert,
-                                          test.outcome),
-                Arguments::Update { filter, update, upsert, many } =>
-                    run_update_test!(db, coll, filter, update,
-                                     Some(UpdateOptions::new(upsert, None)), many,
-                                     test.outcome),
+                    run_replace_one_test!(db, coll, filter, replacement, Some(upsert), test.outcome),
+                Arguments::Update { filter, update, upsert, many } => {
+                    let options = UpdateOptions { upsert: Some(upsert), ..Default::default() };
+
+                    run_update_test!(db, coll, filter, update, Some(options), many, test.outcome)
+
+                }
             };
         }
     }};
