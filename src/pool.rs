@@ -1,11 +1,11 @@
 //! Connection pooling for a single MongoDB server.
-use Error::{ArgumentError, OperationError};
-use Result;
+use error::Error::{self, ArgumentError, OperationError};
+use error::Result;
 
 use connstring::Host;
+use stream::{Stream, StreamConnector};
 
 use bufstream::BufStream;
-use std::net::TcpStream;
 use std::sync::{Arc, Condvar, Mutex};
 use std::sync::atomic::{AtomicUsize, Ordering, ATOMIC_USIZE_INIT};
 
@@ -21,6 +21,7 @@ pub struct ConnectionPool {
     // A condition variable used for threads waiting for the pool
     // to be repopulated with available connections.
     wait_lock: Arc<Condvar>,
+    stream_connector: StreamConnector,
 }
 
 struct Pool {
@@ -29,7 +30,7 @@ struct Pool {
     // The current number of open connections.
     pub len: Arc<AtomicUsize>,
     // The idle socket pool.
-    sockets: Vec<BufStream<TcpStream>>,
+    sockets: Vec<BufStream<Stream>>,
     // The pool iteration. When a server monitor fails to execute ismaster,
     // the connection pool is cleared and the iteration is incremented.
     iteration: usize,
@@ -40,7 +41,7 @@ struct Pool {
 pub struct PooledStream {
     // This socket option will always be Some(stream) until it is
     // returned to the pool using take().
-    socket: Option<BufStream<TcpStream>>,
+    socket: Option<BufStream<Stream>>,
     // A reference to the pool that the stream was taken from.
     pool: Arc<Mutex<Pool>>,
     // A reference to the waiting condvar associated with the pool.
@@ -51,7 +52,7 @@ pub struct PooledStream {
 
 impl PooledStream {
     /// Returns a reference to the socket.
-    pub fn get_socket(&mut self) -> &mut BufStream<TcpStream> {
+    pub fn get_socket(&mut self) -> &mut BufStream<Stream> {
         self.socket.as_mut().unwrap()
     }
 }
@@ -72,12 +73,12 @@ impl Drop for PooledStream {
 
 impl ConnectionPool {
     /// Returns a connection pool with a default size.
-    pub fn new(host: Host) -> ConnectionPool {
-        ConnectionPool::with_size(host, DEFAULT_POOL_SIZE)
+    pub fn new(host: Host, connector: StreamConnector) -> ConnectionPool {
+        ConnectionPool::with_size(host, connector, DEFAULT_POOL_SIZE)
     }
 
     /// Returns a connection pool with a specified capped size.
-    pub fn with_size(host: Host, size: usize) -> ConnectionPool {
+    pub fn with_size(host: Host, connector: StreamConnector, size: usize) -> ConnectionPool {
         ConnectionPool {
             host: host,
             wait_lock: Arc::new(Condvar::new()),
@@ -87,6 +88,7 @@ impl ConnectionPool {
                 sockets: Vec::with_capacity(size),
                 iteration: 0,
             })),
+            stream_connector: connector,
         }
     }
 
@@ -149,11 +151,12 @@ impl ConnectionPool {
         }
     }
 
+
     // Connects to a MongoDB server as defined by the initial configuration.
-    fn connect(&self) -> Result<BufStream<TcpStream>> {
-        let host_name = &self.host.host_name;
-        let port = self.host.port;
-        let stream = BufStream::new(try!(TcpStream::connect((&host_name[..], port))));
-        Ok(stream)
+    fn connect(&self) -> Result<BufStream<Stream>> {
+        match self.stream_connector.connect(&self.host.host_name[..], self.host.port) {
+            Ok(s) => Ok(BufStream::new(s)),
+            Err(e) => Err(Error::from(e)),
+        }
     }
 }

@@ -10,6 +10,7 @@ use command_type::CommandType;
 use connstring::{self, Host};
 use cursor::Cursor;
 use pool::ConnectionPool;
+use stream::StreamConnector;
 use wire_protocol::flags::OpQueryFlags;
 
 use std::collections::BTreeMap;
@@ -223,14 +224,14 @@ impl Monitor {
                host: Host,
                pool: Arc<ConnectionPool>,
                top_description: Arc<RwLock<TopologyDescription>>,
-               server_description: Arc<RwLock<ServerDescription>>)
+               server_description: Arc<RwLock<ServerDescription>>,
+               connector: StreamConnector)
                -> Monitor {
-
         Monitor {
             client: client,
             host: host.clone(),
             server_pool: pool,
-            personal_pool: Arc::new(ConnectionPool::with_size(host, 1)),
+            personal_pool: Arc::new(ConnectionPool::with_size(host, connector, 1)),
             top_description: top_description,
             server_description: server_description,
             heartbeat_frequency_ms: AtomicUsize::new(DEFAULT_HEARTBEAT_FREQUENCY_MS as usize),

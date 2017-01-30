@@ -87,12 +87,17 @@
 //! Each server within a MongoDB server set is maintained by the driver with a separate connection
 //! pool. By default, each pool has a maximum of 5 concurrent open connections.
 
-#[doc(html_root_url = "https://mongodbinc-interns.github.io/mongo-rust-driver-prototype")]
+#[doc(html_root_url = "https://docs.rs/mongodb")]
+#[macro_use(bitflags)]
+extern crate bitflags;
 #[macro_use(bson, doc)]
 extern crate bson;
+extern crate bufstream;
 extern crate byteorder;
 extern crate chrono;
 extern crate crypto;
+#[cfg(feature = "ssl")]
+extern crate openssl;
 extern crate rand;
 extern crate rustc_serialize;
 #[macro_use]
@@ -101,7 +106,6 @@ extern crate semver;
 extern crate separator;
 extern crate textnonce;
 extern crate time;
-extern crate bufstream;
 
 pub mod db;
 pub mod coll;
@@ -111,6 +115,7 @@ pub mod cursor;
 pub mod error;
 pub mod gridfs;
 pub mod pool;
+pub mod stream;
 pub mod topology;
 pub mod wire_protocol;
 
@@ -135,8 +140,9 @@ use connstring::ConnectionString;
 use db::{Database, ThreadedDatabase};
 use error::Error::ResponseError;
 use pool::PooledStream;
+use stream::StreamConnector;
 use topology::{Topology, TopologyDescription, TopologyType, DEFAULT_HEARTBEAT_FREQUENCY_MS,
-               DEFAULT_LOCAL_THRESHOLD_MS, DEFAULT_SERVER_SELECTION_TIMEOUT_MS};
+DEFAULT_LOCAL_THRESHOLD_MS, DEFAULT_SERVER_SELECTION_TIMEOUT_MS};
 use topology::server::Server;
 
 /// Interfaces with a MongoDB server or replica set.
@@ -167,6 +173,8 @@ pub struct ClientOptions {
     pub server_selection_timeout_ms: i64,
     /// The size of the latency window for selecting suitable servers; default 15 ms.
     pub local_threshold_ms: i64,
+    /// Options for how to connect to the server.
+    pub stream_connector: StreamConnector,
 }
 
 impl ClientOptions {
@@ -179,6 +187,7 @@ impl ClientOptions {
             heartbeat_frequency_ms: DEFAULT_HEARTBEAT_FREQUENCY_MS,
             server_selection_timeout_ms: DEFAULT_SERVER_SELECTION_TIMEOUT_MS,
             local_threshold_ms: DEFAULT_LOCAL_THRESHOLD_MS,
+            stream_connector: StreamConnector::default(),
         }
     }
 
@@ -188,6 +197,19 @@ impl ClientOptions {
         options.log_file = Some(String::from(file));
         options
     }
+
+    #[cfg(feature = "ssl")]
+    /// Creates a new options struct with a specified SSL certificate and key files.
+    pub fn with_ssl(ca_file: &str,
+                    certificate_file: &str,
+                    key_file: &str,
+                    verify_peer: bool)
+        -> ClientOptions {
+            let mut options = ClientOptions::new();
+            options.stream_connector = StreamConnector::with_ssl(ca_file, certificate_file,
+                                                                 key_file, verify_peer);
+            options
+        }
 }
 
 pub trait ThreadedClient: Sync + Sized {
@@ -206,7 +228,7 @@ pub trait ThreadedClient: Sync + Sized {
     fn with_config(config: ConnectionString,
                    options: Option<ClientOptions>,
                    description: Option<TopologyDescription>)
-                   -> Result<Self>;
+        -> Result<Self>;
     /// Creates a database representation.
     fn db(&self, db_name: &str) -> Database;
     /// Creates a database representation with custom read and write controls.
@@ -214,7 +236,7 @@ pub trait ThreadedClient: Sync + Sized {
                      db_name: &str,
                      read_preference: Option<ReadPreference>,
                      write_concern: Option<WriteConcern>)
-                     -> Database;
+        -> Database;
     /// Acquires a connection stream from the pool, along with slave_ok and should_send_read_pref.
     fn acquire_stream(&self, read_pref: ReadPreference) -> Result<(PooledStream, bool, bool)>;
     /// Acquires a connection stream from the pool for write operations.
@@ -238,14 +260,15 @@ pub type Client = Arc<ClientInner>;
 impl ThreadedClient for Client {
     fn connect(host: &str, port: u16) -> Result<Client> {
         let config = ConnectionString::new(host, port);
-        let mut description = TopologyDescription::new();
+        let mut description = TopologyDescription::new(StreamConnector::Tcp);
         description.topology_type = TopologyType::Single;
         Client::with_config(config, None, Some(description))
     }
 
     fn connect_with_options(host: &str, port: u16, options: ClientOptions) -> Result<Client> {
         let config = ConnectionString::new(host, port);
-        let mut description = TopologyDescription::new();
+        let mut description = TopologyDescription::new(options.stream_connector.clone());
+
         description.topology_type = TopologyType::Single;
         Client::with_config(config, Some(options), Some(description))
     }
@@ -263,54 +286,54 @@ impl ThreadedClient for Client {
     fn with_config(config: ConnectionString,
                    options: Option<ClientOptions>,
                    description: Option<TopologyDescription>)
-                   -> Result<Client> {
+        -> Result<Client> {
 
-        let client_options = options.unwrap_or_else(ClientOptions::new);
+            let client_options = options.unwrap_or_else(ClientOptions::new);
 
-        let rp = client_options.read_preference
-            .unwrap_or_else(|| ReadPreference::new(ReadMode::Primary, None));
-        let wc = client_options.write_concern.unwrap_or_else(WriteConcern::new);
+            let rp = client_options.read_preference
+                .unwrap_or_else(|| ReadPreference::new(ReadMode::Primary, None));
+            let wc = client_options.write_concern.unwrap_or_else(WriteConcern::new);
 
-        let listener = Listener::new();
-        let file = match client_options.log_file {
-            Some(string) => {
-                let _ = listener.add_start_hook(log_command_started);
-                let _ = listener.add_completion_hook(log_command_completed);
-                Some(Mutex::new(try!(OpenOptions::new()
-                    .write(true)
-                    .append(true)
-                    .create(true)
-                    .open(&string))))
+            let listener = Listener::new();
+            let file = match client_options.log_file {
+                Some(string) => {
+                    let _ = listener.add_start_hook(log_command_started);
+                    let _ = listener.add_completion_hook(log_command_completed);
+                    Some(Mutex::new(try!(OpenOptions::new()
+                                         .write(true)
+                                         .append(true)
+                                         .create(true)
+                                         .open(&string))))
+                }
+                None => None,
+            };
+
+            let client = Arc::new(ClientInner {
+                req_id: Arc::new(ATOMIC_ISIZE_INIT),
+                topology: try!(Topology::new(config.clone(), description, client_options.stream_connector.clone())),
+                listener: listener,
+                read_preference: rp,
+                write_concern: wc,
+                log_file: file,
+            });
+
+            // Fill servers array and set options
+            {
+                let top_description = &client.topology.description;
+                let mut top = try!(top_description.write());
+                top.heartbeat_frequency_ms = client_options.heartbeat_frequency_ms;
+                top.server_selection_timeout_ms = client_options.server_selection_timeout_ms;
+                top.local_threshold_ms = client_options.local_threshold_ms;
+
+                for host in &config.hosts {
+                    let server = Server::new(client.clone(), host.clone(), top_description.clone(), true, client_options.stream_connector.clone());
+
+                    top.servers.insert(host.clone(), server);
+                }
             }
-            None => None,
-        };
 
-        let client = Arc::new(ClientInner {
-            req_id: Arc::new(ATOMIC_ISIZE_INIT),
-            topology: try!(Topology::new(config.clone(), description)),
-            listener: listener,
-            read_preference: rp,
-            write_concern: wc,
-            log_file: file,
-        });
-
-        // Fill servers array and set options
-        {
-            let top_description = &client.topology.description;
-            let mut top = try!(top_description.write());
-            top.heartbeat_frequency_ms = client_options.heartbeat_frequency_ms;
-            top.server_selection_timeout_ms = client_options.server_selection_timeout_ms;
-            top.local_threshold_ms = client_options.local_threshold_ms;
-
-            for host in &config.hosts {
-                let server =
-                    Server::new(client.clone(), host.clone(), top_description.clone(), true);
-                top.servers.insert(host.clone(), server);
-            }
+            Ok(client)
         }
-
-        Ok(client)
-    }
 
     fn db(&self, db_name: &str) -> Database {
         Database::open(self.clone(), db_name, None, None)
@@ -320,15 +343,15 @@ impl ThreadedClient for Client {
                      db_name: &str,
                      read_preference: Option<ReadPreference>,
                      write_concern: Option<WriteConcern>)
-                     -> Database {
-        Database::open(self.clone(), db_name, read_preference, write_concern)
-    }
+        -> Database {
+            Database::open(self.clone(), db_name, read_preference, write_concern)
+        }
 
     fn acquire_stream(&self,
                       read_preference: ReadPreference)
-                      -> Result<(PooledStream, bool, bool)> {
-        self.topology.acquire_stream(read_preference)
-    }
+        -> Result<(PooledStream, bool, bool)> {
+            self.topology.acquire_stream(read_preference)
+        }
 
     fn acquire_write_stream(&self) -> Result<PooledStream> {
         self.topology.acquire_write_stream()
@@ -355,7 +378,7 @@ impl ThreadedClient for Client {
                     }
                     None
                 })
-                .collect();
+            .collect();
             return Ok(map);
         }
 

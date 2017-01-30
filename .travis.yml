@@ -3,18 +3,29 @@ language: rust
 cache: cargo
 
 before_install:
-    - wget http://fastdl.mongodb.org/linux/mongodb-linux-x86_64-3.0.14.tgz
-    - tar xvf mongodb-linux-x86_64-3.0.14.tgz
-    - mv mongodb-linux-x86_64-3.0.14 3.0.14
-    - wget http://fastdl.mongodb.org/linux/mongodb-linux-x86_64-3.2.11.tgz
-    - tar xvf mongodb-linux-x86_64-3.2.11.tgz
-    - mv mongodb-linux-x86_64-3.2.11 3.2.11
+    - wget http://fastdl.mongodb.org/linux/mongodb-linux-x86_64-ubuntu1204-3.0.14.tgz
+    - tar xvf mongodb-linux-x86_64-ubuntu1204-3.0.14.tgz
+    - mv mongodb-linux-x86_64-ubuntu1204-3.0.14 3.0.14
+    - wget http://fastdl.mongodb.org/linux/mongodb-linux-x86_64-ubuntu1204-3.2.11.tgz
+    - tar xvf mongodb-linux-x86_64-ubuntu1204-3.2.11.tgz
+    - mv mongodb-linux-x86_64-ubuntu1204-3.2.11 3.2.11
 
 script:
-    - mkdir -p ./data/db ./data/db2
-    - 3.0.14/bin/mongod --fork --nopreallocj --dbpath ./data/db --syslog --port 27017
+    - mkdir -p ./data/db30 ./data/db30-ssl ./data/db32 ./data/db32-ssl
+    - 3.0.14/bin/mongod --fork --dbpath ./data/db30 --syslog --port 27017
     - cargo build --verbose
     - cargo test --verbose
     - killall mongod
-    - 3.2.11/bin/mongod --fork --nopreallocj --dbpath ./data/db2 --syslog --port 27017
+    - 3.2.11/bin/mongod --fork --dbpath ./data/db32 --syslog --port 27017
     - cargo test --verbose
+    - killall mongod
+    - 3.0.14/bin/mongod --fork --dbpath ./data/db30 --syslog --port 27017
+    - 3.0.14/bin/mongod --fork --dbpath ./data/db30-ssl --syslog --port 27018 --sslMode requireSSL --sslPEMKeyFile tests/ssl/server.pem --sslCAFile tests/ssl/ca.pem
+    - cargo build --features ssl --verbose
+    - cargo test --features ssl --verbose
+    - killall mongod
+    - 3.2.11/bin/mongod --fork --dbpath ./data/db32 --syslog --port 27017
+    - 3.2.11/bin/mongod --fork --dbpath ./data/db32-ssl --syslog --port 27018 --sslMode requireSSL --sslPEMKeyFile tests/ssl/server.pem --sslCAFile tests/ssl/ca.pem
+    - cargo test --features ssl --verbose
+
+

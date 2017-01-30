@@ -18,12 +18,20 @@ Installation
 
 #### Importing
 
-The 1.0 driver is available on crates.io. To use the MongoDB driver in your code, add the bson and mongodb packages to your `Cargo.toml`:
+The driver is available on crates.io. To use the MongoDB driver in your code, add the bson and mongodb packages to your `Cargo.toml`:
 
 ```
 [dependencies]
-bson = "0.3.1"
-mongodb = "0.1.8"
+bson = "0.3.2"
+mongodb = "0.2.0"
+```
+
+Alternately, you can use the MongoDB driver with SSL support. To do this, you must have OpenSSL installed on your system. Then, enable the `ssl` feature for MongoDB in your Cargo.toml:
+
+```
+[dependencies]
+...
+mongodb = { version = "0.2.0", features = ["ssl"] }
 ```
 
 Then, import the bson and driver libraries within your code.
@@ -46,7 +54,7 @@ use mongodb::db::ThreadedDatabase;
 
 fn main() {
     let client = Client::connect("localhost", 27017)
-        .ok().expect("Failed to initialize standalone client.");
+        .expect("Failed to initialize standalone client.");
 
     let coll = client.db("test").collection("movies");
 
@@ -72,6 +80,36 @@ fn main() {
         Some(Err(_)) => panic!("Failed to get next from server!"),
         None => panic!("Server returned no results!"),
     }
+}
+```
+
+To connect with SSL, use `ClientOptions::with_ssl` and `Client::connect_with_options`. Afterwards, the client can be used as above (note that the server will have to be configured to accept SSL connections and that you'll have to generate your own keys and certificates):
+
+```rust
+use bson::Bson;
+use mongodb::{Client, ClientOptions, ThreadedClient};
+use mongodb::db::ThreadedDatabase;
+
+fn main() {
+    // Path to file containing trusted server certificates.
+    let ca_file = "path/to/ca.crt";
+    // Path to file containing client certificate.
+    let certificate = "path/to/client.crt";
+    // Path to file containing the client private key.
+    let key_file = "path/to/client.key";
+    // Whether or not to verify that the server certificate is valid. Unless you're just testing out something locally, this should ALWAYS be true.
+    let verify_peer = true;
+
+    let options = ClientOptions::with_ssl(ca_file, certificate, key_file, verify_peer);
+
+    let client = Client::connect_with_options("localhost", 27017, options)
+        .expect("Failed to initialize standalone client.");
+
+    // Insert document into 'test.movies' collection
+    coll.insert_one(doc.clone(), None)
+        .ok().expect("Failed to insert document.");
+
+    ...
 }
 ```
 

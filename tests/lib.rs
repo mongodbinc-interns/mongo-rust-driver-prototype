@@ -11,3 +11,5 @@ mod client;
 mod json;
 mod sdam;
 mod server_selection;
+#[cfg(feature = "ssl")]
+mod ssl;

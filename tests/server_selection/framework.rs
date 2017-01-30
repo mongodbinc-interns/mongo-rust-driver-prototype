@@ -1,6 +1,7 @@
 use mongodb::{Client, ThreadedClient};
 use mongodb::common::ReadMode;
 use mongodb::connstring::ConnectionString;
+use mongodb::stream::StreamConnector;
 use mongodb::topology::{TopologyDescription, TopologyType};
 use mongodb::topology::server::Server;
 
@@ -14,16 +15,17 @@ pub fn run_suite(file: &str) {
 
     let dummy_config = ConnectionString::new("i-dont-exist", 27017);
     let dummy_client = Client::with_config(dummy_config, None, None).unwrap();
-    let dummy_top_arc = Arc::new(RwLock::new(TopologyDescription::new()));
+    let dummy_top_arc = Arc::new(RwLock::new(TopologyDescription::new(StreamConnector::default())));
 
-    let mut topology_description = TopologyDescription::new();
+    let mut topology_description = TopologyDescription::new(StreamConnector::default());
     topology_description.topology_type = suite.topology_description.ttype;
 
     for suite_server in suite.topology_description.servers {
         let server = Server::new(dummy_client.clone(),
                                  suite_server.host.clone(),
                                  dummy_top_arc.clone(),
-                                 false);
+                                 false,
+                                 StreamConnector::default());
 
         {
             let mut description = server.description.write().unwrap();
