@@ -5,7 +5,7 @@ authors = ["Valeri Karpov <valkar207@gmail.com>",
            "Saghm Rossi <saghmrossi@gmail.com>",
            "Kevin Yeh <kevinyeah@utexas.edu>"]
 
-description = "An experimental MongoDB driver written by MongoDB interns."
+description = "A native MongoDB driver developed under MongoDB labs."
 repository = "https://github.com/mongodb-labs/mongo-rust-driver-prototype"
 documentation = "https://docs.rs/mongodb"
 readme = "README.md"
