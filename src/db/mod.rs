@@ -302,8 +302,7 @@ impl ThreadedDatabase for Database {
         let coll_options = options.unwrap_or_else(CreateCollectionOptions::new);
         let mut doc = doc! {
             "create" => name,
-            "capped" => (coll_options.capped),
-            "auto_index_id" => (coll_options.auto_index_id)
+            "capped" => (coll_options.capped)
         };
 
         if let Some(i) = coll_options.size {
