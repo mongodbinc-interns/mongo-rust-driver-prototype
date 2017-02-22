@@ -35,7 +35,7 @@ fn create_collection() {
 
     let db1 = if v3_1 { "test1" } else { "test2" };
     let db2 = if v3_1 { "test2" } else { "test1" };
-    
+
     match results[result_size - 2].get("name") {
         Some(&Bson::String(ref name)) => assert_eq!(db1, name),
         _ => panic!("Expected BSON string!"),
@@ -82,7 +82,7 @@ fn list_collections() {
 
     let db1 = if v3_1 { "test" } else { "test2" };
     let db2 = if v3_1 { "test2" } else { "test" };
-    
+
     match results[result_size - 2].get("name") {
         Some(&Bson::String(ref name)) => assert_eq!(db1, name),
         _ => panic!("Expected BSON string!"),
@@ -101,6 +101,17 @@ fn create_and_get_users() {
     db.drop_database().unwrap();
     db.drop_all_users(None).unwrap();
 
+    let kevin_options = CreateUserOptions {
+        custom_data: None,
+        roles: vec![Role::All(AllDatabaseRole::Read)],
+        write_concern: None,
+    };
+
+    db.create_user("kevin",
+                     "ihavenosenseofhumorandthereforeihatepuns!",
+                     Some(kevin_options))
+        .unwrap();
+
     let saghm_options = CreateUserOptions {
         custom_data: Some(doc! { "foo" => "bar" }),
         roles: vec![Role::Single {
@@ -113,16 +124,6 @@ fn create_and_get_users() {
 
     db.create_user("saghm", "ilikepuns!", Some(saghm_options)).unwrap();
 
-    let kevin_options = CreateUserOptions {
-        custom_data: None,
-        roles: vec![Role::All(AllDatabaseRole::Read)],
-        write_concern: None,
-    };
-
-    db.create_user("kevin",
-                     "ihavenosenseofhumorandthereforeihatepuns!",
-                     Some(kevin_options))
-        .unwrap();
     db.create_user("val", "ilikeangularjs!", None).unwrap();
 
     let user = db.get_user("saghm", None).unwrap();
@@ -163,13 +164,13 @@ fn create_and_get_users() {
     assert_eq!(users.len(), 3);
 
     match users[0].get("user") {
-        Some(&Bson::String(ref s)) => assert_eq!("saghm", s),
-        _ => panic!("User isn't named 'saghm' but should be"),
+        Some(&Bson::String(ref s)) => assert_eq!("kevin", s),
+        _ => panic!("User isn't named 'kevin' but should be"),
     };
 
     match users[1].get("user") {
-        Some(&Bson::String(ref s)) => assert_eq!("kevin", s),
-        _ => panic!("User isn't named 'kevin' but should be"),
+        Some(&Bson::String(ref s)) => assert_eq!("saghm", s),
+        _ => panic!("User isn't named 'saghm' but should be"),
     };
 
     match users[2].get("user") {

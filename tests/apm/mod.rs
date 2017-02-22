@@ -54,7 +54,7 @@ fn read_first_non_monitor_line(file: &mut BufReader<&File>, line: &mut String) {
 
 #[test]
 fn logging() {
-    let _ = fs::remove_file("test_apm_log.txt");
+    let _ = fs::remove_file("test_log.txt");
 
     // Reset State
     let reset_client = Client::connect("localhost", 27017)
@@ -63,8 +63,11 @@ fn logging() {
     let reset_coll = reset_db.collection("logging");
     reset_coll.drop().unwrap();
 
+    let db_version = reset_db.version().unwrap();
+    let v3_3 = db_version.major <= 3 && db_version.minor <= 3;
+
     // Start logging
-    let client_options = ClientOptions::with_log_file("test_apm_log.txt");
+    let client_options = ClientOptions::with_log_file("test_log.txt");
     let client = Client::connect_with_options("localhost", 27017, client_options).unwrap();
 
     let db = client.db("test-apm-mod");
@@ -86,7 +89,7 @@ fn logging() {
 
     coll.find(Some(filter), None).unwrap();
 
-    let f = File::open("test_apm_log.txt").unwrap();
+    let f = File::open("test_log.txt").unwrap();
     let mut file = BufReader::new(&f);
     let mut line = String::new();
 
@@ -121,10 +124,17 @@ fn logging() {
                 _id: 1 }] }\n",
                &line);
 
+
+    let insert_one_line_start = if v3_3 {
+        "COMMAND.insert_one 127.0.0.1:27017 COMPLETED: { ok: 1, n: 1 } ("
+    } else {
+        "COMMAND.insert_one 127.0.0.1:27017 COMPLETED: { n: 1, ok: 1 } ("
+    };
+
     // First insert completed
     line.clear();
     read_first_non_monitor_line(&mut file, &mut line);
-    assert!(line.starts_with("COMMAND.insert_one 127.0.0.1:27017 COMPLETED: { ok: 1, n: 1 } ("));
+    assert!(line.starts_with(insert_one_line_start));
     assert!(line.ends_with(" ns)\n"));
 
     // Second insert started
@@ -137,7 +147,7 @@ fn logging() {
     // Second insert completed
     line.clear();
     read_first_non_monitor_line(&mut file, &mut line);
-    assert!(line.starts_with("COMMAND.insert_one 127.0.0.1:27017 COMPLETED: { ok: 1, n: 1 } ("));
+    assert!(line.starts_with(insert_one_line_start));
     assert!(line.ends_with(" ns)\n"));
 
     // Third insert started
@@ -150,7 +160,7 @@ fn logging() {
     // Third insert completed
     line.clear();
     read_first_non_monitor_line(&mut file, &mut line);
-    assert!(line.starts_with("COMMAND.insert_one 127.0.0.1:27017 COMPLETED: { ok: 1, n: 1 } ("));
+    assert!(line.starts_with(insert_one_line_start));
     assert!(line.ends_with(" ns)\n"));
 
     // Find command started
@@ -170,5 +180,5 @@ fn logging() {
 
     coll.drop().unwrap();
 
-    fs::remove_file("test_apm_log.txt").unwrap();
+    fs::remove_file("test_log.txt").unwrap();
 }
