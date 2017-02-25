@@ -7,7 +7,7 @@ use mongodb::coll::options::{AggregateOptions, CountOptions, FindOneAndDeleteOpt
 use serde_json::{Map, Value};
 
 impl FromJson for AggregateOptions {
-    fn from_json(object: &Object) -> AggregateOptions {
+    fn from_json(object: &Map<String, Value>) -> AggregateOptions {
         let mut options = AggregateOptions::new();
 
         options.batch_size = match object.get("batchSize") {
@@ -22,7 +22,7 @@ impl FromJson for AggregateOptions {
 }
 
 impl FromJson for CountOptions {
-    fn from_json(object: &Object) -> CountOptions {
+    fn from_json(object: &Map<String, Value>) -> CountOptions {
         let mut options = CountOptions::new();
 
         options.skip = match object.get("skip") {
@@ -44,7 +44,7 @@ impl FromJson for CountOptions {
 }
 
 impl FromJson for FindOptions {
-    fn from_json(object: &Object) -> FindOptions {
+    fn from_json(object: &Map<String, Value>) -> FindOptions {
         let mut options = FindOptions::new();
 
         let f = |x| Some(Bson::from_json(x));
@@ -79,7 +79,7 @@ impl FromJson for FindOptions {
 }
 
 impl FromJson for FindOneAndDeleteOptions {
-    fn from_json(object: &Object) -> FindOneAndDeleteOptions {
+    fn from_json(object: &Map<String, Value>) -> FindOneAndDeleteOptions {
         let mut options = FindOneAndDeleteOptions::new();
 
         if let Some(Bson::Document(projection)) = object.get("projection").map(Bson::from_json) {
@@ -95,7 +95,7 @@ impl FromJson for FindOneAndDeleteOptions {
 }
 
 impl FromJson for FindOneAndUpdateOptions {
-    fn from_json(object: &Object) -> FindOneAndUpdateOptions {
+    fn from_json(object: &Map<String, Value>) -> FindOneAndUpdateOptions {
         let mut options = FindOneAndUpdateOptions::new();
 
         if let Some(Bson::Document(projection)) = object.get("projection").map(Bson::from_json) {

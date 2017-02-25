@@ -6,7 +6,7 @@ use std::str::FromStr;
 use super::super::FromJsonResult;
 
 impl FromJsonResult for ReadPreference {
-    fn from_json(object: &Object) -> Result<ReadPreference, String> {
+    fn from_json(object: &Map<String, Value>) -> Result<ReadPreference, String> {
         let mode = val_or_err!(object.get("mode"),
                                Some(&Json::String(ref s)) => ReadMode::from_str(s).unwrap(),
                                "read preference must have a mode.");
@@ -20,7 +20,7 @@ impl FromJsonResult for ReadPreference {
 
         for json in &tag_sets_array {
             match *json {
-                Json::Object(ref obj) => tag_sets_objs.push(obj.clone()),
+                Value::Object(ref obj) => tag_sets_objs.push(obj.clone()),
                 _ => return Err(String::from("tags must be document objects.")),
             }
         }

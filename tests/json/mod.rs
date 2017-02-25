@@ -9,9 +9,9 @@ pub mod server_selection;
 use serde_json::Map;
 
 pub trait FromJson: Sized {
-    fn from_json(object: &Object) -> Self;
+    fn from_json(object: &Map<String, Value>) -> Self;
 }
 
 pub trait FromJsonResult: Sized {
-    fn from_json(object: &Object) -> Result<Self, String>;
+    fn from_json(object: &Map<String, Value>) -> Result<Self, String>;
 }

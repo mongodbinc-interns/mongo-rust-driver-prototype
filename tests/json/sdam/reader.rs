@@ -10,14 +10,14 @@ pub struct Phase {
 }
 
 impl Phase {
-    fn from_json(object: &Object) -> Result<Phase, String> {
+    fn from_json(object: &Map<String, Value>) -> Result<Phase, String> {
         let operation = val_or_err!(object.get("responses"),
                                     Some(&Json::Array(ref array)) =>
                                     try!(Responses::from_json(array)),
                                     "No `responses` array found.");
 
         let outcome = val_or_err!(object.get("outcome"),
-                                  Some(&Json::Object(ref obj)) =>
+                                  Some(&Value::Object(ref obj)) =>
                                   try!(Outcome::from_json(obj)),
                                   "No `outcome` object found.");
 
@@ -33,7 +33,7 @@ pub struct Suite {
     pub phases: Vec<Phase>,
 }
 
-fn get_phases(object: &Object) -> Result<Vec<Phase>, String> {
+fn get_phases(object: &Map<String, Value>) -> Result<Vec<Phase>, String> {
     let array = val_or_err!(object.get("phases"),
                             Some(&Json::Array(ref array)) => array.clone(),
                             "No `phases` array found");
@@ -42,7 +42,7 @@ fn get_phases(object: &Object) -> Result<Vec<Phase>, String> {
 
     for json in array {
         let obj = val_or_err!(json,
-                              Json::Object(ref obj) => obj.clone(),
+                              Value::Object(ref obj) => obj.clone(),
                               "`phases` array must only contain objects");
 
         let phase = match Phase::from_json(&obj) {
@@ -70,7 +70,7 @@ impl SuiteContainer for Json {
 
     fn get_suite(&self) -> Result<Suite, String> {
         let object = val_or_err!(*self,
-                                 Json::Object(ref object) => object.clone(),
+                                 Value::Object(ref object) => object.clone(),
                                  "`get_suite` requires a JSON object");
 
         let uri = val_or_err!(object.get("uri"),

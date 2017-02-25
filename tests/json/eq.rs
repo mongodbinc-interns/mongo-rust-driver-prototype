@@ -63,8 +63,8 @@ pub fn bson_eq(b1: &Bson, b2: &Bson) -> bool {
             var_match!(*b2, Bson::Binary(other_sub_ty, ref other_bits) =>
                        sub_ty == other_sub_ty && bits == other_bits)
         }
-        Bson::ObjectId(ref bits) => {
-            var_match!(*b2, Bson::ObjectId(ref other_bits) =>
+        Bson::Map<String, Value>Id(ref bits) => {
+            var_match!(*b2, Bson::Map<String, Value>Id(ref other_bits) =>
                                                 bits == other_bits)
         }
         Bson::UtcDatetime(date_time) => {

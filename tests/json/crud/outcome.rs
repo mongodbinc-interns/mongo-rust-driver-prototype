@@ -12,14 +12,14 @@ pub struct Outcome {
 }
 
 impl Outcome {
-    pub fn from_json(object: &Object) -> Result<Outcome, String> {
+    pub fn from_json(object: &Map<String, Value>) -> Result<Outcome, String> {
         let result = match object.get("result") {
             Some(json) => Bson::from_json(json),
             None => Bson::Null,
         };
 
         let coll_obj = match object.get("collection") {
-            Some(&Json::Object(ref obj)) => obj.clone(),
+            Some(&Value::Object(ref obj)) => obj.clone(),
             _ => {
                 return Ok(Outcome {
                     result: result,

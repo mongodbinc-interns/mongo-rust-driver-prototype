@@ -14,7 +14,7 @@ pub struct Server {
 }
 
 impl Server {
-    pub fn from_json(object: &Object) -> Result<Server, String> {
+    pub fn from_json(object: &Map<String, Value>) -> Result<Server, String> {
         let address = val_or_err!(object.get("address"),
                                   Some(&Json::String(ref s)) => s.to_owned(),
                                   "server must have an address.");
@@ -25,7 +25,7 @@ impl Server {
 
         let mut tags = BTreeMap::new();
         let json_doc = val_or_err!(object.get("tags"),
-                                   Some(&Json::Object(ref obj)) => obj.clone(),
+                                   Some(&Value::Object(ref obj)) => obj.clone(),
                                    "server must have tags.");
 
         for (key, json) in json_doc {
