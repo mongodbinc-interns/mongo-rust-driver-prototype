@@ -96,10 +96,10 @@ extern crate bufstream;
 extern crate byteorder;
 extern crate chrono;
 extern crate crypto;
+extern crate data_encoding;
 #[cfg(feature = "ssl")]
 extern crate openssl;
 extern crate rand;
-extern crate rustc_serialize;
 #[macro_use]
 extern crate scan_fmt;
 extern crate semver;

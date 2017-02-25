@@ -1,36 +1,39 @@
 [package]
-name = "mongodb"
-version = "0.2.2"
-authors = ["Kevin Yeh <kevinyeah@utexas.edu>",
-           "Saghm Rossi <saghmrossi@gmail.com>",
-           "Valeri Karpov <valkar207@gmail.com>"]
-
+authors = ["Kevin Yeh <kevinyeah@utexas.edu>", "Saghm Rossi <saghmrossi@gmail.com>", "Valeri Karpov <valkar207@gmail.com>"]
 description = "A native MongoDB driver developed under MongoDB labs."
-repository = "https://github.com/mongodb-labs/mongo-rust-driver-prototype"
 documentation = "https://docs.rs/mongodb"
-readme = "README.md"
 keywords = ["mongo", "mongodb", "database", "bson", "nosql"]
 license = "Apache-2.0"
+name = "mongodb"
+readme = "README.md"
+repository = "https://github.com/mongodb-labs/mongo-rust-driver-prototype"
+version = "0.2.2"
+
+[dependencies]
+bitflags = "0.7.0"
+bson = "0.4.2"
+bufstream = "0.1.1"
+byteorder = "0.5.3"
+chrono = "0.2.25"
+data-encoding = "1.2.0"
+rand = "0.3.14"
+rust-crypto = "0.2.31"
+scan_fmt = "0.1.0"
+semver = "0.5.0"
+separator = "0.3.1"
+time = "0.1.35"
+
+[dependencies.openssl]
+optional = true
+version = "0.9.3"
+
+[dependencies.textnonce]
+default-features = false
+version = "0.4.1"
+
+[dev-dependencies]
+nalgebra = "0.10.1"
 
 [features]
 default = []
 ssl = ["openssl"]
-
-[dependencies]
-bitflags = "0.7.0"
-bson = "0.4.1"
-bufstream = "0.1.1"
-byteorder = "0.5.3"
-chrono = "0.2.25"
-openssl = { version = "0.9.3", optional = true }
-rand = "0.3.14"
-rust-crypto = "0.2.31"
-rustc-serialize = "0.3.19"
-scan_fmt = "0.1.0"
-semver = "0.5.0"
-separator = "0.3.1"
-textnonce = { version = "0.4.1", default-features = false }
-time = "0.1.35"
-
-[dev-dependencies]
-nalgebra = "0.10.1"

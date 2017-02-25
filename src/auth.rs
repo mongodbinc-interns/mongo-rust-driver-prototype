@@ -9,19 +9,19 @@ use crypto::mac::Mac;
 use crypto::md5::Md5;
 use crypto::pbkdf2;
 use crypto::sha1::Sha1;
+use data_encoding::base64;
 use db::{Database, ThreadedDatabase};
 use error::Error::{DefaultError, MaliciousServerError, ResponseError};
 use error::MaliciousServerErrorType;
 use error::Result;
-use rustc_serialize::base64::{self, FromBase64, ToBase64};
 use textnonce::TextNonce;
 
-const B64_CONFIG: base64::Config = base64::Config {
+/*const B64_CONFIG: base64::Config = base64::Config {
     char_set: base64::CharacterSet::Standard,
     newline: base64::Newline::LF,
     pad: true,
     line_length: None,
-};
+};*/
 
 /// Handles SCRAM-SHA-1 authentication logic.
 pub struct Authenticator {
@@ -108,31 +108,22 @@ impl Authenticator {
                                                       String,
                                                       u32);
 
-        let rnonce_b64 = match rnonce_opt {
-            Some(val) => val,
-            None => return Err(ResponseError(String::from("Invalid rnonce returned"))),
-        };
+        let rnonce_b64 = rnonce_opt
+            .ok_or(ResponseError(String::from("Invalid rnonce returned")))?;
 
         // Validate rnonce to make sure server isn't malicious
         if !rnonce_b64.starts_with(&initial_data.nonce[..]) {
             return Err(MaliciousServerError(MaliciousServerErrorType::InvalidRnonce));
         }
 
-        let salt_b64 = match salt_opt {
-            Some(val) => val,
-            None => return Err(ResponseError(String::from("Invalid salt returned"))),
-        };
+        let salt_b64 = salt_opt
+            .ok_or(ResponseError(String::from("Invalid salt returned")))?;
 
-        let salt = match salt_b64.from_base64() {
-            Ok(val) => val,
-            Err(_) => return Err(ResponseError(String::from("Invalid base64 salt returned"))),
-        };
+        let salt = base64::decode(salt_b64.as_bytes())
+            .or(Err(ResponseError(String::from("Invalid base64 salt returned"))))?;
 
-
-        let i = match i_opt {
-            Some(val) => val,
-            None => return Err(ResponseError(String::from("Invalid iteration count returned"))),
-        };
+        let i = i_opt
+            .ok_or(ResponseError(String::from("Invalid iteration count returned")))?;
 
         // Hash password
         let mut md5 = Md5::new();
@@ -181,7 +172,7 @@ impl Authenticator {
         }
 
         // Encode proof and produce the message to send to the server
-        let b64_proof = proof.to_base64(B64_CONFIG);
+        let b64_proof = base64::encode(&proof);
         let final_message = format!("{},p={}", without_proof, b64_proof);
         let binary = Binary(Generic, final_message.into_bytes());
 
@@ -238,7 +229,7 @@ impl Authenticator {
                 };
 
                 // Check that the signature is valid
-                if verifier.ne(&server_signature.to_base64(B64_CONFIG)[..]) {
+                if verifier.ne(&base64::encode(&server_signature)[..]) {
                     return Err(
                         MaliciousServerError(MaliciousServerErrorType::InvalidServerSignature));
                 }
