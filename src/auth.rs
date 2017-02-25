@@ -16,13 +16,6 @@ use error::MaliciousServerErrorType;
 use error::Result;
 use textnonce::TextNonce;
 
-/*const B64_CONFIG: base64::Config = base64::Config {
-    char_set: base64::CharacterSet::Standard,
-    newline: base64::Newline::LF,
-    pad: true,
-    line_length: None,
-};*/
-
 /// Handles SCRAM-SHA-1 authentication logic.
 pub struct Authenticator {
     db: Database,
