@@ -6,12 +6,12 @@ pub mod eq;
 pub mod sdam;
 pub mod server_selection;
 
-use serde_json::Map;
+use serde_json::{Map, Value};
 
-pub trait FromJson: Sized {
+pub trait FromValue: Sized {
     fn from_json(object: &Map<String, Value>) -> Self;
 }
 
-pub trait FromJsonResult: Sized {
+pub trait FromValueResult: Sized {
     fn from_json(object: &Map<String, Value>) -> Result<Self, String>;
 }

@@ -1,4 +1,4 @@
-use serde_json::{Map, Value};
+use serde_json::{self, Map, Value};
 use std::fs::File;
 
 use super::responses::Responses;
@@ -12,7 +12,7 @@ pub struct Phase {
 impl Phase {
     fn from_json(object: &Map<String, Value>) -> Result<Phase, String> {
         let operation = val_or_err!(object.get("responses"),
-                                    Some(&Json::Array(ref array)) =>
+                                    Some(&Value::Array(ref array)) =>
                                     try!(Responses::from_json(array)),
                                     "No `responses` array found.");
 
@@ -35,7 +35,7 @@ pub struct Suite {
 
 fn get_phases(object: &Map<String, Value>) -> Result<Vec<Phase>, String> {
     let array = val_or_err!(object.get("phases"),
-                            Some(&Json::Array(ref array)) => array.clone(),
+                            Some(&Value::Array(ref array)) => array.clone(),
                             "No `phases` array found");
 
     let mut phases = vec![];
@@ -61,11 +61,10 @@ pub trait SuiteContainer: Sized {
     fn get_suite(&self) -> Result<Suite, String>;
 }
 
-impl SuiteContainer for Json {
-    fn from_file(path: &str) -> Result<Json, String> {
+impl SuiteContainer for Value {
+    fn from_file(path: &str) -> Result<Value, String> {
         let mut file = File::open(path).expect(&format!("Unable to open file: {}", path));
-
-        Ok(Json::from_reader(&mut file).expect(&format!("Invalid JSON file: {}", path)))
+        Ok(serde_json::from_reader(&mut file).expect(&format!("Invalid JSON file: {}", path)))
     }
 
     fn get_suite(&self) -> Result<Suite, String> {
@@ -74,7 +73,7 @@ impl SuiteContainer for Json {
                                  "`get_suite` requires a JSON object");
 
         let uri = val_or_err!(object.get("uri"),
-                              Some(&Json::String(ref s)) => s.clone(),
+                              Some(&Value::String(ref s)) => s.clone(),
                               "`get_suite` requires a connection uri");
 
 

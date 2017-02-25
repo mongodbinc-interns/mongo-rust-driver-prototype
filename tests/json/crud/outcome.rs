@@ -29,12 +29,12 @@ impl Outcome {
         };
 
         let name = match coll_obj.get("name") {
-            Some(&Json::String(ref s)) => Some(s.clone()),
+            Some(&Value::String(ref s)) => Some(s.clone()),
             _ => None,
         };
 
         let array = val_or_err!(coll_obj.get("data"),
-                               Some(&Json::Array(ref arr)) => arr,
+                               Some(&Value::Array(ref arr)) => arr,
                               "`result` must be an array");
 
         let mut data = vec![];

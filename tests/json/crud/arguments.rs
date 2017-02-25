@@ -1,8 +1,8 @@
 use bson::{Bson, Document};
-use json::FromJson;
+use json::FromValue;
 use mongodb::coll::options::{AggregateOptions, CountOptions, FindOneAndDeleteOptions,
                              FindOneAndUpdateOptions, FindOptions};
-use serde_json::Map;
+use serde_json::{Map, Value};
 
 pub enum Arguments {
     Aggregate {

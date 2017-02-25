@@ -1,5 +1,5 @@
 use bson::{Bson, Document};
-use json::options::FromJson;
+use json::options::FromValue;
 use mongodb::coll::options::{AggregateOptions, CountOptions, FindOneAndDeleteOptions,
                              FindOneAndUpdateOptions, FindOptions};
 use serde_json::Map;

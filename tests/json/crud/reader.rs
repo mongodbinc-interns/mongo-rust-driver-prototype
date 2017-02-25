@@ -1,5 +1,5 @@
 use bson::{Bson, Document};
-use serde_json::{Map, Value};
+use serde_json::{self, Map, Value};
 use std::fs::File;
 
 use super::arguments::Arguments;
@@ -28,7 +28,7 @@ impl Test {
                                    "`arguments` must be an object");
 
         let name = val_or_err!(op.get("name"),
-                               Some(&Json::String(ref s)) => s,
+                               Some(&Value::String(ref s)) => s,
                                "`name` must be a string");
 
         let args = match name.as_ref() {
@@ -75,7 +75,7 @@ pub struct Suite {
 
 fn get_data(object: &Map<String, Value>) -> Result<Vec<Document>, String> {
     let array = val_or_err!(object.get("data"),
-                            Some(&Json::Array(ref arr)) => arr.clone(),
+                            Some(&Value::Array(ref arr)) => arr.clone(),
                             "No `data` array found");
     let mut data = vec![];
 
@@ -91,7 +91,7 @@ fn get_data(object: &Map<String, Value>) -> Result<Vec<Document>, String> {
 
 fn get_tests(object: &Map<String, Value>) -> Result<Vec<Test>, String> {
     let array = val_or_err!(object.get("tests"),
-                            Some(&Json::Array(ref array)) => array.clone(),
+                            Some(&Value::Array(ref array)) => array.clone(),
                             "No `tests` array found");
 
     let mut tests = vec![];
@@ -117,11 +117,10 @@ pub trait SuiteContainer: Sized {
     fn get_suite(&self) -> Result<Suite, String>;
 }
 
-impl SuiteContainer for Json {
-    fn from_file(path: &str) -> Result<Json, String> {
+impl SuiteContainer for Value {
+    fn from_file(path: &str) -> Result<Value, String> {
         let mut file = File::open(path).expect(&format!("Unable to open file: {}", path));
-
-        Ok(Json::from_reader(&mut file).expect(&format!("Invalid JSON file: {}", path)))
+        Ok(serde_json::from_reader(&mut file).expect(&format!("Invalid JSON file: {}", path)))
     }
 
     fn get_suite(&self) -> Result<Suite, String> {

@@ -28,12 +28,12 @@ impl Outcome {
                                       "`servers` must be an object map.");
 
                 let server_set_name = match doc.get("setName") {
-                    Some(&Json::String(ref s)) => s.to_owned(),
+                    Some(&Value::String(ref s)) => s.to_owned(),
                     _ => String::new(),
                 };
 
                 let server_type = val_or_err!(doc.get("type"),
-                                              Some(&Json::String(ref s)) =>
+                                              Some(&Value::String(ref s)) =>
                                               ServerType::from_str(s).unwrap(),
                                               "`type` must be a string.");
 
@@ -46,12 +46,12 @@ impl Outcome {
         }
 
         let set_name = match object.get("setName") {
-            Some(&Json::String(ref s)) => s.to_owned(),
+            Some(&Value::String(ref s)) => s.to_owned(),
             _ => String::new(),
         };
 
         let ttype = match object.get("topologyType") {
-            Some(&Json::String(ref s)) => TopologyType::from_str(s).unwrap(),
+            Some(&Value::String(ref s)) => TopologyType::from_str(s).unwrap(),
             _ => TopologyType::Unknown,
         };
 

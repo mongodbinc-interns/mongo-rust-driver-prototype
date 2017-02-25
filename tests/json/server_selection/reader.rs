@@ -1,9 +1,9 @@
-use json::FromJsonResult;
+use json::FromValueResult;
 
 use mongodb::common::ReadPreference;
 use mongodb::topology::TopologyType;
 
-use serde_json::Value;
+use serde_json::{self, Value};
 
 use std::fs::File;
 use std::str::FromStr;
@@ -19,7 +19,7 @@ pub struct Suite {
     pub topology_description: TopologyDescription,
 }
 
-fn get_server_array(arr: &[Json]) -> Result<Vec<Server>, String> {
+fn get_server_array(arr: &[Value]) -> Result<Vec<Server>, String> {
     let mut servers = Vec::new();
 
     for json in arr.iter() {
@@ -42,10 +42,10 @@ pub trait SuiteContainer: Sized {
     fn get_suite(&self) -> Result<Suite, String>;
 }
 
-impl SuiteContainer for Json {
-    fn from_file(path: &str) -> Result<Json, String> {
+impl SuiteContainer for Value {
+    fn from_file(path: &str) -> Result<Value, String> {
         let mut file = File::open(path).expect(&format!("Unable to open file: {}", path));
-        Ok(Json::from_reader(&mut file).expect(&format!("Invalid JSON file: {}", path)))
+        Ok(serde_json::from_reader(&mut file).expect(&format!("Invalid JSON file: {}", path)))
     }
 
     fn get_suite(&self) -> Result<Suite, String> {
@@ -54,7 +54,7 @@ impl SuiteContainer for Json {
                                  "`get_suite` requires a JSON object");
 
         let operation = val_or_err!(object.get("operation"),
-                                    Some(&Json::String(ref s)) => s.to_owned(),
+                                    Some(&Value::String(ref s)) => s.to_owned(),
                                     "suite requires an operation string.");
 
         let write = operation == "write";
@@ -65,12 +65,12 @@ impl SuiteContainer for Json {
                                           "suite requires a read_preference object.");
 
         let in_latency_window = val_or_err!(object.get("in_latency_window"),
-                                           Some(&Json::Array(ref array)) =>
+                                           Some(&Value::Array(ref array)) =>
                                            try!(get_server_array(array)),
                                            "suite requires an in_latency_window array.");
 
         let suitable_servers = val_or_err!(object.get("suitable_servers"),
-                                           Some(&Json::Array(ref array)) =>
+                                           Some(&Value::Array(ref array)) =>
                                            try!(get_server_array(array)),
                                            "suite requires a suitable_servers array.");
 
@@ -79,12 +79,12 @@ impl SuiteContainer for Json {
                                        "suite requires a topology_description object.");
 
         let top_servers = val_or_err!(topology_obj.get("servers"),
-                                      Some(&Json::Array(ref array)) =>
+                                      Some(&Value::Array(ref array)) =>
                                       try!(get_server_array(array)),
                                       "topology requires an array of servers.");
 
         let ttype = val_or_err!(topology_obj.get("type"),
-                                Some(&Json::String(ref s)) => TopologyType::from_str(s).unwrap(),
+                                Some(&Value::String(ref s)) => TopologyType::from_str(s).unwrap(),
                                 "topology requires a type");
 
         Ok(Suite {

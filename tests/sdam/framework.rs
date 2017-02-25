@@ -12,7 +12,7 @@ use serde_json::Value;
 use std::collections::HashMap;
 
 pub fn run_suite(file: &str, description: Option<TopologyDescription>) {
-    let json = Json::from_file(file).unwrap();
+    let json = Value::from_file(file).unwrap();
     let suite = json.get_suite().unwrap();
 
     let dummy_config = ConnectionString::new("i-dont-exist", 27017);

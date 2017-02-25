@@ -243,7 +243,7 @@ macro_rules! run_update_test {
 #[macro_export]
 macro_rules! run_suite {
     ( $file:expr, $coll:expr ) => {{
-        let json = Json::from_file($file).unwrap();
+        let json = Value::from_file($file).unwrap();
         let suite = json.get_suite().unwrap();
         let client =  Client::connect("localhost", 27017).unwrap();
         let db = client.db("test");
@@ -298,7 +298,7 @@ macro_rules! check_coll {
         };
 
         let coll = match outcome_coll.name {
-            Some(ref str) => $db.collection(&str),
+            Some(ref s) => $db.collection(&s.clone()[..]),
             None => $db.collection(&$coll.name())
         };
 

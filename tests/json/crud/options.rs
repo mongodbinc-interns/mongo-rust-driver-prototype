@@ -1,19 +1,20 @@
 use bson::Bson;
-use json::FromJson;
+use json::FromValue;
 
 use mongodb::coll::options::{AggregateOptions, CountOptions, FindOneAndDeleteOptions,
                              FindOneAndUpdateOptions, FindOptions, ReturnDocument};
 
 use serde_json::{Map, Value};
 
-impl FromJson for AggregateOptions {
+impl FromValue for AggregateOptions {
     fn from_json(object: &Map<String, Value>) -> AggregateOptions {
         let mut options = AggregateOptions::new();
 
         options.batch_size = match object.get("batchSize") {
-            Some(&Json::I64(n)) => n as i32,
-            Some(&Json::U64(n)) => n as i32,
-            Some(&Json::F64(n)) => n as i32,
+            Some(&Value::Number(ref x)) => x
+                .as_i64().map(|v| v as i32)
+                .or(x.as_f64().map(|v| v as i32))
+                .expect("Invalid numerical format"),
             _ => options.batch_size,
         };
 
@@ -21,21 +22,21 @@ impl FromJson for AggregateOptions {
     }
 }
 
-impl FromJson for CountOptions {
+impl FromValue for CountOptions {
     fn from_json(object: &Map<String, Value>) -> CountOptions {
         let mut options = CountOptions::new();
 
         options.skip = match object.get("skip") {
-            Some(&Json::I64(n)) => Some(n),
-            Some(&Json::U64(n)) => Some(n as i64),
-            Some(&Json::F64(n)) => Some(n as i64),
+            Some(&Value::Number(ref x)) => x
+                .as_i64()
+                .or(x.as_f64().map(|v| v as i64)),
             _ => options.skip,
         };
 
         options.limit = match object.get("limit") {
-            Some(&Json::I64(n)) => Some(n),
-            Some(&Json::U64(n)) => Some(n as i64),
-            Some(&Json::F64(n)) => Some(n as i64),
+            Some(&Value::Number(ref x)) => x
+                .as_i64()
+                .or(x.as_f64().map(|v| v as i64)),
             _ => options.limit,
         };
 
@@ -43,34 +44,35 @@ impl FromJson for CountOptions {
     }
 }
 
-impl FromJson for FindOptions {
+impl FromValue for FindOptions {
     fn from_json(object: &Map<String, Value>) -> FindOptions {
         let mut options = FindOptions::new();
 
         let f = |x| Some(Bson::from_json(x));
+
         options.sort = match object.get("sort").and_then(f) {
             Some(Bson::Document(doc)) => Some(doc),
             _ => None,
         };
 
         options.skip = match object.get("skip") {
-            Some(&Json::I64(n)) => Some(n),
-            Some(&Json::U64(n)) => Some(n as i64),
-            Some(&Json::F64(n)) => Some(n as i64),
+            Some(&Value::Number(ref x)) => x
+                .as_i64()
+                .or(x.as_f64().map(|v| v as i64)),
             _ => options.skip,
         };
 
         options.limit = match object.get("limit") {
-            Some(&Json::I64(n)) => Some(n),
-            Some(&Json::U64(n)) => Some(n as i64),
-            Some(&Json::F64(n)) => Some(n as i64),
+            Some(&Value::Number(ref x)) => x
+                .as_i64()
+                .or(x.as_f64().map(|v| v as i64)),
             _ => options.limit,
         };
 
         options.batch_size = match object.get("batchSize") {
-            Some(&Json::I64(n)) => Some(n as i32),
-            Some(&Json::U64(n)) => Some(n as i32),
-            Some(&Json::F64(n)) => Some(n as i32),
+            Some(&Value::Number(ref x)) => x
+                .as_i64().map(|v| v as i32)
+                .or(x.as_f64().map(|v| v as i32)),
             _ => options.batch_size,
         };
         options
@@ -78,7 +80,7 @@ impl FromJson for FindOptions {
     }
 }
 
-impl FromJson for FindOneAndDeleteOptions {
+impl FromValue for FindOneAndDeleteOptions {
     fn from_json(object: &Map<String, Value>) -> FindOneAndDeleteOptions {
         let mut options = FindOneAndDeleteOptions::new();
 
@@ -94,7 +96,7 @@ impl FromJson for FindOneAndDeleteOptions {
     }
 }
 
-impl FromJson for FindOneAndUpdateOptions {
+impl FromValue for FindOneAndUpdateOptions {
     fn from_json(object: &Map<String, Value>) -> FindOneAndUpdateOptions {
         let mut options = FindOneAndUpdateOptions::new();
 

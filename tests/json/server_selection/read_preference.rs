@@ -3,16 +3,16 @@ use serde_json::{Map, Value};
 use std::collections::BTreeMap;
 use std::str::FromStr;
 
-use super::super::FromJsonResult;
+use super::super::FromValueResult;
 
-impl FromJsonResult for ReadPreference {
+impl FromValueResult for ReadPreference {
     fn from_json(object: &Map<String, Value>) -> Result<ReadPreference, String> {
         let mode = val_or_err!(object.get("mode"),
-                               Some(&Json::String(ref s)) => ReadMode::from_str(s).unwrap(),
+                               Some(&Value::String(ref s)) => ReadMode::from_str(s).unwrap(),
                                "read preference must have a mode.");
 
         let tag_sets_array = val_or_err!(object.get("tag_sets"),
-                                         Some(&Json::Array(ref arr)) => arr.clone(),
+                                         Some(&Value::Array(ref arr)) => arr.clone(),
                                          "read preference must have tag sets");
 
         let mut tag_sets_objs = Vec::new();
@@ -29,7 +29,7 @@ impl FromJsonResult for ReadPreference {
             let mut tags = BTreeMap::new();
             for (ref key, ref json) in obj {
                 match *json {
-                    Json::String(ref s) => {
+                    Value::String(ref s) => {
                         tags.insert(key.to_owned(), s.to_owned());
                     }
                     _ => return Err("tags must be string => string maps.".to_owned()),
