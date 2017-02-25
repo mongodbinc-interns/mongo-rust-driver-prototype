@@ -5,7 +5,7 @@ use json::eq::{self, NumEq};
 use mongodb::{Client, ThreadedClient};
 use mongodb::coll::options::{InsertManyOptions, ReplaceOptions, UpdateOptions};
 use mongodb::db::ThreadedDatabase;
-use rustc_serialize::json::Json;
+use serde_json::Value;
 
 #[test]
 fn delete_many() {

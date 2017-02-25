@@ -33,6 +33,7 @@ version = "0.4.1"
 
 [dev-dependencies]
 nalgebra = "0.10.1"
+serde_json = { version = "0.9.8", features = ["preserve_order"] }
 
 [features]
 default = []

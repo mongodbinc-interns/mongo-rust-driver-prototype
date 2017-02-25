@@ -1,9 +1,9 @@
 #[macro_use(bson, doc)]
 extern crate bson;
 extern crate mongodb;
-extern crate rand;
-extern crate rustc_serialize;
 extern crate nalgebra;
+extern crate rand;
+extern crate serde_json;
 
 mod apm;
 mod auth;

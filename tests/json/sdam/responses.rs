@@ -1,6 +1,6 @@
 use bson::{Bson, Document};
 use mongodb::connstring::{self, Host};
-use rustc_serialize::json::Json;
+use serde_json::Value;
 
 pub struct Responses {
     pub data: Vec<(Host, Document)>,

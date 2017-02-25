@@ -3,7 +3,7 @@ use json::FromJsonResult;
 use mongodb::common::ReadPreference;
 use mongodb::topology::TopologyType;
 
-use rustc_serialize::json::Json;
+use serde_json::Value;
 
 use std::fs::File;
 use std::str::FromStr;
