@@ -11,7 +11,7 @@ version = "0.2.2"
 
 [dependencies]
 bitflags = "0.7.0"
-bson = "0.4.2"
+bson = "0.4.3"
 bufstream = "0.1.1"
 byteorder = "0.5.3"
 chrono = "0.2.25"
