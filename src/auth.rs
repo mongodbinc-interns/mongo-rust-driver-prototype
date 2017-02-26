@@ -102,7 +102,7 @@ impl Authenticator {
                                                       u32);
 
         let rnonce_b64 = rnonce_opt
-            .ok_or(ResponseError(String::from("Invalid rnonce returned")))?;
+            .ok_or_else(|| ResponseError(String::from("Invalid rnonce returned")))?;
 
         // Validate rnonce to make sure server isn't malicious
         if !rnonce_b64.starts_with(&initial_data.nonce[..]) {
@@ -110,13 +110,13 @@ impl Authenticator {
         }
 
         let salt_b64 = salt_opt
-            .ok_or(ResponseError(String::from("Invalid salt returned")))?;
+            .ok_or_else(|| ResponseError(String::from("Invalid salt returned")))?;
 
         let salt = base64::decode(salt_b64.as_bytes())
-            .or(Err(ResponseError(String::from("Invalid base64 salt returned"))))?;
+            .or_else(|e| Err(ResponseError(format!("Invalid base64 salt returned: {}", e))))?;
 
         let i = i_opt
-            .ok_or(ResponseError(String::from("Invalid iteration count returned")))?;
+            .ok_or_else(|| ResponseError(String::from("Invalid iteration count returned")))?;
 
         // Hash password
         let mut md5 = Md5::new();
