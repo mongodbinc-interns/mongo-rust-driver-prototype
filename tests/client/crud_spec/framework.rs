@@ -298,7 +298,7 @@ macro_rules! check_coll {
         };
 
         let coll = match outcome_coll.name {
-            Some(ref s) => $db.collection(&s.clone()[..]),
+            Some(ref str) => $db.collection(&str),
             None => $db.collection(&$coll.name())
         };
 
