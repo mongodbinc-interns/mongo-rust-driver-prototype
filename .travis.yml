@@ -15,4 +15,5 @@ before_install:
     - ./script/start_mongo_release $TRAVIS_OS_NAME $MONGODB_RELEASE
 
 script:
+    - cargo test --verbose
     - cargo test --features ssl --verbose
