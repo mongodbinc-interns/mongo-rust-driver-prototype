@@ -89,7 +89,7 @@
 
 // Clippy lints
 #![cfg_attr(feature = "clippy", feature(plugin))]
-#![cfg_attr(feature = "clippy", plugin(clippy(conf_file="clippy.toml")))]
+#![cfg_attr(feature = "clippy", plugin(clippy))]
 #![cfg_attr(feature = "clippy", allow(
     doc_markdown,
     // allow double_parens for bson/doc macro.
