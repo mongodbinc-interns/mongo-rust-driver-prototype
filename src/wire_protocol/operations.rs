@@ -266,7 +266,7 @@ impl Message {
         let mut temp_buffer = vec![];
 
         try!(bson::encode_document(&mut temp_buffer, bson));
-        try!(buffer.write(&temp_buffer));
+        try!(buffer.write_all(&temp_buffer));
         Ok(())
     }
 
