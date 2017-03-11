@@ -475,19 +475,19 @@ impl TopologyDescription {
                 match read_preference.mode {
                     ReadMode::Primary => (primaries, true),
                     ReadMode::PrimaryPreferred => {
-                        let servers = if !primaries.is_empty() {
-                            primaries
-                        } else {
+                        let servers = if primaries.is_empty() {
                             secondaries
+                        } else {
+                            primaries
                         };
                         (servers, true)
                     }
                     ReadMode::Secondary => (secondaries, true),
                     ReadMode::SecondaryPreferred => {
-                        let servers = if !secondaries.is_empty() {
-                            secondaries
-                        } else {
+                        let servers = if secondaries.is_empty() {
                             primaries
+                        } else {
+                            secondaries
                         };
                         (servers, true)
                     }

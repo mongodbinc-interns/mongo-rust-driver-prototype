@@ -246,7 +246,7 @@ impl From<FindOneAndDeleteOptions> for bson::Document {
             document.insert("writeConcern", Bson::Document(write_concern.to_bson()));
         }
 
-        return document;
+        document
     }
 }
 
@@ -293,7 +293,7 @@ impl From<FindOneAndUpdateOptions> for bson::Document {
             document.insert("writeConcern", Bson::Document(write_concern.to_bson()));
         }
 
-        return document;
+        document
     }
 }
 

@@ -91,16 +91,38 @@
 #![cfg_attr(feature = "clippy", feature(plugin))]
 #![cfg_attr(feature = "clippy", plugin(clippy(conf_file="clippy.toml")))]
 #![cfg_attr(feature = "clippy", allow(
-    option_map_unwrap_or_else, option_map_unwrap_or,
-    match_same_arms, type_complexity, too_many_arguments,
-    double_parens // allow double_parens for bson/doc macro.
+    doc_markdown,
+    // allow double_parens for bson/doc macro.
+    double_parens,
+    too_many_arguments, 
 ))]
 #![cfg_attr(feature = "clippy", warn(
-    print_stdout, wrong_pub_self_convention,
-    mut_mut, non_ascii_literal, similar_names, unicode_not_nfc,
-    enum_glob_use, if_not_else, items_after_statements, used_underscore_binding,
+    cast_precision_loss,
+    enum_glob_use,
+    filter_map,
+    if_not_else,
+    invalid_upcast_comparisons,
+    items_after_statements,
+    mem_forget,
+    mut_mut,
+    mutex_integer,
+    non_ascii_literal,
+    nonminimal_bool,
+    option_map_unwrap_or,
+    option_map_unwrap_or_else,
+    print_stdout,
+    shadow_reuse,
+    shadow_same,
+    shadow_unrelated,
+    similar_names,
+    unicode_not_nfc,
+    unseparated_literal_suffix,
+    used_underscore_binding,
+    wrong_pub_self_convention,
 ))]
-#![cfg_attr(all(test, feature = "clippy"), allow(result_unwrap_used))]
+#![cfg_attr(all(test, feature = "clippy"), allow(
+    result_unwrap_used
+))]
 
 #[doc(html_root_url = "https://docs.rs/mongodb")]
 #[macro_use(bitflags)]

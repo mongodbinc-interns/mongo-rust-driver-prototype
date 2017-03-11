@@ -84,14 +84,7 @@ impl From<WriteModel> for Batch {
                                        multi: true,
                                    }])
             }
-            WriteModel::ReplaceOne { filter, replacement: update, upsert } => {
-                Batch::Update(vec![UpdateModel {
-                                       filter: filter,
-                                       update: update,
-                                       upsert: upsert,
-                                       multi: false,
-                                   }])
-            }
+            WriteModel::ReplaceOne { filter, replacement: update, upsert } |
             WriteModel::UpdateOne { filter, update, upsert } => {
                 Batch::Update(vec![UpdateModel {
                                        filter: filter,
@@ -160,14 +153,7 @@ impl Batch {
             }
             Batch::Update(ref mut models) => {
                 match model {
-                    WriteModel::ReplaceOne { filter, replacement: update, upsert } => {
-                        models.push(UpdateModel {
-                            filter: filter,
-                            update: update,
-                            upsert: upsert,
-                            multi: false,
-                        })
-                    }
+                    WriteModel::ReplaceOne { filter, replacement: update, upsert } |
                     WriteModel::UpdateOne { filter, update, upsert } => {
                         models.push(UpdateModel {
                             filter: filter,

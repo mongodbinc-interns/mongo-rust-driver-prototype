@@ -227,10 +227,10 @@ impl Cursor {
         };
 
         // Set slave_ok flag based on the result from server selection.
-        let new_flags = if !slave_ok {
-            flags
-        } else {
+        let new_flags = if slave_ok {
             flags | flags::SLAVE_OK
+        } else {
+            flags
         };
 
         // Send read_preference to the server based on the result from server selection.

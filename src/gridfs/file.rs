@@ -288,18 +288,18 @@ impl File {
     // Retrieves a binary file chunk and asynchronously pre-loads the next chunk.
     fn get_chunk(&mut self) -> Result<Vec<u8>> {
         let id = self.doc.id.clone();
-        let chunk_num = self.chunk_num;
+        let curr_chunk_num = self.chunk_num;
 
         // Find the file chunk from the cache or from GridFS.
         let data = if let Some(lock) = self.rcache.take() {
             let cache = try!(lock.lock());
-            if cache.n == chunk_num && cache.err.is_none() {
+            if cache.n == curr_chunk_num && cache.err.is_none() {
                 cache.data.clone()
             } else {
-                try!(self.find_chunk(id, chunk_num))
+                try!(self.find_chunk(id, curr_chunk_num))
             }
         } else {
-            try!(self.find_chunk(id, chunk_num))
+            try!(self.find_chunk(id, curr_chunk_num))
         };
 
         self.chunk_num += 1;
@@ -311,7 +311,7 @@ impl File {
             let arc_cache = cache.clone();
             let arc_gfs = self.gfs.clone();
             let id = self.doc.id.clone();
-            let chunk_num = self.chunk_num;
+            let next_chunk_num = self.chunk_num;
 
             thread::spawn(move || {
                 let mut cache = match arc_cache.lock() {
@@ -323,7 +323,7 @@ impl File {
                 };
 
                 let result = arc_gfs.chunks
-                    .find_one(Some(doc!{"files_id" => (id), "n" => (chunk_num)}), None);
+                    .find_one(Some(doc!{"files_id" => (id), "n" => (next_chunk_num)}), None);
 
                 match result {
                     Ok(Some(doc)) => {
@@ -387,7 +387,7 @@ impl io::Write for File {
             self.wbuf.extend(part1.iter().cloned());
             data = part2;
 
-            let chunk_num = self.chunk_num;
+            let curr_chunk_num = self.chunk_num;
             self.chunk_num += 1;
             self.wsum.input(buf);
 
@@ -408,7 +408,7 @@ impl io::Write for File {
 
             // Flush chunk to GridFS
             let chunk = self.wbuf.clone();
-            try!(self.insert_chunk(chunk_num, &chunk));
+            try!(self.insert_chunk(curr_chunk_num, &chunk));
             self.wbuf.clear();
         }
 
@@ -417,7 +417,7 @@ impl io::Write for File {
             let size = cmp::min(chunk_size, data.len());
             let (part1, part2) = data.split_at(size);
 
-            let chunk_num = self.chunk_num;
+            let curr_chunk_num = self.chunk_num;
             self.chunk_num += 1;
             self.wsum.input(buf);
 
@@ -436,7 +436,7 @@ impl io::Write for File {
                 }
             }
 
-            try!(self.insert_chunk(chunk_num, part1));
+            try!(self.insert_chunk(curr_chunk_num, part1));
             data = part2;
         }
 

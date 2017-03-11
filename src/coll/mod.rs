@@ -637,7 +637,7 @@ impl Collection {
                        docs: Vec<bson::Document>,
                        options: Option<InsertManyOptions>)
                        -> Result<InsertManyResult> {
-        let write_concern = options.as_ref().map(|opts| opts.write_concern.clone()).unwrap_or(None);
+        let write_concern = options.as_ref().map_or(None, |opts| opts.write_concern.clone());
 
         let (ids, exception) =
             try!(self.insert(docs, options, write_concern, CommandType::InsertMany));
