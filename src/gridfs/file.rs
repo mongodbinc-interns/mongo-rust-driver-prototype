@@ -521,7 +521,7 @@ impl io::Read for File {
         let mut new_rbuf = Vec::with_capacity(self.rbuf.len() - i);
         {
             let (_, p2) = self.rbuf.split_at(i);
-            let b: Vec<u8> = p2.iter().cloned().collect();
+            let b: Vec<u8> = p2.to_vec();
             new_rbuf.extend(b);
         }
 

@@ -169,8 +169,8 @@ impl ThreadedDatabase for Database {
             read_preference: Option<ReadPreference>,
             write_concern: Option<WriteConcern>)
             -> Database {
-        let rp = read_preference.unwrap_or(client.read_preference.to_owned());
-        let wc = write_concern.unwrap_or(client.write_concern.to_owned());
+        let rp = read_preference.unwrap_or_else(|| client.read_preference.to_owned());
+        let wc = write_concern.unwrap_or_else(|| client.write_concern.to_owned());
 
         Arc::new(DatabaseInner {
             name: String::from(name),

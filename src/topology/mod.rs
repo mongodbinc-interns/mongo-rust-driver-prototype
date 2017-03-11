@@ -155,7 +155,7 @@ impl TopologyDescription {
             let len = servers.len();
             let index = thread_rng().gen_range(0, len);
 
-            if let Some(server) = self.servers.get(servers.get(index).unwrap()) {
+            if let Some(server) = self.servers.get(&servers[index]) {
                 if let Ok(stream) = server.acquire_stream() {
                     if let Ok(description) = server.description.read() {
                         return Ok((stream, description.server_type));
@@ -363,7 +363,7 @@ impl TopologyDescription {
         // Find the shortest round-trip time.
         let shortest_rtt = hosts.iter().fold({
             // Initialize the value to the first server's round-trip-time, or i64::MAX.
-            if let Some(server) = self.servers.get(hosts.get(0).unwrap()) {
+            if let Some(server) = self.servers.get(&hosts[0]) {
                 if let Ok(description) = server.description.read() {
                     description.round_trip_time.unwrap_or(i64::MAX)
                 } else {
@@ -782,7 +782,7 @@ impl Topology {
                connector: StreamConnector)
         -> Result<Topology> {
 
-            let mut options = description.unwrap_or(TopologyDescription::new(connector));
+            let mut options = description.unwrap_or_else(|| TopologyDescription::new(connector));
 
             if config.hosts.len() > 1 && options.topology_type == TopologyType::Single {
                 return Err(ArgumentError(String::from("TopologyType::Single cannot be used with \

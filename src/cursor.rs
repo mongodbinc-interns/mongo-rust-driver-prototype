@@ -79,7 +79,7 @@ macro_rules! try_or_emit {
                         connection_string: $connstring,
                     });
 
-                    if let Err(_) = hook_result {
+                    if hook_result.is_err() {
                         return Err(Error::EventListenerError(Some(Box::new(e))));
                     }
                 }
@@ -274,7 +274,7 @@ impl Cursor {
         let mut socket = stream.get_socket();
         let req_id = client.get_req_id();
 
-        let index = namespace.find('.').unwrap_or(namespace.len());
+        let index = namespace.find('.').unwrap_or_else(|| namespace.len());
         let db_name = String::from(&namespace[..index]);
         let coll_name = String::from(&namespace[index + 1..]);
         let cmd_name = cmd_type.to_str();
@@ -318,7 +318,7 @@ impl Cursor {
                 connection_string: connstring.clone(),
             });
 
-            if let Err(_) = hook_result {
+            if hook_result.is_err() {
                 return Err(Error::EventListenerError(None));
             }
         }
@@ -407,7 +407,7 @@ impl Cursor {
                                              self.batch_size,
                                              self.cursor_id);
 
-        let index = self.namespace.rfind('.').unwrap_or(self.namespace.len());
+        let index = self.namespace.rfind('.').unwrap_or_else(|| self.namespace.len());
         let db_name = String::from(&self.namespace[..index]);
         let cmd_name = String::from("get_more");
         let connstring = format!("{}", try!(socket.get_ref().peer_addr()));
@@ -421,7 +421,7 @@ impl Cursor {
                 connection_string: connstring.clone(),
             });
 
-            if let Err(_) = hook_result {
+            if hook_result.is_err() {
                 return Err(Error::EventListenerError(None));
             }
         }

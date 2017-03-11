@@ -45,8 +45,8 @@ impl Collection {
                write_concern: Option<WriteConcern>)
                -> Collection {
 
-        let rp = read_preference.unwrap_or(db.read_preference.to_owned());
-        let wc = write_concern.unwrap_or(db.write_concern.to_owned());
+        let rp = read_preference.unwrap_or_else(|| db.read_preference.to_owned());
+        let wc = write_concern.unwrap_or_else(|| db.write_concern.to_owned());
 
         if create {
             // Attempt to create the collection explicitly, or fail silently.
@@ -97,7 +97,7 @@ impl Collection {
                      options: Option<AggregateOptions>)
                      -> Result<Cursor> {
         let pipeline_map: Vec<_> = pipeline.into_iter()
-            .map(|bdoc| Bson::Document(bdoc))
+            .map(Bson::Document)
             .collect();
 
         let mut spec = doc! {
@@ -169,7 +169,7 @@ impl Collection {
         }
 
         let read_preference = options.and_then(|o| o.read_preference)
-            .unwrap_or(self.read_preference.clone());
+            .unwrap_or_else(|| self.read_preference.clone());
 
         let result = try!(self.db.command(spec, CommandType::Distinct, Some(read_preference)));
         match result.get("values") {
@@ -261,7 +261,7 @@ impl Collection {
         cmd = merge_options(cmd, options);
 
         let res = try!(self.db.command(cmd, cmd_type, None));
-        let wc = write_concern.unwrap_or(self.write_concern.clone());
+        let wc = write_concern.unwrap_or_else(|| self.write_concern.clone());
         try!(WriteException::validate_write_result(res.clone(), wc));
 
         let doc = match res.get("value") {
@@ -554,7 +554,7 @@ impl Collection {
               cmd_type: CommandType)
               -> Result<(Vec<Bson>, Option<BulkWriteException>)> {
 
-        let wc = write_concern.unwrap_or(self.write_concern.clone());
+        let wc = write_concern.unwrap_or_else(|| self.write_concern.clone());
 
         let mut converted_docs = Vec::new();
         let mut ids = Vec::new();
@@ -643,8 +643,8 @@ impl Collection {
             try!(self.insert(docs, options, write_concern, CommandType::InsertMany));
 
         let mut map = BTreeMap::new();
-        for i in 0..ids.len() {
-            map.insert(i as i64, ids.get(i).unwrap().to_owned());
+        for (i, item) in ids.iter().enumerate() {
+            map.insert(i as i64, item.to_owned());
         }
 
         if let Some(ref exc) = exception {
@@ -664,7 +664,7 @@ impl Collection {
                    cmd_type: CommandType)
                    -> Result<BulkDeleteResult> {
 
-        let wc = write_concern.unwrap_or(self.write_concern.clone());
+        let wc = write_concern.unwrap_or_else(|| self.write_concern.clone());
 
         let mut deletes = Vec::new();
         for model in models {
@@ -739,7 +739,7 @@ impl Collection {
                    write_concern: Option<WriteConcern>,
                    cmd_type: CommandType)
                    -> Result<BulkUpdateResult> {
-        let wc = write_concern.unwrap_or(self.write_concern.clone());
+        let wc = write_concern.unwrap_or_else(|| self.write_concern.clone());
 
         let mut updates = Vec::new();
         for model in models {

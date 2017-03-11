@@ -92,7 +92,8 @@
 #![cfg_attr(feature = "clippy", plugin(clippy(conf_file="clippy.toml")))]
 #![cfg_attr(feature = "clippy", allow(
     option_map_unwrap_or_else, option_map_unwrap_or,
-    match_same_arms, type_complexity, too_many_arguments
+    match_same_arms, type_complexity, too_many_arguments,
+    double_parens // allow double_parens for bson/doc macro.
 ))]
 #![cfg_attr(feature = "clippy", warn(
     print_stdout, wrong_pub_self_convention,
