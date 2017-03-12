@@ -3,11 +3,11 @@ use mongodb::{CommandType, Client, ThreadedClient};
 use mongodb::db::ThreadedDatabase;
 use mongodb::error::Error::OperationError;
 
-fn doc_vec_find(vec: &Vec<Bson>, key: &str, val: &str) -> Option<Bson> {
+fn doc_vec_find(vec: &[Bson], key: &str, val: &str) -> Option<Bson> {
     vec.iter()
        .cloned()
-       .find(|ref bdoc| match bdoc {
-           &&Bson::Document(ref doc) => match doc.get(key) {
+       .find(|bdoc| match *bdoc {
+           Bson::Document(ref doc) => match doc.get(key) {
                Some(&Bson::String(ref s)) => s == val,
                _ => false
            },

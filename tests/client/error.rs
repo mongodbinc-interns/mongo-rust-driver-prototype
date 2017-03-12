@@ -47,8 +47,8 @@ fn invalidate_write_result() {
             let w_errs = &err.write_errors;
 
             assert_eq!(2, w_errs.len());
-            let w0 = w_errs.get(0).unwrap();
-            let w1 = w_errs.get(1).unwrap();
+            let w0 = &w_errs[0];
+            let w1 = &w_errs[1];
             assert_eq!(0, w0.index);
             assert_eq!(3, w1.index);
             assert_eq!(1054, w0.code);

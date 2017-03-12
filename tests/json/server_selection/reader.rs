@@ -19,10 +19,10 @@ pub struct Suite {
     pub topology_description: TopologyDescription,
 }
 
-fn get_server_array(arr: &[Value]) -> Result<Vec<Server>, String> {
+fn get_server_array(vals: &[Value]) -> Result<Vec<Server>, String> {
     let mut servers = Vec::new();
 
-    for json in arr.iter() {
+    for json in vals.iter() {
         match *json {
             Value::Object(ref obj) => {
                 match Server::from_json(obj) {

@@ -6,6 +6,7 @@ pub trait NumEq {
     fn int_eq(&self, i: i64) -> bool;
 }
 
+#[cfg_attr(feature = "clippy", allow(cast_precision_loss))]
 impl NumEq for Bson {
     fn float_eq(&self, f: f64) -> bool {
         match *self {

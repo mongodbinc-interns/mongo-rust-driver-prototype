@@ -34,12 +34,12 @@ fn put_get() {
     let (fs, _, fschunks) = init_gridfs("test-client-gridfs-grid_put");
 
     let name = "grid_put_file";
-    let src_len = (DEFAULT_CHUNK_SIZE as f32 * 2.5) as usize;
+    let src_len = (DEFAULT_CHUNK_SIZE as f64 * 2.5) as usize;
     let src = gen_rand_file(src_len);
 
     let mut grid_file = fs.create(name.to_owned()).unwrap();
     let id = grid_file.id.clone();
-    grid_file.write(&src).unwrap();
+    grid_file.write_all(&src).unwrap();
     grid_file.close().unwrap();
 
     // Check file
@@ -103,12 +103,12 @@ fn remove() {
     let (fs, fsfiles, fschunks) = init_gridfs("test-client-gridfs-grid_remove");
 
     let name = "grid_remove_file";
-    let src_len = (DEFAULT_CHUNK_SIZE as f32 * 1.5) as usize;
+    let src_len = (DEFAULT_CHUNK_SIZE as f64 * 1.5) as usize;
     let src = gen_rand_file(src_len);
 
     let mut grid_file = fs.create(name.to_owned()).unwrap();
     let id = grid_file.id.clone();
-    grid_file.write(&src).unwrap();
+    grid_file.write_all(&src).unwrap();
     grid_file.close().unwrap();
 
     assert!(fsfiles.find_one(Some(doc!{"_id" => (id.clone())}), None).unwrap().is_some());
@@ -130,12 +130,12 @@ fn remove_id() {
     let (fs, fsfiles, fschunks) = init_gridfs("test-client-gridfs-grid_remove_id");
 
     let name = "grid_remove_id_file";
-    let src_len = (DEFAULT_CHUNK_SIZE as f32 * 1.5) as usize;
+    let src_len = (DEFAULT_CHUNK_SIZE as f64 * 1.5) as usize;
     let src = gen_rand_file(src_len);
 
     let mut grid_file = fs.create(name.to_owned()).unwrap();
     let id = grid_file.id.clone();
-    grid_file.write(&src).unwrap();
+    grid_file.write_all(&src).unwrap();
     grid_file.close().unwrap();
 
     assert!(fsfiles.find_one(Some(doc!{"_id" => (id.clone())}), None).unwrap().is_some());
@@ -157,17 +157,17 @@ fn find() {
     let name = "grid_find_file";
     let name2 = "grid_find_file_2";
 
-    let src_len = (DEFAULT_CHUNK_SIZE as f32 * 1.5) as usize;
+    let src_len = (DEFAULT_CHUNK_SIZE as f64 * 1.5) as usize;
     let src = gen_rand_file(src_len);
 
     let mut grid_file = fs.create(name.to_owned()).unwrap();
     let id = grid_file.id.clone();
-    grid_file.write(&src).unwrap();
+    grid_file.write_all(&src).unwrap();
     grid_file.close().unwrap();
 
     let mut grid_file2 = fs.create(name2.to_owned()).unwrap();
     let id2 = grid_file2.id.clone();
-    grid_file2.write(&src).unwrap();
+    grid_file2.write_all(&src).unwrap();
     grid_file2.close().unwrap();
 
     let mut cursor = fs.find(None, None).unwrap();

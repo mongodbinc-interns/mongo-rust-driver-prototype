@@ -94,7 +94,7 @@
     doc_markdown,
     // allow double_parens for bson/doc macro.
     double_parens,
-    too_many_arguments, 
+    too_many_arguments,
 ))]
 #![cfg_attr(feature = "clippy", warn(
     cast_precision_loss,
@@ -119,9 +119,6 @@
     unseparated_literal_suffix,
     used_underscore_binding,
     wrong_pub_self_convention,
-))]
-#![cfg_attr(all(test, feature = "clippy"), allow(
-    result_unwrap_used
 ))]
 
 #[doc(html_root_url = "https://docs.rs/mongodb")]

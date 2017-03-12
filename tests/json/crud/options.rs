@@ -10,12 +10,8 @@ impl FromValue for AggregateOptions {
     fn from_json(object: &Map<String, Value>) -> AggregateOptions {
         let mut options = AggregateOptions::new();
 
-        options.batch_size = match object.get("batchSize") {
-            Some(&Value::Number(ref x)) => x
-                .as_i64().map(|v| v as i32)
-                .or(x.as_f64().map(|v| v as i32))
-                .expect("Invalid numerical format"),
-            _ => options.batch_size,
+        if let Some(Bson::I64(x)) = object.get("batchSize").map(Bson::from_json) {
+            options.batch_size = x as i32;
         };
 
         options
@@ -26,19 +22,13 @@ impl FromValue for CountOptions {
     fn from_json(object: &Map<String, Value>) -> CountOptions {
         let mut options = CountOptions::new();
 
-        options.skip = match object.get("skip") {
-            Some(&Value::Number(ref x)) => x
-                .as_i64()
-                .or(x.as_f64().map(|v| v as i64)),
-            _ => options.skip,
-        };
+        if let Some(Bson::I64(x)) = object.get("skip").map(Bson::from_json) {
+            options.skip = Some(x);
+        }
 
-        options.limit = match object.get("limit") {
-            Some(&Value::Number(ref x)) => x
-                .as_i64()
-                .or(x.as_f64().map(|v| v as i64)),
-            _ => options.limit,
-        };
+        if let Some(Bson::I64(x)) = object.get("limit").map(Bson::from_json) {
+            options.limit = Some(x);
+        }
 
         options
     }
@@ -48,33 +38,22 @@ impl FromValue for FindOptions {
     fn from_json(object: &Map<String, Value>) -> FindOptions {
         let mut options = FindOptions::new();
 
-        let f = |x| Some(Bson::from_json(x));
+        if let Some(Bson::Document(doc)) = object.get("sort").map(Bson::from_json) {
+            options.sort = Some(doc);
+        }
 
-        options.sort = match object.get("sort").and_then(f) {
-            Some(Bson::Document(doc)) => Some(doc),
-            _ => None,
-        };
+        if let Some(Bson::I64(x)) = object.get("skip").map(Bson::from_json) {
+            options.skip = Some(x);
+        }
 
-        options.skip = match object.get("skip") {
-            Some(&Value::Number(ref x)) => x
-                .as_i64()
-                .or(x.as_f64().map(|v| v as i64)),
-            _ => options.skip,
-        };
+        if let Some(Bson::I64(x)) = object.get("limit").map(Bson::from_json) {
+            options.limit = Some(x);
+        }
 
-        options.limit = match object.get("limit") {
-            Some(&Value::Number(ref x)) => x
-                .as_i64()
-                .or(x.as_f64().map(|v| v as i64)),
-            _ => options.limit,
-        };
+        if let Some(Bson::I64(x)) = object.get("batchSize").map(Bson::from_json) {
+            options.batch_size = Some(x as i32);
+        }
 
-        options.batch_size = match object.get("batchSize") {
-            Some(&Value::Number(ref x)) => x
-                .as_i64().map(|v| v as i32)
-                .or(x.as_f64().map(|v| v as i32)),
-            _ => options.batch_size,
-        };
         options
 
     }
