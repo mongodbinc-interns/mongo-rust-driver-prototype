@@ -94,6 +94,8 @@
     doc_markdown,
     // allow double_parens for bson/doc macro.
     double_parens,
+    // more explicit, and doesn't leave room for error when adding enums.
+    match_wild_err_arm,
     too_many_arguments,
 ))]
 #![cfg_attr(feature = "clippy", warn(

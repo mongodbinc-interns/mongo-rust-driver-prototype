@@ -5,11 +5,12 @@
     doc_markdown,
     // allow double_parens for bson/doc macro.
     double_parens,
+    // more explicit, and doesn't leave room for error when adding enums.
+    match_wild_err_arm,
     too_many_arguments,
 ))]
 #![cfg_attr(all(test, feature = "clippy"), allow(
     large_enum_variant,
-    match_wild_err_arm, // can sometimes be more explicit in tests.
     print_stdout,
     result_unwrap_used
 ))]

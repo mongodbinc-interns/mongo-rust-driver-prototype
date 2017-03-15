@@ -22,7 +22,7 @@ fn insert_single_key_doc() {
 
             let cm = match res {
                 Ok(message) => message,
-                _ => panic!("Could not create message!"),
+                Err(_) => panic!("Could not create message!"),
             };
 
             match cm.write(&mut stream) {
@@ -62,7 +62,7 @@ fn insert_single_key_doc() {
                 _ => panic!("Wrong value returned!"),
             };
         }
-        _ => panic!("Could not connect to server"),
+        Err(_) => panic!("Could not connect to server"),
     }
 }
 
@@ -131,7 +131,7 @@ fn insert_multi_key_doc() {
                 _ => panic!("Wrong value returned!"),
             };
         }
-        _ => panic!("Could not connect to server"),
+        Err(_) => panic!("Could not connect to server"),
     }
 }
 
@@ -210,7 +210,7 @@ fn insert_docs() {
                 _ => panic!("Wrong value returned!"),
             };
         }
-        _ => panic!("Could not connect to server"),
+        Err(_) => panic!("Could not connect to server"),
     }
 }
 
@@ -232,7 +232,7 @@ fn insert_update_then_query() {
 
             let cm = match res {
                 Ok(message) => message,
-                _ => panic!("Could not create insert message!"),
+                Err(_) => panic!("Could not create insert message!"),
             };
 
             match cm.write(&mut stream) {
@@ -250,7 +250,7 @@ fn insert_update_then_query() {
 
             let cm = match res {
                 Ok(message) => message,
-                _ => panic!("Could not create update message!"),
+                Err(_) => panic!("Could not create update message!"),
             };
 
             match cm.write(&mut stream) {
@@ -265,7 +265,7 @@ fn insert_update_then_query() {
 
             let cm = match res {
                 Ok(message) => message,
-                _ => panic!("Could not create query message!"),
+                Err(_) => panic!("Could not create query message!"),
             };
 
             match cm.write(&mut stream) {
@@ -290,6 +290,6 @@ fn insert_update_then_query() {
                 _ => panic!("Wrong value returned!"),
             };
         }
-        _ => panic!("Could not connect to server"),
+        Err(_) => panic!("Could not connect to server"),
     }
 }
