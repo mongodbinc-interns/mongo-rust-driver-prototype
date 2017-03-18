@@ -3,6 +3,7 @@ use std::string::ToString;
 
 use bson::Bson;
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SingleDatabaseRole {
     Read,
     ReadWrite,
@@ -37,6 +38,7 @@ impl ToString for SingleDatabaseRole {
     }
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum AllDatabaseRole {
     Read,
     ReadWrite,
@@ -57,6 +59,7 @@ impl ToString for AllDatabaseRole {
     }
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Role {
     All(AllDatabaseRole),
     Single {
@@ -65,19 +68,26 @@ pub enum Role {
     },
 }
 
-impl Role {
-    fn to_bson(&self) -> Bson {
-        match *self {
-            Role::All(ref role) => Bson::String(role.to_string()),
-            Role::Single { ref role, ref db } => {
-                Bson::Document(doc! {
-                "role" => (Bson::String(role.to_string())),
-                "db" => (Bson::String(db.to_owned()))
-            })
+impl From<Role> for Bson {
+    fn from(role: Role) -> Bson {
+        match role {
+            Role::All(role) => Bson::String(role.to_string()),
+            Role::Single { role, db } => {
+              Bson::Document(doc! {
+                  "role" => (Bson::String(role.to_string())),
+                  "db" => (Bson::String(db))
+              })
             }
         }
     }
+}
 
+impl Role {
+    pub fn to_bson(&self) -> Bson {
+        self.clone().into()
+    }
+
+    #[deprecated(since="0.2.4", note="this method will be removed in the next major release")]
     pub fn to_bson_array(vec: Vec<Role>) -> Bson {
         Bson::Array(vec.into_iter().map(|r| r.to_bson()).collect())
     }
