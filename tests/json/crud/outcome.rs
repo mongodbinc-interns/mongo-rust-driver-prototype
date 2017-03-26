@@ -14,7 +14,7 @@ pub struct Outcome {
 impl Outcome {
     pub fn from_json(object: &Map<String, Value>) -> Result<Outcome, String> {
         let result = match object.get("result") {
-            Some(json) => json.clone().into(),
+            Some(json) => Bson::from(json.clone()),
             None => Bson::Null,
         };
 

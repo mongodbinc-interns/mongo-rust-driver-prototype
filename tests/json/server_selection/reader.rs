@@ -61,7 +61,7 @@ impl SuiteContainer for Value {
 
         let read_preference = val_or_err!(object.get("read_preference"),
                                           Some(&Value::Object(ref object)) =>
-                                          try!(ReadPreference::from_json(object.clone())),
+                                          try!(ReadPreference::from_json(object)),
                                           "suite requires a read_preference object.");
 
         let in_latency_window = val_or_err!(object.get("in_latency_window"),

@@ -13,5 +13,5 @@ pub trait FromValue: Sized {
 }
 
 pub trait FromValueResult: Sized {
-    fn from_json(object: Map<String, Value>) -> Result<Self, String>;
+    fn from_json(object: &Map<String, Value>) -> Result<Self, String>;
 }
