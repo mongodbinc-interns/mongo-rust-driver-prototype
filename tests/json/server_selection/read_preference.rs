@@ -6,7 +6,7 @@ use std::str::FromStr;
 use super::super::FromValueResult;
 
 impl FromValueResult for ReadPreference {
-    fn from_json(object: &Map<String, Value>) -> Result<ReadPreference, String> {
+    fn from_json(object: Map<String, Value>) -> Result<ReadPreference, String> {
         let mode = val_or_err!(object.get("mode"),
                                Some(&Value::String(ref s)) => ReadMode::from_str(s).unwrap(),
                                "read preference must have a mode.");

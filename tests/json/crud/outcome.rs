@@ -14,7 +14,7 @@ pub struct Outcome {
 impl Outcome {
     pub fn from_json(object: &Map<String, Value>) -> Result<Outcome, String> {
         let result = match object.get("result") {
-            Some(json) => Bson::from_json(json),
+            Some(json) => json.clone().into(),
             None => Bson::Null,
         };
 
@@ -40,7 +40,7 @@ impl Outcome {
         let mut data = vec![];
 
         for json in array {
-            match Bson::from_json(json) {
+            match Bson::from(json.clone()) {
                 Bson::Document(doc) => data.push(doc),
                 _ => return Err(String::from("`data` array must contain only objects")),
             }

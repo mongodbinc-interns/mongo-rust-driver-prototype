@@ -53,12 +53,12 @@ pub enum Arguments {
 }
 
 impl Arguments {
-    pub fn aggregate_from_json(object: &Map<String, Value>) -> Result<Arguments, String> {
-        let options = AggregateOptions::from_json(object);
+    pub fn aggregate_from_json(object: Map<String, Value>) -> Result<Arguments, String> {
+        let array = val_or_err!(object.get("pipeline").map(Value::clone).map(Into::into),
+                                Some(Bson::Array(arr)) => arr,
+                                "`aggregate` requires pipeline array");
 
-        let array = val_or_err!(object.get("pipeline").map(Bson::from_json),
-                                   Some(Bson::Array(arr)) => arr,
-                                   "`aggregate` requires pipeline array");
+        let options = AggregateOptions::from_json(object);
 
         let mut docs = vec![];
         let mut out = false;
@@ -82,13 +82,13 @@ impl Arguments {
         })
     }
 
-    pub fn count_from_json(object: &Map<String, Value>) -> Arguments {
-        let options = CountOptions::from_json(object);
-
-        let filter = match object.get("filter").map(Bson::from_json) {
+    pub fn count_from_json(object: Map<String, Value>) -> Arguments {
+        let filter = match object.get("filter").map(Value::clone).map(Into::into) {
             Some(Bson::Document(doc)) => Some(doc),
             _ => None,
         };
+
+        let options = CountOptions::from_json(object);
 
         Arguments::Count {
             filter: filter,
@@ -96,8 +96,8 @@ impl Arguments {
         }
     }
 
-    pub fn delete_from_json(object: &Map<String, Value>, many: bool) -> Result<Arguments, String> {
-        let document = val_or_err!(object.get("filter").map(Bson::from_json),
+    pub fn delete_from_json(object: Map<String, Value>, many: bool) -> Result<Arguments, String> {
+        let document = val_or_err!(object.get("filter").map(Value::clone).map(Into::into),
                                    Some(Bson::Document(doc)) => doc,
                                    "`delete` requires document");
 
@@ -107,12 +107,12 @@ impl Arguments {
         })
     }
 
-    pub fn distinct_from_json(object: &Map<String, Value>) -> Result<Arguments, String> {
-        let field_name = val_or_err!(object.get("fieldName").map(Bson::from_json),
+    pub fn distinct_from_json(object: Map<String, Value>) -> Result<Arguments, String> {
+        let field_name = val_or_err!(object.get("fieldName").map(Value::clone).map(Into::into),
                                      Some(Bson::String(ref s)) => s.to_owned(),
                                      "`distinct` requires field name");
 
-        let filter = match object.get("filter").map(Bson::from_json) {
+        let filter = match object.get("filter").map(Value::clone).map(Into::into) {
             Some(Bson::Document(doc)) => Some(doc),
             _ => None,
         };
@@ -123,13 +123,13 @@ impl Arguments {
         })
     }
 
-    pub fn find_from_json(object: &Map<String, Value>) -> Arguments {
-        let options = FindOptions::from_json(object);
-
-        let filter = match object.get("filter").map(Bson::from_json) {
+    pub fn find_from_json(object: Map<String, Value>) -> Arguments {
+        let filter = match object.get("filter").map(Value::clone).map(Into::into) {
             Some(Bson::Document(doc)) => Some(doc),
             _ => None,
         };
+
+        let options = FindOptions::from_json(object);
 
         Arguments::Find {
             filter: filter,
@@ -137,12 +137,12 @@ impl Arguments {
         }
     }
 
-    pub fn find_one_and_delete_from_json(object: &Map<String, Value>) -> Result<Arguments, String> {
-        let options = FindOneAndDeleteOptions::from_json(object);
-
-        let filter = val_or_err!(object.get("filter").map(Bson::from_json),
+    pub fn find_one_and_delete_from_json(object: Map<String, Value>) -> Result<Arguments, String> {
+        let filter = val_or_err!(object.get("filter").map(Value::clone).map(Into::into),
                                  Some(Bson::Document(doc)) => doc,
                                  "`find_one_and_delete` requires filter document");
+
+        let options = FindOneAndDeleteOptions::from_json(object);
 
         Ok(Arguments::FindOneAndDelete {
             filter: filter,
@@ -150,16 +150,16 @@ impl Arguments {
         })
     }
 
-    pub fn find_one_and_replace_from_json(object: &Map<String, Value>) -> Result<Arguments, String> {
-        let options = FindOneAndUpdateOptions::from_json(object);
-
-        let filter = val_or_err!(object.get("filter").map(Bson::from_json),
+    pub fn find_one_and_replace_from_json(object: Map<String, Value>) -> Result<Arguments, String> {
+        let filter = val_or_err!(object.get("filter").map(Value::clone).map(Into::into),
                                  Some(Bson::Document(doc)) => doc,
                                  "`find_one_and_update` requires filter document");
 
-        let replacement = val_or_err!(object.get("replacement").map(Bson::from_json),
+        let replacement = val_or_err!(object.get("replacement").map(Value::clone).map(Into::into),
                                  Some(Bson::Document(doc)) => doc,
                                  "`find_one_and_replace` requires replacement document");
+
+        let options = FindOneAndUpdateOptions::from_json(object);
 
         Ok(Arguments::FindOneAndReplace {
             filter: filter,
@@ -168,16 +168,16 @@ impl Arguments {
         })
     }
 
-    pub fn find_one_and_update_from_json(object: &Map<String, Value>) -> Result<Arguments, String> {
-        let options = FindOneAndUpdateOptions::from_json(object);
-
-        let filter = val_or_err!(object.get("filter").map(Bson::from_json),
+    pub fn find_one_and_update_from_json(object: Map<String, Value>) -> Result<Arguments, String> {
+        let filter = val_or_err!(object.get("filter").map(Value::clone).map(Into::into),
                                  Some(Bson::Document(doc)) => doc,
                                  "`find_one_and_update` requires filter document");
 
-        let update = val_or_err!(object.get("update").map(Bson::from_json),
+        let update = val_or_err!(object.get("update").map(Value::clone).map(Into::into),
                                  Some(Bson::Document(doc)) => doc,
                                  "`find_one_and_update` requires update document");
+
+        let options = FindOneAndUpdateOptions::from_json(object);
 
         Ok(Arguments::FindOneAndUpdate {
             filter: filter,
@@ -186,8 +186,8 @@ impl Arguments {
         })
     }
 
-    pub fn insert_many_from_json(object: &Map<String, Value>) -> Result<Arguments, String> {
-        let bsons = val_or_err!(object.get("documents").map(Bson::from_json),
+    pub fn insert_many_from_json(object: Map<String, Value>) -> Result<Arguments, String> {
+        let bsons = val_or_err!(object.get("documents").map(Value::clone).map(Into::into),
                                 Some(Bson::Array(arr)) => arr,
                                 "`insert_many` requires documents");
 
@@ -203,24 +203,24 @@ impl Arguments {
         Ok(Arguments::InsertMany { documents: docs })
     }
 
-    pub fn insert_one_from_json(object: &Map<String, Value>) -> Result<Arguments, String> {
-        let document = val_or_err!(object.get("document").map(Bson::from_json),
+    pub fn insert_one_from_json(object: Map<String, Value>) -> Result<Arguments, String> {
+        let document = val_or_err!(object.get("document").map(Value::clone).map(Into::into),
                                    Some(Bson::Document(doc)) => doc,
                                    "`delete_one` requires document");
 
         Ok(Arguments::InsertOne { document: document })
     }
 
-    pub fn replace_one_from_json(object: &Map<String, Value>) -> Result<Arguments, String> {
-        let filter = val_or_err!(object.get("filter").map(Bson::from_json),
+    pub fn replace_one_from_json(object: Map<String, Value>) -> Result<Arguments, String> {
+        let filter = val_or_err!(object.get("filter").map(Value::clone).map(Into::into),
                                  Some(Bson::Document(doc)) => doc,
                                  "`update` requires filter document");
 
-        let replacement = val_or_err!(object.get("replacement").map(Bson::from_json),
+        let replacement = val_or_err!(object.get("replacement").map(Value::clone).map(Into::into),
                                  Some(Bson::Document(doc)) => doc,
                                  "`update` requires update document");
 
-        let upsert = var_match!(object.get("upsert").map(Bson::from_json),
+        let upsert = var_match!(object.get("upsert").map(Value::clone).map(Into::into),
                                 Some(Bson::Boolean(b)) => b);
 
         Ok(Arguments::ReplaceOne {
@@ -230,16 +230,16 @@ impl Arguments {
         })
     }
 
-    pub fn update_from_json(object: &Map<String, Value>, many: bool) -> Result<Arguments, String> {
-        let filter = val_or_err!(object.get("filter").map(Bson::from_json),
+    pub fn update_from_json(object: Map<String, Value>, many: bool) -> Result<Arguments, String> {
+        let filter = val_or_err!(object.get("filter").map(Value::clone).map(Into::into),
                                  Some(Bson::Document(doc)) => doc,
                                  "`update` requires filter document");
 
-        let update = val_or_err!(object.get("update").map(Bson::from_json),
+        let update = val_or_err!(object.get("update").map(Value::clone).map(Into::into),
                                  Some(Bson::Document(doc)) => doc,
                                  "`update` requires update document");
 
-        let upsert = var_match!(object.get("upsert").map(Bson::from_json),
+        let upsert = var_match!(object.get("upsert").map(Value::clone).map(Into::into),
                                 Some(Bson::Boolean(b)) => b);
 
         Ok(Arguments::Update {

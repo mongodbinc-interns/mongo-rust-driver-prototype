@@ -7,11 +7,11 @@ license = "Apache-2.0"
 name = "mongodb"
 readme = "README.md"
 repository = "https://github.com/mongodb-labs/mongo-rust-driver-prototype"
-version = "0.2.3"
+version = "0.2.4"
 
 [dependencies]
 bitflags = "0.7.0"
-bson = "0.4.4"
+bson = "0.6.0"
 bufstream = "0.1.1"
 byteorder = "0.5.3"
 chrono = "0.2.25"

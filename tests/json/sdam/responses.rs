@@ -26,7 +26,7 @@ impl Responses {
 
             let ismaster = val_or_err!(
                 inner_array[1],
-                Value::Object(ref obj) => Bson::from_json(&Value::Object(obj.clone())),
+                Value::Object(ref obj) => Value::Object(obj.clone()).into(),
                 "Response item must contain the ismaster object as \
                 the second argument.");
 
