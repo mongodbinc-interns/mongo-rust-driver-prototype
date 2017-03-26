@@ -7,7 +7,7 @@ use mongodb::coll::options::{AggregateOptions, CountOptions, FindOneAndDeleteOpt
 use serde_json::{Map, Value};
 
 impl FromValue for AggregateOptions {
-    fn from_json(object: Map<String, Value>) -> AggregateOptions {
+    fn from_json(object: &Map<String, Value>) -> AggregateOptions {
         let mut options = AggregateOptions::new();
 
         if let Some(Bson::I64(x)) = object.get("batchSize").map(Value::clone).map(Into::into) {
@@ -19,7 +19,7 @@ impl FromValue for AggregateOptions {
 }
 
 impl FromValue for CountOptions {
-    fn from_json(object: Map<String, Value>) -> CountOptions {
+    fn from_json(object: &Map<String, Value>) -> CountOptions {
         let mut options = CountOptions::new();
 
         if let Some(Bson::I64(x)) = object.get("skip").map(Value::clone).map(Into::into) {
@@ -35,7 +35,7 @@ impl FromValue for CountOptions {
 }
 
 impl FromValue for FindOptions {
-    fn from_json(object: Map<String, Value>) -> FindOptions {
+    fn from_json(object: &Map<String, Value>) -> FindOptions {
         let mut options = FindOptions::new();
 
         if let Some(Bson::Document(doc)) = object.get("sort").map(Value::clone).map(Into::into) {
@@ -60,7 +60,7 @@ impl FromValue for FindOptions {
 }
 
 impl FromValue for FindOneAndDeleteOptions {
-    fn from_json(object: Map<String, Value>) -> FindOneAndDeleteOptions {
+    fn from_json(object: &Map<String, Value>) -> FindOneAndDeleteOptions {
         let mut options = FindOneAndDeleteOptions::new();
 
         if let Some(Bson::Document(projection)) = object.get("projection").map(Value::clone).map(Into::into) {
@@ -76,7 +76,7 @@ impl FromValue for FindOneAndDeleteOptions {
 }
 
 impl FromValue for FindOneAndUpdateOptions {
-    fn from_json(object: Map<String, Value>) -> FindOneAndUpdateOptions {
+    fn from_json(object: &Map<String, Value>) -> FindOneAndUpdateOptions {
         let mut options = FindOneAndUpdateOptions::new();
 
         if let Some(Bson::Document(projection)) = object.get("projection").map(Value::clone).map(Into::into) {

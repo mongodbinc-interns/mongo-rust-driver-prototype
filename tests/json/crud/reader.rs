@@ -32,22 +32,22 @@ impl Test {
                                "`name` must be a string");
 
         let args = match name.as_ref() {
-            "aggregate" => res_or_err!(Arguments::aggregate_from_json(args_obj)),
-            "count" => Arguments::count_from_json(args_obj),
-            "deleteMany" => res_or_err!(Arguments::delete_from_json(args_obj, true)),
-            "deleteOne" => res_or_err!(Arguments::delete_from_json(args_obj, false)),
-            "distinct" => res_or_err!(Arguments::distinct_from_json(args_obj)),
-            "find" => Arguments::find_from_json(args_obj),
-            "findOneAndDelete" => res_or_err!(Arguments::find_one_and_delete_from_json(args_obj)),
+            "aggregate" => res_or_err!(Arguments::aggregate_from_json(&args_obj)),
+            "count" => Arguments::count_from_json(&args_obj),
+            "deleteMany" => res_or_err!(Arguments::delete_from_json(&args_obj, true)),
+            "deleteOne" => res_or_err!(Arguments::delete_from_json(&args_obj, false)),
+            "distinct" => res_or_err!(Arguments::distinct_from_json(&args_obj)),
+            "find" => Arguments::find_from_json(&args_obj),
+            "findOneAndDelete" => res_or_err!(Arguments::find_one_and_delete_from_json(&args_obj)),
             "findOneAndReplace" => {
-                res_or_err!(Arguments::find_one_and_replace_from_json(args_obj))
+                res_or_err!(Arguments::find_one_and_replace_from_json(&args_obj))
             }
-            "findOneAndUpdate" => res_or_err!(Arguments::find_one_and_update_from_json(args_obj)),
-            "insertMany" => res_or_err!(Arguments::insert_many_from_json(args_obj)),
-            "insertOne" => res_or_err!(Arguments::insert_one_from_json(args_obj)),
-            "replaceOne" => res_or_err!(Arguments::replace_one_from_json(args_obj)),
-            "updateMany" => res_or_err!(Arguments::update_from_json(args_obj, true)),
-            "updateOne" => res_or_err!(Arguments::update_from_json(args_obj, false)),
+            "findOneAndUpdate" => res_or_err!(Arguments::find_one_and_update_from_json(&args_obj)),
+            "insertMany" => res_or_err!(Arguments::insert_many_from_json(&args_obj)),
+            "insertOne" => res_or_err!(Arguments::insert_one_from_json(&args_obj)),
+            "replaceOne" => res_or_err!(Arguments::replace_one_from_json(&args_obj)),
+            "updateMany" => res_or_err!(Arguments::update_from_json(&args_obj, true)),
+            "updateOne" => res_or_err!(Arguments::update_from_json(&args_obj, false)),
             _ => return Err(String::from("Invalid operation name")),
         };
 
