@@ -1,5 +1,4 @@
 use bson::Bson;
-use nalgebra::ApproxEq;
 
 pub trait NumEq {
     fn float_eq(&self, f: f64) -> bool;
@@ -10,16 +9,16 @@ pub trait NumEq {
 impl NumEq for Bson {
     fn float_eq(&self, f: f64) -> bool {
         match *self {
-            Bson::FloatingPoint(ref ff) => f.approx_eq(ff),
-            Bson::I32(i) => f.approx_eq(&(i as f64)),
-            Bson::I64(i) => f.approx_eq(&(i as f64)),
+            Bson::FloatingPoint(ff) => ulps_eq!(ff, f),
+            Bson::I32(i) => ulps_eq!(i as f64, f),
+            Bson::I64(i) => ulps_eq!(i as f64, f),
             _ => false,
         }
     }
 
     fn int_eq(&self, i: i64) -> bool {
         match *self {
-            Bson::FloatingPoint(ref f) => f.approx_eq(&(i as f64)),
+            Bson::FloatingPoint(f) => ulps_eq!(f, i as f64),
             Bson::I32(ii) => i == (ii as i64),
             Bson::I64(ii) => i == ii,
             _ => false,
@@ -72,8 +71,7 @@ pub fn bson_eq(b1: &Bson, b2: &Bson) -> bool {
             var_match!(*b2, Bson::UtcDatetime(other_date_time) =>
                        date_time == other_date_time)
         }
-        Bson::Symbol(ref s1) => {
-            var_match!(*b2, Bson::Symbol(ref s2) => s1 == s2)
-        }
+        Bson::Symbol(ref s1) => var_match!(*b2, Bson::Symbol(ref s2) => s1 == s2),
     }
 }
+

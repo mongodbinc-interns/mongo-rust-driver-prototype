@@ -36,7 +36,7 @@ default-features = false
 version = "0.4.1"
 
 [dev-dependencies]
-nalgebra = "0.10.1"
+approx = "0.1.1"
 
 [dev-dependencies.serde_json]
 features = ["preserve_order"]

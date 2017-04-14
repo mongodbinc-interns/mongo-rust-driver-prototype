@@ -38,10 +38,11 @@
     wrong_pub_self_convention,
 ))]
 
+#[macro_use(ulps_eq)]
+extern crate approx;
 #[macro_use(bson, doc)]
 extern crate bson;
 extern crate mongodb;
-extern crate nalgebra;
 extern crate rand;
 extern crate serde_json;
 
