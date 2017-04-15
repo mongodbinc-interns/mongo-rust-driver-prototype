@@ -40,7 +40,7 @@ pub fn run_suite(file: &str) {
     let (mut suitable_hosts, _) = if suite.write {
         topology_description.choose_write_hosts()
     } else {
-        topology_description.choose_hosts(&suite.read_preference)
+        topology_description.choose_hosts(&suite.read_preference).unwrap()
     };
 
     if suite.topology_description.ttype != TopologyType::Sharded &&
@@ -52,7 +52,7 @@ pub fn run_suite(file: &str) {
        suite.read_preference.mode == ReadMode::SecondaryPreferred {
         let mut read_pref = suite.read_preference.clone();
         read_pref.mode = ReadMode::PrimaryPreferred;
-        let (mut hosts, _) = topology_description.choose_hosts(&read_pref);
+        let (mut hosts, _) = topology_description.choose_hosts(&read_pref).unwrap();
         if suite.topology_description.ttype != TopologyType::Sharded &&
            suite.topology_description.ttype != TopologyType::Single {
             topology_description.filter_hosts(&mut hosts, &read_pref);

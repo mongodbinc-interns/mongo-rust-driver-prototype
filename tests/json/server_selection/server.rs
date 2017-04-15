@@ -25,16 +25,16 @@ impl Server {
                               "server must have an average rtt.");
 
         let mut tags = BTreeMap::new();
-        let json_doc = val_or_err!(object.get("tags"),
-                                   Some(&Value::Object(ref obj)) => obj.clone(),
-                                   "server must have tags.");
 
-        for (key, json) in json_doc {
-            match json {
-                Value::String(val) => {
-                    tags.insert(key, val);
+        if let Some(&Value::Object(ref obj)) = object.get("tags") {
+            for (key, json) in obj.clone() {
+                match json {
+                    Value::String(val) => {
+                        tags.insert(key, val);
+                    }
+                    _ => return Err(
+                        String::from("server must have tags that are string => string maps.")),
                 }
-                _ => return Err(String::from("server must have tags that are string => string maps.")),
             }
         }
 
@@ -44,10 +44,10 @@ impl Server {
                                 "server must have a type.");
 
         Ok(Server {
-            host: connstring::parse_host(&address).expect("Failed to parse host."),
-            rtt: rtt,
-            tags: tags,
-            stype: stype,
-        })
+               host: connstring::parse_host(&address).expect("Failed to parse host."),
+               rtt: rtt,
+               tags: tags,
+               stype: stype,
+           })
     }
 }

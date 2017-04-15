@@ -80,12 +80,12 @@ impl FromStr for TopologyType {
     type Err = Error;
     fn from_str(s: &str) -> Result<Self> {
         Ok(match s {
-            "Single" => TopologyType::Single,
-            "ReplicaSetNoPrimary" => TopologyType::ReplicaSetNoPrimary,
-            "ReplicaSetWithPrimary" => TopologyType::ReplicaSetWithPrimary,
-            "Sharded" => TopologyType::Sharded,
-            _ => TopologyType::Unknown,
-        })
+               "Single" => TopologyType::Single,
+               "ReplicaSetNoPrimary" => TopologyType::ReplicaSetNoPrimary,
+               "ReplicaSetWithPrimary" => TopologyType::ReplicaSetWithPrimary,
+               "Sharded" => TopologyType::Sharded,
+               _ => TopologyType::Unknown,
+           })
     }
 }
 
@@ -170,79 +170,79 @@ impl TopologyDescription {
     /// Returns a server stream for read operations.
     pub fn acquire_stream(&self,
                           read_preference: &ReadPreference)
-        -> Result<(PooledStream, bool, bool)> {
-            let (mut hosts, rand) = self.choose_hosts(read_preference);
+                          -> Result<(PooledStream, bool, bool)> {
+        let (mut hosts, rand) = self.choose_hosts(read_preference)?;
 
-            // Filter hosts by tagsets
-            if self.topology_type != TopologyType::Sharded &&
-                self.topology_type != TopologyType::Single {
-                    self.filter_hosts(&mut hosts, read_preference);
-                }
+        // Filter hosts by tagsets
+        if self.topology_type != TopologyType::Sharded &&
+           self.topology_type != TopologyType::Single {
+            self.filter_hosts(&mut hosts, read_preference);
+        }
 
-            // Special case - If secondaries are found, by are filtered out by tag sets,
-            // the topology should return any available primaries instead.
-            if hosts.is_empty() && read_preference.mode == ReadMode::SecondaryPreferred {
-                let mut read_pref = read_preference.clone();
-                read_pref.mode = ReadMode::PrimaryPreferred;
-                return self.acquire_stream(&read_pref);
+        // Special case - If secondaries are found, by are filtered out by tag sets,
+        // the topology should return any available primaries instead.
+        if hosts.is_empty() && read_preference.mode == ReadMode::SecondaryPreferred {
+            let mut read_pref = read_preference.clone();
+            read_pref.mode = ReadMode::PrimaryPreferred;
+            return self.acquire_stream(&read_pref);
+        }
+
+        // If no servers are available, request an update from all monitors.
+        if hosts.is_empty() {
+            for server in self.servers.values() {
+                server.request_update();
             }
+        }
 
-            // If no servers are available, request an update from all monitors.
-            if hosts.is_empty() {
-                for server in self.servers.values() {
-                    server.request_update();
-                }
-            }
+        // Filter hosts by round trip times within the latency window.
+        self.filter_latency_hosts(&mut hosts);
 
-            // Filter hosts by round trip times within the latency window.
-            self.filter_latency_hosts(&mut hosts);
+        // Retrieve a server stream from the list of acceptable hosts.
+        let (pooled_stream, server_type) = if rand {
+            try!(self.get_rand_from_vec(&mut hosts))
+        } else {
+            try!(self.get_nearest_from_vec(&mut hosts))
+        };
 
-            // Retrieve a server stream from the list of acceptable hosts.
-            let (pooled_stream, server_type) = if rand {
-                try!(self.get_rand_from_vec(&mut hosts))
-            } else {
-                try!(self.get_nearest_from_vec(&mut hosts))
-            };
-
-            // Determine how to handle server-side logic based on ReadMode and TopologyType.
-            let (slave_ok, send_read_pref) = match self.topology_type {
-                TopologyType::Unknown => (false, false),
-                TopologyType::Single => {
-                    match server_type {
-                        ServerType::Mongos => {
-                            match read_preference.mode {
-                                ReadMode::Primary => (false, false),
-                                ReadMode::SecondaryPreferred => {
-                                    (true, !read_preference.tag_sets.is_empty())
-                                }
-                                ReadMode::Secondary |
-                                    ReadMode::PrimaryPreferred |
-                                    ReadMode::Nearest => (true, true),
-                            }
-                        }
-                        _ => (true, false),
-                    }
-                }
-                TopologyType::ReplicaSetWithPrimary |
-                    TopologyType::ReplicaSetNoPrimary => {
+        // Determine how to handle server-side logic based on ReadMode and TopologyType.
+        let (slave_ok, send_read_pref) = match self.topology_type {
+            TopologyType::Unknown => (false, false),
+            TopologyType::Single => {
+                match server_type {
+                    ServerType::Mongos => {
                         match read_preference.mode {
                             ReadMode::Primary => (false, false),
-                            _ => (true, false),
-                        }
-                    }
-                TopologyType::Sharded => {
-                    match read_preference.mode {
-                        ReadMode::Primary => (false, false),
-                        ReadMode::SecondaryPreferred => (true, !read_preference.tag_sets.is_empty()),
-                        ReadMode::Secondary |
+                            ReadMode::SecondaryPreferred => {
+                                (true, !read_preference.tag_sets.is_empty())
+                            }
+                            ReadMode::Secondary |
                             ReadMode::PrimaryPreferred |
                             ReadMode::Nearest => (true, true),
+                        }
                     }
+                    _ => (true, false),
                 }
-            };
+            }
+            TopologyType::ReplicaSetWithPrimary |
+            TopologyType::ReplicaSetNoPrimary => {
+                match read_preference.mode {
+                    ReadMode::Primary => (false, false),
+                    _ => (true, false),
+                }
+            }
+            TopologyType::Sharded => {
+                match read_preference.mode {
+                    ReadMode::Primary => (false, false),
+                    ReadMode::SecondaryPreferred => (true, !read_preference.tag_sets.is_empty()),
+                    ReadMode::Secondary |
+                    ReadMode::PrimaryPreferred |
+                    ReadMode::Nearest => (true, true),
+                }
+            }
+        };
 
-            Ok((pooled_stream, slave_ok, send_read_pref))
-        }
+        Ok((pooled_stream, slave_ok, send_read_pref))
+    }
 
     /// Returns a server stream for write operations.
     pub fn acquire_write_stream(&self) -> Result<PooledStream> {
@@ -312,20 +312,20 @@ impl TopologyDescription {
                 // If no tags match but the replica set has a primary that is returnable with
                 // the given ReadMode, return that primary server.
                 if self.topology_type == TopologyType::ReplicaSetWithPrimary &&
-                    (read_preference.mode == ReadMode::Primary ||
-                     read_preference.mode == ReadMode::PrimaryPreferred) {
-                        // Retain primaries.
-                        hosts.retain(|host| if let Some(server) = self.servers.get(host) {
-                            let description = server.description.read().unwrap();
-                            description.server_type == ServerType::RSPrimary
-                        } else {
-                            false
-                        });
-                    } else {
-                        // If no tags match and the above case does not occur,
-                        // filter out all provided servers.
-                        hosts.clear();
-                    }
+                   (read_preference.mode == ReadMode::Primary ||
+                    read_preference.mode == ReadMode::PrimaryPreferred) {
+                    // Retain primaries.
+                    hosts.retain(|host| if let Some(server) = self.servers.get(host) {
+                                     let description = server.description.read().unwrap();
+                                     description.server_type == ServerType::RSPrimary
+                                 } else {
+                                     false
+                                 });
+                } else {
+                    // If no tags match and the above case does not occur,
+                    // filter out all provided servers.
+                    hosts.clear();
+                }
             }
             Some(tag_filter) => {
                 // Filter out hosts by the discovered matching tagset.
@@ -361,31 +361,34 @@ impl TopologyDescription {
         }
 
         // Find the shortest round-trip time.
-        let shortest_rtt = hosts.iter().fold({
-            // Initialize the value to the first server's round-trip-time, or i64::MAX.
-            if let Some(server) = self.servers.get(&hosts[0]) {
-                if let Ok(description) = server.description.read() {
-                    description.round_trip_time.unwrap_or(i64::MAX)
-                } else {
-                    i64::MAX
-                }
-            } else {
-                i64::MAX
-            }
-        }, |acc, host| {
-            // Compare the previous shortest rtt with the host rtt.
-            if let Some(server) = self.servers.get(host) {
-                if let Ok(description) = server.description.read() {
-                    let item_rtt = description.round_trip_time.unwrap_or(i64::MAX);
-                    if acc < item_rtt {
-                        return acc;
-                    } else {
-                        return item_rtt;
+        let shortest_rtt = hosts
+            .iter()
+            .fold({
+                      // Initialize the value to the first server's round-trip-time, or i64::MAX.
+                      if let Some(server) = self.servers.get(&hosts[0]) {
+                          if let Ok(description) = server.description.read() {
+                              description.round_trip_time.unwrap_or(i64::MAX)
+                          } else {
+                              i64::MAX
+                          }
+                      } else {
+                          i64::MAX
+                      }
+                  },
+                  |acc, host| {
+                // Compare the previous shortest rtt with the host rtt.
+                if let Some(server) = self.servers.get(host) {
+                    if let Ok(description) = server.description.read() {
+                        let item_rtt = description.round_trip_time.unwrap_or(i64::MAX);
+                        if acc < item_rtt {
+                            return acc;
+                        } else {
+                            return item_rtt;
+                        }
                     }
                 }
-            }
-            acc
-        });
+                acc
+            });
 
         // If the shortest rtt is i64::MAX, all server rtts are None or could not be read.
         if shortest_rtt == i64::MAX {
@@ -421,41 +424,51 @@ impl TopologyDescription {
             // Only primary replica set members are suitable.
             _ => {
                 (self.servers
-                 .keys()
-                 .filter_map(|host| {
-                     if let Some(server) = self.servers.get(host) {
-                         if let Ok(description) = server.description.read() {
-                             if description.server_type == ServerType::RSPrimary {
-                                 return Some(host.clone());
-                             }
-                         }
-                     }
-                     None
-                 })
-                 .collect(),
+                     .keys()
+                     .filter_map(|host| {
+                    if let Some(server) = self.servers.get(host) {
+                        if let Ok(description) = server.description.read() {
+                            if description.server_type == ServerType::RSPrimary {
+                                return Some(host.clone());
+                            }
+                        }
+                    }
+                    None
+                })
+                     .collect(),
                  true)
             }
         }
     }
 
     /// Returns suitable servers for read operations and whether to take a random element.
-    pub fn choose_hosts(&self, read_preference: &ReadPreference) -> (Vec<Host>, bool) {
+    pub fn choose_hosts(&self, read_preference: &ReadPreference) -> Result<(Vec<Host>, bool)> {
         if self.servers.is_empty() {
-            return (Vec::new(), true);
+            return Ok((Vec::new(), true));
         }
 
         match self.topology_type {
             // No servers are suitable.
-            TopologyType::Unknown => (Vec::new(), true),
+            TopologyType::Unknown => Ok((Vec::new(), true)),
             // All servers are suitable.
-            TopologyType::Single => (self.servers.keys().cloned().collect(), true),
-            TopologyType::Sharded => (self.servers.keys().cloned().collect(), false),
+            TopologyType::Single => Ok((self.servers.keys().cloned().collect(), true)),
+            TopologyType::Sharded => Ok((self.servers.keys().cloned().collect(), false)),
             _ => {
 
                 // Handle replica set server selection
                 // Short circuit if nearest
                 if read_preference.mode == ReadMode::Nearest {
-                    return (self.servers.keys().cloned().collect(), false);
+                    let mut hosts = Vec::new();
+
+                    for (host, server) in &self.servers {
+                        if server.description.read()?.server_type == ServerType::Unknown {
+                            continue;
+                        }
+
+                        hosts.push(host.clone());
+                    }
+
+                    return Ok((hosts, false));
                 }
 
                 let mut primaries = Vec::new();
@@ -473,25 +486,25 @@ impl TopologyDescription {
 
                 // Choose an appropriate server at random based on the read preference.
                 match read_preference.mode {
-                    ReadMode::Primary => (primaries, true),
+                    ReadMode::Primary => Ok((primaries, true)),
                     ReadMode::PrimaryPreferred => {
                         let servers = if primaries.is_empty() {
                             secondaries
                         } else {
                             primaries
                         };
-                        (servers, true)
+                        Ok((servers, true))
                     }
-                    ReadMode::Secondary => (secondaries, true),
+                    ReadMode::Secondary => Ok((secondaries, true)),
                     ReadMode::SecondaryPreferred => {
                         let servers = if secondaries.is_empty() {
                             primaries
                         } else {
                             secondaries
                         };
-                        (servers, true)
+                        Ok((servers, true))
                     }
-                    ReadMode::Nearest => (self.servers.keys().cloned().collect(), false),
+                    ReadMode::Nearest => Ok((self.servers.keys().cloned().collect(), false)),
                 }
             }
         }
@@ -638,31 +651,31 @@ impl TopologyDescription {
 
         if description.set_version.is_some() && description.election_id.is_some() {
             if self.max_set_version.is_some() && self.max_election_id.is_some() &&
-                (self.max_set_version.unwrap() > description.set_version.unwrap() ||
-                 (self.max_set_version.unwrap() == description.set_version.unwrap() &&
-                  self.max_election_id.as_ref().unwrap() >
-                  description.election_id.as_ref().unwrap())) {
-                    // Stale primary
-                    if let Some(server) = self.servers.get(&host) {
-                        {
-                            let mut server_description = server.description.write().unwrap();
-                            server_description.server_type = ServerType::Unknown;
-                            server_description.set_name = String::new();
-                            server_description.election_id = None;
-                        }
+               (self.max_set_version.unwrap() > description.set_version.unwrap() ||
+                (self.max_set_version.unwrap() == description.set_version.unwrap() &&
+                 self.max_election_id.as_ref().unwrap() >
+                 description.election_id.as_ref().unwrap())) {
+                // Stale primary
+                if let Some(server) = self.servers.get(&host) {
+                    {
+                        let mut server_description = server.description.write().unwrap();
+                        server_description.server_type = ServerType::Unknown;
+                        server_description.set_name = String::new();
+                        server_description.election_id = None;
                     }
-                    self.check_if_has_primary();
-                    return;
-                } else {
-                    self.max_election_id = description.election_id.clone();
                 }
+                self.check_if_has_primary();
+                return;
+            } else {
+                self.max_election_id = description.election_id.clone();
+            }
         }
 
         if description.set_version.is_some() &&
-            (self.max_set_version.is_none() ||
-             description.set_version.unwrap() > self.max_set_version.unwrap()) {
-                self.max_set_version = description.set_version;
-            }
+           (self.max_set_version.is_none() ||
+            description.set_version.unwrap() > self.max_set_version.unwrap()) {
+            self.max_set_version = description.set_version;
+        }
 
         // Invalidate any old primaries
         for (top_host, server) in &self.servers {
@@ -682,9 +695,9 @@ impl TopologyDescription {
         let mut hosts_to_remove = Vec::new();
         for host in self.servers.keys() {
             if !description.hosts.contains(host) && !description.passives.contains(host) &&
-                !description.arbiters.contains(host) {
-                    hosts_to_remove.push(host.clone());
-                }
+               !description.arbiters.contains(host) {
+                hosts_to_remove.push(host.clone());
+            }
         }
 
         for host in hosts_to_remove {
@@ -754,21 +767,33 @@ impl TopologyDescription {
 
         for host in &description.hosts {
             if !self.servers.contains_key(host) {
-                let server =  Server::new(client.clone(), host.clone(), top_arc.clone(), run_monitor, self.stream_connector.clone());
+                let server = Server::new(client.clone(),
+                                         host.clone(),
+                                         top_arc.clone(),
+                                         run_monitor,
+                                         self.stream_connector.clone());
                 self.servers.insert(host.clone(), server);
             }
         }
 
         for host in &description.passives {
             if !self.servers.contains_key(host) {
-                let server =  Server::new(client.clone(), host.clone(), top_arc.clone(), run_monitor, self.stream_connector.clone());
+                let server = Server::new(client.clone(),
+                                         host.clone(),
+                                         top_arc.clone(),
+                                         run_monitor,
+                                         self.stream_connector.clone());
                 self.servers.insert(host.clone(), server);
             }
         }
 
         for host in &description.arbiters {
             if !self.servers.contains_key(host) {
-                let server =  Server::new(client.clone(), host.clone(), top_arc.clone(), run_monitor, self.stream_connector.clone());
+                let server = Server::new(client.clone(),
+                                         host.clone(),
+                                         top_arc.clone(),
+                                         run_monitor,
+                                         self.stream_connector.clone());
                 self.servers.insert(host.clone(), server);
             }
         }
@@ -780,81 +805,81 @@ impl Topology {
     pub fn new(config: ConnectionString,
                description: Option<TopologyDescription>,
                connector: StreamConnector)
-        -> Result<Topology> {
+               -> Result<Topology> {
 
-            let mut options = description.unwrap_or_else(|| TopologyDescription::new(connector));
+        let mut options = description.unwrap_or_else(|| TopologyDescription::new(connector));
 
-            if config.hosts.len() > 1 && options.topology_type == TopologyType::Single {
-                return Err(ArgumentError(String::from("TopologyType::Single cannot be used with \
+        if config.hosts.len() > 1 && options.topology_type == TopologyType::Single {
+            return Err(ArgumentError(String::from("TopologyType::Single cannot be used with \
                                                    multiple seeds.")));
-            }
-
-            if let Some(ref config_opts) = config.options {
-                if let Some(name) = config_opts.options.get("replicaSet") {
-                    options.set_name = name.to_owned();
-                    options.topology_type = TopologyType::ReplicaSetNoPrimary;
-                }
-            }
-
-            if !options.set_name.is_empty() &&
-                options.topology_type != TopologyType::ReplicaSetNoPrimary {
-                    return Err(ArgumentError(String::from("TopologyType must be ReplicaSetNoPrimary if \
-                                                   set_name is provided.")));
-                }
-
-            let top_description = Arc::new(RwLock::new(options));
-
-            Ok(Topology {
-                config: config,
-                description: top_description,
-            })
         }
+
+        if let Some(ref config_opts) = config.options {
+            if let Some(name) = config_opts.options.get("replicaSet") {
+                options.set_name = name.to_owned();
+                options.topology_type = TopologyType::ReplicaSetNoPrimary;
+            }
+        }
+
+        if !options.set_name.is_empty() &&
+           options.topology_type != TopologyType::ReplicaSetNoPrimary {
+            return Err(ArgumentError(String::from("TopologyType must be ReplicaSetNoPrimary if \
+                                                   set_name is provided.")));
+        }
+
+        let top_description = Arc::new(RwLock::new(options));
+
+        Ok(Topology {
+               config: config,
+               description: top_description,
+           })
+    }
 
     // Private server stream acquisition helper.
     fn acquire_stream_private(&self,
                               read_preference: Option<ReadPreference>,
                               write: bool)
-        -> Result<(PooledStream, bool, bool)> {
-            // Note start of server selection.
-            let time = time::get_time();
-            let start_ms = time.sec * 1000 + (time.nsec as i64) / 1000000;
+                              -> Result<(PooledStream, bool, bool)> {
+        // Note start of server selection.
+        let time = time::get_time();
+        let start_ms = time.sec * 1000 + (time.nsec as i64) / 1000000;
 
-            loop {
-                {
-                    let description = try!(self.description.read());
-                    let result = if write {
-                        match description.acquire_write_stream() {
-                            Ok(stream) => Ok((stream, false, false)),
-                            Err(err) => Err(err),
-                        }
-                    } else {
-                        description.acquire_stream(read_preference.as_ref().unwrap())
-                    };
+        loop {
+            {
+                let description = try!(self.description.read());
+                let result = if write {
+                    match description.acquire_write_stream() {
+                        Ok(stream) => Ok((stream, false, false)),
+                        Err(err) => Err(err),
+                    }
+                } else {
+                    description.acquire_stream(read_preference.as_ref().unwrap())
+                };
 
-                    match result {
-                        Ok(stream) => return Ok(stream),
-                        Err(err) => {
-                            // Check duration of current server selection and return an error if
-                            // overdue.
-                            let end_time = time::get_time();
-                            let end_ms = end_time.sec * 1000 + (end_time.nsec as i64) / 1000000;
-                            if end_ms - start_ms >= description.server_selection_timeout_ms {
-                                return Err(err);
-                            }
+                match result {
+                    Ok(stream) => return Ok(stream),
+                    Err(err) => {
+                        // Check duration of current server selection and return an error if
+                        // overdue.
+                        let end_time = time::get_time();
+                        let end_ms = end_time.sec * 1000 + (end_time.nsec as i64) / 1000000;
+                        if end_ms - start_ms >= description.server_selection_timeout_ms {
+                            return Err(err);
                         }
                     }
                 }
-                // Otherwise, sleep for a little while.
-                thread::sleep(Duration::from_millis(500));
             }
+            // Otherwise, sleep for a little while.
+            thread::sleep(Duration::from_millis(500));
         }
+    }
 
     /// Returns a server stream for read operations.
     pub fn acquire_stream(&self,
                           read_preference: ReadPreference)
-        -> Result<(PooledStream, bool, bool)> {
-            self.acquire_stream_private(Some(read_preference), false)
-        }
+                          -> Result<(PooledStream, bool, bool)> {
+        self.acquire_stream_private(Some(read_preference), false)
+    }
 
     /// Returns a server stream for write operations.
     pub fn acquire_write_stream(&self) -> Result<PooledStream> {
