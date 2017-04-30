@@ -22,7 +22,7 @@ The driver is available on crates.io. To use the MongoDB driver in your code, ad
 
 ```
 [dependencies]
-bson = "0.6.1"
+bson = "0.7.0"
 mongodb = "0.2.6"
 ```
 
