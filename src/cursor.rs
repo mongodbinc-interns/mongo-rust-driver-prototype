@@ -36,7 +36,7 @@ use wire_protocol::operations::Message;
 
 use std::collections::vec_deque::VecDeque;
 
-pub const DEFAULT_BATCH_SIZE: i32 = 20;
+pub const DEFAULT_BATCH_SIZE: i32 = 0;
 
 /// Maintains a connection to the server and lazily returns documents from a
 /// query.
@@ -462,9 +462,12 @@ impl Cursor {
     /// # Return value
     ///
     /// Returns a vector containing the BSON documents that were read.
-    pub fn next_batch(&mut self) -> Result<Vec<bson::Document>> {
-        let n = self.batch_size;
-        self.next_n(n)
+    pub fn get_current_batch(&mut self) -> Result<Vec<bson::Document>> {
+        if self.buffer.is_empty() {
+            self.get_from_stream()?;
+        }
+
+        Ok(self.buffer.drain(..).collect())
     }
 
     /// Checks whether there are any more documents for the cursor to return.
