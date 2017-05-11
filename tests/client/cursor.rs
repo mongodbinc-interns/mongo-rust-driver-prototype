@@ -43,7 +43,7 @@ fn cursor_features() {
         Err(s) => panic!("{}", s),
     };
 
-    let batch = cursor.get_current_batch().expect("Failed to get current batch from cursor.");
+    let batch = cursor.drain_current_batch().expect("Failed to get current batch from cursor.");
 
     assert_eq!(batch.len(), 3 as usize);
 

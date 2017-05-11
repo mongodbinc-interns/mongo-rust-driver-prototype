@@ -76,8 +76,8 @@ impl FileCursor {
     }
 
     /// Returns the next batch of files.
-    pub fn get_current_batch(&mut self) -> Result<Vec<File>> {
-        let docs = try!(self.cursor.get_current_batch());
+    pub fn drain_current_batch(&mut self) -> Result<Vec<File>> {
+        let docs = try!(self.cursor.drain_current_batch());
         Ok(docs.into_iter()
             .map(|doc| File::with_doc(self.store.clone(), doc))
             .collect())

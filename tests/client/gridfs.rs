@@ -56,7 +56,7 @@ fn put_get() {
     // Check chunks
     let mut cursor = fschunks.find(Some(doc!{"files_id" => (id.clone())}), Some(opts)).unwrap();
 
-    let chunks = cursor.get_current_batch().expect("Failed to get current batch");
+    let chunks = cursor.drain_current_batch().expect("Failed to get current batch");
     assert_eq!(3, chunks.len());
 
     for (i, chunk) in chunks.iter().enumerate().take(3) {
@@ -114,14 +114,14 @@ fn remove() {
     assert!(fsfiles.find_one(Some(doc!{"_id" => (id.clone())}), None).unwrap().is_some());
 
     let mut cursor = fschunks.find(Some(doc!{"files_id" => (id.clone())}), None).unwrap();
-    let results = cursor.get_current_batch().unwrap();
+    let results = cursor.drain_current_batch().unwrap();
     assert_eq!(2, results.len());
 
     fs.remove(name.to_owned()).unwrap();
     assert!(fsfiles.find_one(Some(doc!{"_id" => (id.clone())}), None).unwrap().is_none());
 
     let mut cursor = fschunks.find(Some(doc!{"files_id" => (id.clone())}), None).unwrap();
-    let results = cursor.get_current_batch().unwrap();
+    let results = cursor.drain_current_batch().unwrap();
     assert_eq!(0, results.len());
 }
 
@@ -141,12 +141,12 @@ fn remove_id() {
     assert!(fsfiles.find_one(Some(doc!{"_id" => (id.clone())}), None).unwrap().is_some());
 
     let mut cursor = fschunks.find(Some(doc!{"files_id" => (id.clone())}), None).unwrap();
-    let results = cursor.get_current_batch().unwrap();
+    let results = cursor.drain_current_batch().unwrap();
     assert_eq!(2, results.len());
 
     fs.remove_id(id.clone()).unwrap();
     let mut cursor = fschunks.find(Some(doc!{"files_id" => (id.clone())}), None).unwrap();
-    let results = cursor.get_current_batch().unwrap();
+    let results = cursor.drain_current_batch().unwrap();
     assert_eq!(0, results.len());
 }
 
@@ -171,7 +171,7 @@ fn find() {
     grid_file2.close().unwrap();
 
     let mut cursor = fs.find(None, None).unwrap();
-    let results = cursor.get_current_batch().unwrap();
+    let results = cursor.drain_current_batch().unwrap();
     assert_eq!(2, results.len());
     assert_eq!(name, results[0].name.as_ref().unwrap());
     assert_eq!(name2, results[1].name.as_ref().unwrap());
