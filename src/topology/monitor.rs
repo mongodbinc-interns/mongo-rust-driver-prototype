@@ -3,7 +3,7 @@ use {Client, Result};
 use Error::{self, ArgumentError, OperationError};
 
 use bson::{self, Bson, oid};
-use chrono::{DateTime, UTC};
+use chrono::{DateTime, Utc};
 
 use coll::options::FindOptions;
 use command_type::CommandType;
@@ -33,7 +33,7 @@ pub struct IsMasterResult {
     pub is_master: bool,
     pub max_bson_object_size: i64,
     pub max_message_size_bytes: i64,
-    pub local_time: Option<DateTime<UTC>>,
+    pub local_time: Option<DateTime<Utc>>,
     pub min_wire_version: i64,
     pub max_wire_version: i64,
 
@@ -220,13 +220,14 @@ impl IsMasterResult {
 
 impl Monitor {
     /// Returns a new monitor connected to the server.
-    pub fn new(client: Client,
-               host: Host,
-               pool: Arc<ConnectionPool>,
-               top_description: Arc<RwLock<TopologyDescription>>,
-               server_description: Arc<RwLock<ServerDescription>>,
-               connector: StreamConnector)
-               -> Monitor {
+    pub fn new(
+        client: Client,
+        host: Host,
+        pool: Arc<ConnectionPool>,
+        top_description: Arc<RwLock<TopologyDescription>>,
+        server_description: Arc<RwLock<ServerDescription>>,
+        connector: StreamConnector,
+    ) -> Monitor {
         Monitor {
             client: client,
             host: host.clone(),
@@ -263,15 +264,17 @@ impl Monitor {
 
         let time_start = time::get_time();
 
-        let cursor = try!(Cursor::query_with_stream(stream,
-                                                    self.client.clone(),
-                                                    String::from("local.$cmd"),
-                                                    flags,
-                                                    filter.clone(),
-                                                    options,
-                                                    CommandType::IsMaster,
-                                                    false,
-                                                    None));
+        let cursor = try!(Cursor::query_with_stream(
+            stream,
+            self.client.clone(),
+            String::from("local.$cmd"),
+            flags,
+            filter.clone(),
+            options,
+            CommandType::IsMaster,
+            false,
+            None,
+        ));
 
         let time_end = time::get_time();
 
@@ -291,10 +294,11 @@ impl Monitor {
 
     // Updates the server description associated with this monitor using an isMaster server
     // response.
-    fn update_server_description(&self,
-                                 doc: bson::Document,
-                                 round_trip_time: i64)
-                                 -> Result<ServerDescription> {
+    fn update_server_description(
+        &self,
+        doc: bson::Document,
+        round_trip_time: i64,
+    ) -> Result<ServerDescription> {
 
         let ismaster_result = IsMasterResult::new(doc);
         let mut server_description = self.server_description.write().unwrap();
@@ -302,7 +306,9 @@ impl Monitor {
             Ok(ismaster) => server_description.update(ismaster, round_trip_time),
             Err(err) => {
                 server_description.set_err(err);
-                return Err(OperationError(String::from("Failed to parse ismaster result.")));
+                return Err(OperationError(
+                    String::from("Failed to parse ismaster result."),
+                ));
             }
         }
 
@@ -312,10 +318,12 @@ impl Monitor {
     // Updates the topology description associated with this monitor using a new server description.
     fn update_top_description(&self, description: ServerDescription) {
         let mut top_description = self.top_description.write().unwrap();
-        top_description.update(self.host.clone(),
-                               description,
-                               self.client.clone(),
-                               self.top_description.clone());
+        top_description.update(
+            self.host.clone(),
+            description,
+            self.client.clone(),
+            self.top_description.clone(),
+        );
     }
 
     // Updates server and topology descriptions using a successful isMaster cursor result.
@@ -330,7 +338,9 @@ impl Monitor {
                 self.set_err(err);
             }
             None => {
-                self.set_err(OperationError(String::from("ismaster returned no response.")));
+                self.set_err(OperationError(
+                    String::from("ismaster returned no response."),
+                ));
             }
         }
     }
@@ -379,12 +389,17 @@ impl Monitor {
             self.execute_update();
 
             if let Ok(description) = self.top_description.read() {
-                self.heartbeat_frequency_ms.store(description.heartbeat_frequency_ms as usize,
-                                                  Ordering::SeqCst);
+                self.heartbeat_frequency_ms.store(
+                    description.heartbeat_frequency_ms as usize,
+                    Ordering::SeqCst,
+                );
             }
 
             let frequency = self.heartbeat_frequency_ms.load(Ordering::SeqCst) as u64;
-            guard = self.condvar.wait_timeout(guard, Duration::from_millis(frequency)).unwrap().0;
+            guard = self.condvar
+                .wait_timeout(guard, Duration::from_millis(frequency))
+                .unwrap()
+                .0;
         }
     }
 }

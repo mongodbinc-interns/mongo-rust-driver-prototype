@@ -2,7 +2,7 @@
 use bson::{self, Bson, oid};
 use bson::spec::BinarySubtype;
 
-use chrono::{DateTime, UTC};
+use chrono::{DateTime, Utc};
 use crypto::digest::Digest;
 use crypto::md5::Md5;
 
@@ -80,7 +80,7 @@ pub struct GfsFile {
     // The filename of the document.
     pub name: Option<String>,
     // The date the document was first stored in GridFS.
-    pub upload_date: Option<DateTime<UTC>>,
+    pub upload_date: Option<DateTime<Utc>>,
     // The content type of the file.
     pub content_type: Option<String>,
     // Any additional metadata provided by the user.
@@ -195,7 +195,7 @@ impl File {
         if self.mode == Mode::Write {
             if try!(self.err_description()).is_none() {
                 if self.doc.upload_date.is_none() {
-                    self.doc.upload_date = Some(UTC::now());
+                    self.doc.upload_date = Some(Utc::now());
                 }
                 self.doc.md5 = self.wsum.result_str();
                 try!(self.gfs.files.insert_one(self.doc.to_bson(), None));
@@ -205,11 +205,15 @@ impl File {
 
                 let mut opts = IndexOptions::new();
                 opts.unique = Some(true);
-                try!(self.gfs.chunks.create_index(doc!{ "files_id" => 1, "n" => 1}, Some(opts)));
+                try!(self.gfs.chunks.create_index(
+                    doc!{ "files_id" => 1, "n" => 1},
+                    Some(opts),
+                ));
             } else {
-                try!(self.gfs
-                    .chunks
-                    .delete_many(doc!{ "files_id" => (self.doc.id.clone()) }, None));
+                try!(self.gfs.chunks.delete_many(
+                    doc!{ "files_id" => (self.doc.id.clone()) },
+                    None,
+                ));
             }
         }
 
@@ -240,7 +244,8 @@ impl File {
         let mut vec_buf = Vec::with_capacity(buf.len());
         vec_buf.extend(buf.iter().cloned());
 
-        let document = doc! {
+        let document =
+            doc! {
             "_id" => (try!(oid::ObjectId::new())),
             "files_id" => (self.doc.id.clone()),
             "n" => n,
@@ -322,8 +327,10 @@ impl File {
                     }
                 };
 
-                let result = arc_gfs.chunks
-                    .find_one(Some(doc!{"files_id" => (id), "n" => (next_chunk_num)}), None);
+                let result = arc_gfs.chunks.find_one(
+                    Some(doc!{"files_id" => (id), "n" => (next_chunk_num)}),
+                    None,
+                );
 
                 match result {
                     Ok(Some(doc)) => {
@@ -333,8 +340,10 @@ impl File {
                                 cache.err = None;
                             }
                             _ => {
-                                cache.err = Some(OperationError(String::from("Chunk contained \
-                                                                              no data.")))
+                                cache.err = Some(OperationError(String::from(
+                                    "Chunk contained \
+                                                                              no data.",
+                                )))
                             }
                         }
                     }
@@ -361,7 +370,10 @@ impl io::Write for File {
 
         let description = try!(self.err_description());
         if description.is_some() {
-            return Err(io::Error::new(io::ErrorKind::Other, OperationError(description.unwrap())));
+            return Err(io::Error::new(
+                io::ErrorKind::Other,
+                OperationError(description.unwrap()),
+            ));
         }
 
         let mut data = buf;
@@ -393,7 +405,8 @@ impl io::Write for File {
 
             // If over a megabyte is being written at once, wait for the load to reduce.
             while self.doc.chunk_size * self.wpending.load(Ordering::SeqCst) as i32 >=
-                  MEGABYTE as i32 {
+                MEGABYTE as i32
+            {
                 guard = match self.condvar.wait(guard) {
                     Ok(guard) => guard,
                     Err(_) => return Err(io::Error::new(io::ErrorKind::Other, PoisonLockError)),
@@ -401,8 +414,10 @@ impl io::Write for File {
 
                 let description = try!(self.err_description());
                 if description.is_some() {
-                    return Err(io::Error::new(io::ErrorKind::Other,
-                                              OperationError(description.unwrap())));
+                    return Err(io::Error::new(
+                        io::ErrorKind::Other,
+                        OperationError(description.unwrap()),
+                    ));
                 }
             }
 
@@ -423,7 +438,8 @@ impl io::Write for File {
 
             // Pending megabyte
             while self.doc.chunk_size * self.wpending.load(Ordering::SeqCst) as i32 >=
-                  MEGABYTE as i32 {
+                MEGABYTE as i32
+            {
                 guard = match self.condvar.wait(guard) {
                     Ok(guard) => guard,
                     Err(_) => return Err(io::Error::new(io::ErrorKind::Other, PoisonLockError)),
@@ -431,8 +447,10 @@ impl io::Write for File {
 
                 let description = try!(self.err_description());
                 if description.is_some() {
-                    return Err(io::Error::new(io::ErrorKind::Other,
-                                              OperationError(description.unwrap())));
+                    return Err(io::Error::new(
+                        io::ErrorKind::Other,
+                        OperationError(description.unwrap()),
+                    ));
                 }
             }
 
@@ -461,7 +479,8 @@ impl io::Write for File {
 
             // Pending megabyte
             while self.doc.chunk_size * self.wpending.load(Ordering::SeqCst) as i32 >=
-                  MEGABYTE as i32 {
+                MEGABYTE as i32
+            {
                 guard = match self.condvar.wait(guard) {
                     Ok(guard) => guard,
                     Err(_) => return Err(io::Error::new(io::ErrorKind::Other, PoisonLockError)),
@@ -486,7 +505,10 @@ impl io::Write for File {
 
         let description = try!(self.err_description());
         if description.is_some() {
-            return Err(io::Error::new(io::ErrorKind::Other, OperationError(description.unwrap())));
+            return Err(io::Error::new(
+                io::ErrorKind::Other,
+                OperationError(description.unwrap()),
+            ));
         }
 
         Ok(())
@@ -613,7 +635,8 @@ impl GfsFile {
 
     /// Converts a GfsFile into a bson document.
     pub fn to_bson(&self) -> bson::Document {
-        let mut doc = doc! {
+        let mut doc =
+            doc! {
             "_id" => (self.id.clone()),
             "chunkSize" => (self.chunk_size),
             "length" => (self.len),
@@ -622,19 +645,27 @@ impl GfsFile {
         };
 
         if self.name.is_some() {
-            doc.insert("filename",
-                       Bson::String(self.name.as_ref().unwrap().to_owned()));
+            doc.insert(
+                "filename",
+                Bson::String(self.name.as_ref().unwrap().to_owned()),
+            );
         }
 
         if self.content_type.is_some() {
-            doc.insert("contentType",
-                       Bson::String(self.content_type.as_ref().unwrap().to_owned()));
+            doc.insert(
+                "contentType",
+                Bson::String(self.content_type.as_ref().unwrap().to_owned()),
+            );
         }
 
         if self.metadata.is_some() {
-            doc.insert("metadata",
-                       Bson::Binary(BinarySubtype::Generic,
-                                    self.metadata.as_ref().unwrap().clone()));
+            doc.insert(
+                "metadata",
+                Bson::Binary(
+                    BinarySubtype::Generic,
+                    self.metadata.as_ref().unwrap().clone(),
+                ),
+            );
         }
 
         doc
@@ -647,7 +678,9 @@ impl CachedChunk {
         CachedChunk {
             n: n,
             data: Vec::new(),
-            err: Some(Error::DefaultError(String::from("Chunk has not yet been initialized"))),
+            err: Some(Error::DefaultError(
+                String::from("Chunk has not yet been initialized"),
+            )),
         }
     }
 }
