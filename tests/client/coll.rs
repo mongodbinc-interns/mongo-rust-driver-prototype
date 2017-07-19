@@ -689,6 +689,87 @@ fn create_list_drop_indexes() {
 }
 
 #[test]
+fn create_text_hashed_2d_2dsphere_index() {
+    let client = Client::connect("localhost", 27017).unwrap();
+    let db = client.db("test-client-coll");
+    let coll = db.collection("create_text_hashed_2d_2dsphere_index");
+
+    coll.create_index(doc!{
+        "a" => "text"
+    }, None).expect("Failed to create text indexes");
+
+    coll.create_index(doc!{
+        "b" => "hashed"
+    }, None).expect("Failed to create hashed indexes");
+
+    coll.create_index(doc!{
+        "c" => "2d"
+    }, None).expect("Failed to create 2d indexes");
+
+    coll.create_index(doc!{
+        "d" => "2dsphere"
+    }, None).expect("Failed to create 2dsphere indexes");
+}
+
+#[test]
+fn block_ill_formed_index_models() {
+    assert!(IndexModel::new(doc!{ "test" => 1.1 }, None).name().is_err());
+    assert!(IndexModel::new(doc!{ "test" => 1i64 }, None).name().is_err());
+    assert!(IndexModel::new(doc!{ "test" => "arbitrystr" }, None).name().is_err());
+}
+
+#[test]
+fn create_query_text_index() {
+    let client = Client::connect("localhost", 27017).unwrap();
+    let db = client.db("test-client-coll");
+    let coll = db.collection("create_query_text_index");
+
+    coll.drop().expect("Failed to drop collection");
+
+    let mut index_opt = IndexOptions::new();
+    index_opt.weights = Some(doc!{
+        "title" => 10,
+        "content" => 5
+    });
+    coll.create_index(doc!{
+        "title" => "text",
+        "content" => "text"
+    },
+    Some(index_opt)).unwrap();
+
+    let doc1 = doc! { "title" => "keyword keyword keyword", "content" => "nonkeyword", "id" => 1 };
+    let doc2 = doc! { "title" => "nonkeyword", "content" => "keyword keyword keyword", "id" => 2 };
+    let doc3 = doc! { "title" => "nonkeyword", "content" => "nonkeyword", "id" => 3 };
+
+    coll.insert_many(vec![doc1.clone(), doc2.clone(), doc3.clone()], None).unwrap();
+
+    let count = coll.count(Some(doc!{ "$text" => { "$search" => "keyword" }}), None).unwrap();
+    assert_eq!(count, 2);
+
+    let mut opts = FindOptions::new();
+    opts.projection = Some(doc!{ "score" => { "$meta" => "textScore" }});
+    opts.sort = Some(doc!{ "score" => { "$meta" => "textScore" }});
+
+    let mut cursor = coll.find(
+        Some(doc!{ "$text" => { "$search" => "keyword" }}),
+        Some(opts)).unwrap();
+    let results = cursor.next_n(2).unwrap();
+
+    match results[0].get("id").unwrap() {
+        &Bson::I32(id) => assert_eq!(1, id),
+        _ => panic!("Why is id not a i32?")
+    };
+
+    match results[1].get("id").unwrap() {
+        &Bson::I32(id) => assert_eq!(2, id),
+        _ => panic!("Why is id not a i32?")
+    };
+
+    let count = coll.count(Some(doc!{ "$text" => { "$search" => "keyword nonkeyword" }}), None).unwrap();
+    assert_eq!(count, 3);
+}
+
+#[test]
 fn drop_all_indexes() {
     let client = Client::connect("localhost", 27017).unwrap();
     let db = client.db("test-client-coll");

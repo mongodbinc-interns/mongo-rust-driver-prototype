@@ -365,7 +365,11 @@ impl IndexModel {
             name.push('_');
             match *bson {
                 Bson::I32(ref i) => name.push_str(&format!("{}", i)),
-                _ => return Err(ArgumentError(String::from("Index model keys must map to i32."))),
+                Bson::String(ref s) if s == "text" || s == "hashed" || s == "2d" || s == "2dsphere"
+                    => name.push_str(s),
+                _ => return Err(ArgumentError(String::from(
+                            "Index model keys must map to i32, \"text\", \"hashed\", \"2d\" or \"2dsphere\""
+                            ))),
             }
         }
         Ok(name)
