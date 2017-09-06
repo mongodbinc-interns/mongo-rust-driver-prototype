@@ -18,8 +18,8 @@ pub enum StreamConnector {
     /// Connect to the server through a TCP stream encrypted with SSL.
     Ssl {
         ca_file: String,
-        certificate_file: String,
-        key_file: String,
+        certificate_file: Option<String>,
+        key_file: Option<String>,
         verify_peer: bool,
     },
 }
@@ -57,8 +57,36 @@ impl StreamConnector {
                     -> Self {
         StreamConnector::Ssl {
             ca_file: String::from(ca_file),
-            certificate_file: String::from(certificate_file),
-            key_file: String::from(key_file),
+            certificate_file: Some(String::from(certificate_file)),
+            key_file: Some(String::from(key_file)),
+            verify_peer: verify_peer,
+        }
+    }
+
+    #[cfg(feature = "ssl")]
+    /// Creates an unauthenticated StreamConnector that will connect with SSL encryption.
+    ///
+    /// The SSL connection will use the cipher with the longest key length available to both the
+    /// server and client, with the following caveats:
+    ///   * SSLv2 and SSlv3 are disabled
+    ///   * Export-strength ciphers are disabled
+    ///   * Ciphers not offering encryption are disabled
+    ///   * Ciphers not offering authentication are disabled
+    ///   * Ciphers with key lengths of 128 or fewer bits are disabled.
+    ///
+    /// Note that TLS compression is disabled for SSL connections.
+    ///
+    /// # Arguments
+    ///
+    /// `ca_file` - Path to the file containing trusted CA certificates.
+    /// `verify_peer` - Whether or not to verify that the server's certificate is trusted.
+    pub fn with_unauthenticated_ssl(ca_file: &str,
+                    verify_peer: bool)
+                    -> Self {
+        StreamConnector::Ssl {
+            ca_file: String::from(ca_file),
+            certificate_file: None,
+            key_file: None,
             verify_peer: verify_peer,
         }
     }
@@ -79,8 +107,12 @@ impl StreamConnector {
                 ssl_context.set_options(SSL_OP_NO_SSLV3);
                 ssl_context.set_options(SSL_OP_NO_COMPRESSION);
                 ssl_context.set_ca_file(ca_file)?;
-                ssl_context.set_certificate_file(certificate_file, X509_FILETYPE_PEM)?;
-                ssl_context.set_private_key_file(key_file, X509_FILETYPE_PEM)?;
+                if let &Some(ref file) = certificate_file {
+                    ssl_context.set_certificate_file(file, X509_FILETYPE_PEM)?;
+                }
+                if let &Some(ref file) = key_file {
+                    ssl_context.set_private_key_file(file, X509_FILETYPE_PEM)?;
+                }
 
                 let verify = if verify_peer {
                     SSL_VERIFY_PEER
