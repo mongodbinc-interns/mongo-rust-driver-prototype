@@ -21,4 +21,4 @@ data_ssl="$data-ssl"
 
 mkdir -p $data $data_ssl
 $install_dir/$release/bin/mongod --fork --dbpath $data --syslog --port 27017
-$install_dir/$release/bin/mongod --fork --dbpath $data_ssl --syslog --port 27018 --sslMode requireSSL --sslPEMKeyFile tests/ssl/server.pem --sslCAFile tests/ssl/ca.pem
+$install_dir/$release/bin/mongod --fork --dbpath $data_ssl --syslog --port 27018 --sslMode requireSSL --sslPEMKeyFile tests/ssl/server.pem --sslCAFile tests/ssl/ca.pem --sslAllowConnectionsWithoutCertificates
