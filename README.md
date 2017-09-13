@@ -83,7 +83,7 @@ fn main() {
 }
 ```
 
-To connect with SSL, use `ClientOptions::with_ssl`, `ClientOptions::with_unauthenticated_ssl`, and `Client::connect_with_options`. Afterwards, the client can be used as above (note that the server will have to be configured to accept SSL connections and that you'll have to generate your own keys and certificates):
+To connect with SSL, use `ClientOptions::with_ssl` or `ClientOptions::with_unauthenticated_ssl`, and `Client::connect_with_options`. Afterwards, the client can be used as above (note that the server will have to be configured to accept SSL connections and that you'll have to generate your own keys and certificates):
 
 ```rust
 use bson::Bson;
