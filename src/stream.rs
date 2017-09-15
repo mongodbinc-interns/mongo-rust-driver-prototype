@@ -17,8 +17,7 @@ pub enum StreamConnector {
     #[cfg(feature = "ssl")]
     /// Connect to the server through a TCP stream encrypted with SSL.
     ///
-    /// If a client certificate file shall be used, a client key file must be set as well. Only if
-    /// both files are set, a client authenticated connection may be established.
+    /// Note that it's invalid to have one of certificate_file and key_file set but not the other.
     Ssl {
         ca_file: String,
         certificate_file: Option<String>,
