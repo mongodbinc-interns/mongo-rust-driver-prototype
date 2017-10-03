@@ -152,3 +152,8 @@ Run tests like a regular Rust program:
 ```
 cargo test --verbose
 ```
+
+Supplemental Projects
+---------------------
+
+- [Wither](https://github.com/thedodd/wither) An ODM for MongoDB built upon the mongo rust driver.
