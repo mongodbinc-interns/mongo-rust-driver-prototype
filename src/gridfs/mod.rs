@@ -190,9 +190,9 @@ impl ThreadedStore for Store {
     }
 
     fn remove_id(&self, id: oid::ObjectId) -> Result<()> {
-        try!(self.files.delete_many(doc!{ "_id": (id.clone()) }, None));
+        try!(self.files.delete_many(doc!{ "_id": id.clone() }, None));
         try!(self.chunks.delete_many(
-            doc!{ "files_id": (id.clone()) },
+            doc!{ "files_id": id.clone() },
             None,
         ));
         Ok(())

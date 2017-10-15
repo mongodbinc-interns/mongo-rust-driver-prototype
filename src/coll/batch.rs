@@ -47,8 +47,8 @@ impl From<UpdateModel> for Document {
     fn from(model: UpdateModel) -> Self {
         let mut document =
             doc! {
-                "q": (model.filter),
-                "u": (model.update)
+                "q": model.filter,
+                "u": model.update
             };
 
         if let Some(upsert) = model.upsert {

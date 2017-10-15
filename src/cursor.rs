@@ -381,8 +381,8 @@ impl Cursor {
                 doc! {
                 "cursor": {
                     "id": cursor_id,
-                    "ns": (&namespace[..]),
-                    "firstBatch": (Bson::Array(vec))
+                    "ns": &namespace[..],
+                    "firstBatch": Bson::Array(vec)
                 },
                 "ok": 1
             }
@@ -437,7 +437,7 @@ impl Cursor {
 
         if self.cmd_type != CommandType::Suppressed {
             let hook_result = self.client.run_start_hooks(&CommandStarted {
-                command: doc! { "cursor_id": (self.cursor_id) },
+                command: doc! { "cursor_id": self.cursor_id },
                 database_name: db_name,
                 command_name: cmd_name.clone(),
                 request_id: req_id as i64,

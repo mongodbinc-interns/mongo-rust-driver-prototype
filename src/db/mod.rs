@@ -425,7 +425,7 @@ impl ThreadedDatabase for Database {
     fn get_user(&self, user: &str, options: Option<UserInfoOptions>) -> Result<bson::Document> {
         let mut doc =
             doc! {
-            "usersInfo": { "user": user, "db": (self.name.to_owned()) }
+            "usersInfo": { "user": user, "db": self.name.to_owned() }
         };
 
         if let Some(user_info_options) = options {
@@ -456,7 +456,7 @@ impl ThreadedDatabase for Database {
         let vec: Vec<_> = users
             .into_iter()
             .map(|user| {
-                let doc = doc! { "user": user, "db": (self.name.to_owned()) };
+                let doc = doc! { "user": user, "db": self.name.to_owned() };
                 Bson::Document(doc)
             })
             .collect();

@@ -99,7 +99,7 @@ impl Collection {
 
         let mut spec =
             doc! {
-            "aggregate": (self.name()),
+            "aggregate": self.name(),
             "pipeline": pipeline_map
         };
 
@@ -215,8 +215,8 @@ impl Collection {
         let doc = match find_options.sort {
             Some(ref sort_opt) => {
                 doc! {
-                    "$query": (filter.unwrap_or_else(bson::Document::new)),
-                    "$orderby": (Bson::Document(sort_opt.clone()))
+                    "$query": filter.unwrap_or_else(bson::Document::new),
+                    "$orderby": Bson::Document(sort_opt.clone())
                 }
             }
             None => filter.unwrap_or_else(bson::Document::new),
@@ -281,7 +281,7 @@ impl Collection {
     ) -> Result<Option<bson::Document>> {
         let mut cmd =
             doc! {
-            "findAndModify": (self.name()),
+            "findAndModify": self.name(),
             "query": filter
         };
 
@@ -639,7 +639,7 @@ impl Collection {
 
         let mut cmd =
             doc! {
-            "insert": (self.name()),
+            "insert": self.name(),
             "documents": converted_docs
         };
 
@@ -842,9 +842,9 @@ impl Collection {
 
         let cmd =
             doc! {
-            "update": (self.name()),
+            "update": self.name(),
             "updates": updates,
-            "writeConcern": (wc.to_bson())
+            "writeConcern": wc.to_bson()
         };
 
         let result = try!(self.db.command(cmd, cmd_type, None));

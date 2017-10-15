@@ -74,8 +74,8 @@ impl From<Role> for Bson {
             Role::All(role) => Bson::String(role.to_string()),
             Role::Single { role, db } => {
                 Bson::Document(doc! {
-                  "role": (Bson::String(role.to_string())),
-                  "db": (Bson::String(db))
+                  "role": Bson::String(role.to_string()),
+                  "db": Bson::String(db)
               })
             }
         }

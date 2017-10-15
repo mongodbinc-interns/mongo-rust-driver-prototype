@@ -52,7 +52,7 @@ impl ReadPreference {
     }
 
     pub fn to_document(&self) -> bson::Document {
-        let mut doc = doc! { "mode": (stringify!(self.mode).to_ascii_lowercase()) };
+        let mut doc = doc! { "mode": stringify!(self.mode).to_ascii_lowercase() };
         let bson_tag_sets: Vec<_> = self.tag_sets
             .iter()
             .map(|map| {

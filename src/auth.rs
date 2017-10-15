@@ -191,7 +191,7 @@ impl Authenticator {
             doc! {
                 "saslContinue": 1,
                 "payload": binary,
-                "conversationId": (initial_data.conversation_id.clone())
+                "conversationId": initial_data.conversation_id.clone()
             };
 
         let response = try!(self.db.command(next_doc, Suppressed, None));
@@ -207,7 +207,7 @@ impl Authenticator {
         let final_doc =
             doc! {
                 "saslContinue": 1,
-                "payload": (Binary(Generic, vec![])),
+                "payload": Binary(Generic, vec![]),
                 "conversationId": conversation_id
             };
 

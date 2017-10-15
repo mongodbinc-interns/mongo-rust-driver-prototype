@@ -84,7 +84,7 @@ impl From<AggregateOptions> for bson::Document {
         // useCursor not currently used by the driver.
 
 
-        let cursor = doc! { "batchSize": (options.batch_size) };
+        let cursor = doc! { "batchSize": options.batch_size };
         document.insert("cursor", Bson::Document(cursor));
 
         // maxTimeMS is not currently used by the driver.

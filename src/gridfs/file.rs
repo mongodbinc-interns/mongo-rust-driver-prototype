@@ -211,7 +211,7 @@ impl File {
                 ));
             } else {
                 try!(self.gfs.chunks.delete_many(
-                    doc!{ "files_id": (self.doc.id.clone()) },
+                    doc!{ "files_id": self.doc.id.clone() },
                     None,
                 ));
             }
@@ -246,8 +246,8 @@ impl File {
 
         let document =
             doc! {
-            "_id": (try!(oid::ObjectId::new())),
-            "files_id": (self.doc.id.clone()),
+            "_id": try!(oid::ObjectId::new()),
+            "files_id": self.doc.id.clone(),
             "n": n,
             "data": (BinarySubtype::Generic, vec_buf)
         };
@@ -328,7 +328,7 @@ impl File {
                 };
 
                 let result = arc_gfs.chunks.find_one(
-                    Some(doc!{"files_id": (id), "n": (next_chunk_num)}),
+                    Some(doc!{ "files_id": id, "n": next_chunk_num }),
                     None,
                 );
 
@@ -637,11 +637,11 @@ impl GfsFile {
     pub fn to_bson(&self) -> bson::Document {
         let mut doc =
             doc! {
-            "_id": (self.id.clone()),
-            "chunkSize": (self.chunk_size),
-            "length": (self.len),
-            "md5": (self.md5.to_owned()),
-            "uploadDate": (self.upload_date.as_ref().unwrap().clone())
+            "_id": self.id.clone(),
+            "chunkSize": self.chunk_size,
+            "length": self.len,
+            "md5": self.md5.to_owned(),
+            "uploadDate": self.upload_date.as_ref().unwrap().clone()
         };
 
         if self.name.is_some() {
