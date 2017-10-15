@@ -14,16 +14,16 @@ fn find_sorted() {
     coll.drop().expect("Failed to drop collection");
 
     // Insert document
-    let doc1 = doc! { "title" => "Jaws" };
-    let doc2 = doc! { "title" => "Back to the Future" };
-    let doc3 = doc! { "title" => "Dobby" };
+    let doc1 = doc! { "title": "Jaws" };
+    let doc2 = doc! { "title": "Back to the Future" };
+    let doc3 = doc! { "title": "Dobby" };
 
     coll.insert_many(vec![doc1.clone(), doc2.clone(), doc3.clone()], None)
         .expect("Failed to insert documents.");
 
     // Find document
     let mut opts = FindOptions::new();
-    opts.sort = Some(doc! { "title" => 1 });
+    opts.sort = Some(doc! { "title": 1 });
 
     let mut cursor = coll.find(None, Some(opts)).expect(
         "Failed to execute find command.",
@@ -59,7 +59,7 @@ fn find_and_insert() {
     coll.drop().expect("Failed to drop collection");
 
     // Insert document
-    let doc = doc! { "title" => "Jaws" };
+    let doc = doc! { "title": "Jaws" };
     coll.insert_one(doc, None).expect(
         "Failed to insert document",
     );
@@ -92,7 +92,7 @@ fn find_and_insert_one() {
     coll.drop().expect("Failed to drop database");
 
     // Insert document
-    let doc = doc! { "title" => "Jaws" };
+    let doc = doc! { "title": "Jaws" };
     coll.insert_one(doc, None).expect(
         "Failed to insert document",
     );
@@ -119,8 +119,8 @@ fn find_one_and_delete() {
     coll.drop().expect("Failed to drop database");
 
     // Insert documents
-    let doc1 = doc! { "title" => "Jaws" };
-    let doc2 = doc! { "title" => "Back to the Future" };
+    let doc1 = doc! { "title": "Jaws" };
+    let doc2 = doc! { "title": "Back to the Future" };
 
     coll.insert_many(vec![doc1.clone(), doc2.clone()], None)
         .expect("Failed to insert documents.");
@@ -162,9 +162,9 @@ fn find_one_and_replace() {
     coll.drop().expect("Failed to drop database");
 
     // Insert documents
-    let doc1 = doc! { "title" => "Jaws" };
-    let doc2 = doc! { "title" => "Back to the Future" };
-    let doc3 = doc! { "title" => "12 Angry Men" };
+    let doc1 = doc! { "title": "Jaws" };
+    let doc2 = doc! { "title": "Back to the Future" };
+    let doc3 = doc! { "title": "12 Angry Men" };
 
     coll.insert_many(vec![doc1.clone(), doc2.clone(), doc3.clone()], None)
         .expect("Failed to insert documents into collection.");
@@ -220,15 +220,15 @@ fn find_one_and_update() {
     coll.drop().expect("Failed to drop database");
 
     // Insert documents
-    let doc1 = doc! { "title" => "Jaws" };
-    let doc2 = doc! { "title" => "Back to the Future" };
-    let doc3 = doc! { "title" => "12 Angry Men" };
+    let doc1 = doc! { "title": "Jaws" };
+    let doc2 = doc! { "title": "Back to the Future" };
+    let doc3 = doc! { "title": "12 Angry Men" };
 
     coll.insert_many(vec![doc1.clone(), doc2.clone(), doc3.clone()], None)
         .expect("Failed to insert documents into collection.");
 
     // Update single document
-    let update = doc! { "$set" => { "director" => "Robert Zemeckis" } };
+    let update = doc! { "$set": { "director": "Robert Zemeckis" } };
 
     let result = coll.find_one_and_update(doc2.clone(), update, None)
         .expect("Failed to execute find_one_and_update command.");
@@ -263,17 +263,17 @@ fn aggregate() {
     coll.drop().expect("Failed to drop database");
 
     // Insert documents
-    let doc1 = doc! { "tags" => ["a", "b", "c"] };
-    let doc2 = doc! { "tags" => ["a", "b", "d"] };
-    let doc3 = doc! { "tags" => ["d", "e", "f"] };
+    let doc1 = doc! { "tags": ["a", "b", "c"] };
+    let doc2 = doc! { "tags": ["a", "b", "d"] };
+    let doc3 = doc! { "tags": ["d", "e", "f"] };
 
     coll.insert_many(vec![doc1.clone(), doc2.clone(), doc3.clone()], None)
         .expect("Failed to execute insert_many command.");
 
     // Build aggregation pipeline to unwind tag arrays and group distinct tags
-    let project = doc! { "$project" => { "tags" => 1 } };
-    let unwind = doc! { "$unwind" => ("$tags") };
-    let group = doc! { "$group" => { "_id" => "$tags" } };
+    let project = doc! { "$project": { "tags": 1 } };
+    let unwind = doc! { "$unwind": "$tags" };
+    let group = doc! { "$group": { "_id": "$tags" } };
 
     // Aggregate
     let mut cursor = coll.aggregate(vec![project, unwind, group], None).expect(
@@ -313,8 +313,8 @@ fn count() {
     coll.drop().expect("Failed to drop database");
 
     // Insert documents
-    let doc1 = doc! { "title" => "Jaws" };
-    let doc2 = doc! { "title" => "Back to the Future" };
+    let doc1 = doc! { "title": "Jaws" };
+    let doc2 = doc! { "title": "Back to the Future" };
 
     let mut vec = vec![doc1.clone()];
     for _ in 0..10 {
@@ -337,7 +337,7 @@ fn count() {
     let count_all = coll.count(None, None).expect("Failed to execute count.");
     assert_eq!(11, count_all);
 
-    let no_doc = doc! { "title" => "Houdini" };
+    let no_doc = doc! { "title": "Houdini" };
     let count_none = coll.count(Some(no_doc), None).expect(
         "Failed to execute count.",
     );
@@ -364,7 +364,7 @@ fn distinct_one() {
     let coll = db.collection("distinct_one");
 
     coll.drop().expect("Failed to drop database");
-    let doc2 = doc! { "title" => "Back to the Future" };
+    let doc2 = doc! { "title": "Back to the Future" };
     coll.insert_one(doc2, None).expect(
         "Failed to insert document.",
     );
@@ -386,16 +386,16 @@ fn distinct() {
     // Insert documents
     let doc1 =
         doc! {
-            "title" => "Jaws",
-            "director" => "MB"
+            "title": "Jaws",
+            "director": "MB"
         };
 
-    let doc2 = doc! { "title" => "Back to the Future" };
+    let doc2 = doc! { "title": "Back to the Future" };
 
     let doc3 =
         doc! {
-            "title" => "12 Angry Men",
-            "director" => "MB"
+            "title": "12 Angry Men",
+            "director": "MB"
         };
 
     let mut vec = vec![doc1.clone()];
@@ -430,7 +430,7 @@ fn distinct() {
     assert!(titles.contains(&"12 Angry Men".to_owned()));
 
     // Distinct titles over documents with certain director
-    let filter = doc! { "director" => "MB" };
+    let filter = doc! { "director": "MB" };
     let distinct_titles = coll.distinct("title", Some(filter), None).expect(
         "Failed to execute 'distinct'.",
     );
@@ -459,8 +459,8 @@ fn insert_many() {
     coll.drop().expect("Failed to drop database");
 
     // Insert documents
-    let doc1 = doc! { "title" => "Jaws" };
-    let doc2 = doc! { "title" => "Back to the Future" };
+    let doc1 = doc! { "title": "Jaws" };
+    let doc2 = doc! { "title": "Back to the Future" };
 
     coll.insert_many(vec![doc1, doc2], None).expect(
         "Failed to insert documents.",
@@ -493,8 +493,8 @@ fn delete_one() {
     coll.drop().expect("Failed to drop database");
 
     // Insert documents
-    let doc1 = doc! { "title" => "Jaws" };
-    let doc2 = doc! { "title" => "Back to the Future" };
+    let doc1 = doc! { "title": "Jaws" };
+    let doc2 = doc! { "title": "Back to the Future" };
 
     coll.insert_many(vec![doc1.clone(), doc2.clone()], None)
         .expect("Failed to insert documents.");
@@ -529,8 +529,8 @@ fn delete_many() {
     coll.drop().expect("Failed to drop database");
 
     // Insert documents
-    let doc1 = doc! { "title" => "Jaws" };
-    let doc2 = doc! { "title" => "Back to the Future" };
+    let doc1 = doc! { "title": "Jaws" };
+    let doc2 = doc! { "title": "Back to the Future" };
 
     coll.insert_many(vec![doc1.clone(), doc2.clone(), doc2.clone()], None)
         .expect("Failed to insert documents into collection.");
@@ -565,9 +565,9 @@ fn replace_one() {
     coll.drop().expect("Failed to drop database");
 
     // Insert documents
-    let doc1 = doc! { "title" => "Jaws" };
-    let doc2 = doc! { "title" => "Back to the Future" };
-    let doc3 = doc! { "title" => "12 Angry Men" };
+    let doc1 = doc! { "title": "Jaws" };
+    let doc2 = doc! { "title": "Back to the Future" };
+    let doc3 = doc! { "title": "12 Angry Men" };
 
     coll.insert_many(vec![doc1.clone(), doc2.clone(), doc3.clone()], None)
         .expect("Failed to insert documents into collection.");
@@ -606,15 +606,15 @@ fn update_one() {
     coll.drop().expect("Failed to drop database");
 
     // Insert documents
-    let doc1 = doc! { "title" => "Jaws" };
-    let doc2 = doc! { "title" => "Back to the Future" };
-    let doc3 = doc! { "title" => "12 Angry Men" };
+    let doc1 = doc! { "title": "Jaws" };
+    let doc2 = doc! { "title": "Back to the Future" };
+    let doc3 = doc! { "title": "12 Angry Men" };
 
     coll.insert_many(vec![doc1.clone(), doc2.clone(), doc3.clone()], None)
         .expect("Failed to insert documents into collection.");
 
     // Update single document
-    let update = doc! { "$set" => { "director" => "Robert Zemeckis" } };
+    let update = doc! { "$set": { "director": "Robert Zemeckis" } };
 
     coll.update_one(doc2.clone(), update, None).expect(
         "Failed to update document.",
@@ -644,9 +644,9 @@ fn update_many() {
     coll.drop().expect("Failed to drop database");
 
     // Insert documents
-    let doc1 = doc! { "title" => "Jaws" };
-    let doc2 = doc! { "title" => "Back to the Future" };
-    let doc3 = doc! { "title" => "12 Angry Men" };
+    let doc1 = doc! { "title": "Jaws" };
+    let doc2 = doc! { "title": "Back to the Future" };
+    let doc3 = doc! { "title": "12 Angry Men" };
 
     coll.insert_many(
         vec![doc1.clone(), doc2.clone(), doc3.clone(), doc2.clone()],
@@ -654,7 +654,7 @@ fn update_many() {
     ).expect("Failed to insert documents into collection.");
 
     // Update single document
-    let update = doc! { "$set" => { "director" => "Robert Zemeckis" } };
+    let update = doc! { "$set": { "director": "Robert Zemeckis" } };
 
     coll.update_many(doc2.clone(), update, None).expect(
         "Failed to update documents.",
@@ -693,10 +693,10 @@ fn create_list_drop_indexes() {
     opts1.name = Some("nid".to_owned());
 
     // Test name option
-    let index1 = IndexModel::new(doc!{ "n" => 1, "id" => 1}, Some(opts1));
+    let index1 = IndexModel::new(doc!{ "n": 1, "id": 1}, Some(opts1));
 
     // Test negative value and index name generation
-    let index2 = IndexModel::new(doc!{ "test" => (-1), "height" => 1}, None);
+    let index2 = IndexModel::new(doc!{ "test": -1, "height": 1}, None);
 
     coll.create_indexes(vec![index1, index2]).unwrap();
     let mut cursor = coll.list_indexes().unwrap();
@@ -751,7 +751,7 @@ fn create_list_drop_indexes() {
 
     assert_eq!(2, results.len());
 
-    coll.drop_index(doc!{ "test" => (-1), "height" => 1 }, None)
+    coll.drop_index(doc!{ "test": -1, "height": 1 }, None)
         .unwrap();
     let mut cursor = coll.list_indexes().unwrap();
     let results = cursor.next_n(5).unwrap();
@@ -765,33 +765,33 @@ fn create_text_hashed_2d_2dsphere_index() {
     let db = client.db("test-client-coll");
     let coll = db.collection("create_text_hashed_2d_2dsphere_index");
 
-    coll.create_index(doc! {"a" => "text" }, None).expect(
+    coll.create_index(doc! {"a": "text" }, None).expect(
         "Failed to create text indexes",
     );
 
-    coll.create_index(doc! { "b" => "hashed" }, None).expect(
+    coll.create_index(doc! { "b": "hashed" }, None).expect(
         "Failed to create hashed indexes",
     );
 
-    coll.create_index(doc! { "c" => "2d" }, None).expect(
+    coll.create_index(doc! { "c": "2d" }, None).expect(
         "Failed to create 2d indexes",
     );
 
-    coll.create_index(doc! { "d" => "2dsphere" }, None).expect(
+    coll.create_index(doc! { "d": "2dsphere" }, None).expect(
         "Failed to create 2dsphere indexes",
     );
 }
 
 #[test]
 fn block_ill_formed_index_models() {
-    assert!(IndexModel::new(doc!{ "test" => 1.1 }, None).name().is_err());
+    assert!(IndexModel::new(doc!{ "test": 1.1 }, None).name().is_err());
     assert!(
-        IndexModel::new(doc!{ "test" => 1i64 }, None)
+        IndexModel::new(doc!{ "test": 1i64 }, None)
             .name()
             .is_err()
     );
     assert!(
-        IndexModel::new(doc!{ "test" => "arbitrystr" }, None)
+        IndexModel::new(doc!{ "test": "arbitrystr" }, None)
             .name()
             .is_err()
     );
@@ -807,34 +807,34 @@ fn create_query_text_index() {
 
     let mut index_opt = IndexOptions::new();
     index_opt.weights = Some(doc!{
-        "title" => 10,
-        "content" => 5
+        "title": 10,
+        "content": 5
     });
     coll.create_index(
         doc!{
-            "title" => "text",
-            "content" => "text"
+            "title": "text",
+            "content": "text"
         },
         Some(index_opt),
     ).unwrap();
 
-    let doc1 = doc! { "title" => "keyword keyword keyword", "content" => "nonkeyword", "id" => 1 };
-    let doc2 = doc! { "title" => "nonkeyword", "content" => "keyword keyword keyword", "id" => 2 };
-    let doc3 = doc! { "title" => "nonkeyword", "content" => "nonkeyword", "id" => 3 };
+    let doc1 = doc! { "title": "keyword keyword keyword", "content": "nonkeyword", "id": 1 };
+    let doc2 = doc! { "title": "nonkeyword", "content": "keyword keyword keyword", "id": 2 };
+    let doc3 = doc! { "title": "nonkeyword", "content": "nonkeyword", "id": 3 };
 
     coll.insert_many(vec![doc1.clone(), doc2.clone(), doc3.clone()], None)
         .unwrap();
 
-    let count = coll.count(Some(doc!{ "$text" => { "$search" => "keyword" }}), None)
+    let count = coll.count(Some(doc!{ "$text": { "$search": "keyword" }}), None)
         .unwrap();
     assert_eq!(count, 2);
 
     let mut opts = FindOptions::new();
-    opts.projection = Some(doc!{ "score" => { "$meta" => "textScore" }});
-    opts.sort = Some(doc!{ "score" => { "$meta" => "textScore" }});
+    opts.projection = Some(doc!{ "score": { "$meta": "textScore" }});
+    opts.sort = Some(doc!{ "score": { "$meta": "textScore" }});
 
     let mut cursor = coll.find(
-        Some(doc!{ "$text" => { "$search" => "keyword" }}),
+        Some(doc!{ "$text": { "$search": "keyword" }}),
         Some(opts),
     ).unwrap();
     let results = cursor.next_n(2).unwrap();
@@ -850,7 +850,7 @@ fn create_query_text_index() {
     };
 
     let count = coll.count(
-        Some(doc!{ "$text" => { "$search" => "keyword nonkeyword" }}),
+        Some(doc!{ "$text": { "$search": "keyword nonkeyword" }}),
         None,
     ).unwrap();
     assert_eq!(count, 3);
@@ -868,10 +868,10 @@ fn drop_all_indexes() {
     opts1.name = Some("nid".to_owned());
 
     // Test name option
-    let index1 = IndexModel::new(doc!{ "n" => 1, "id" => 1}, Some(opts1));
+    let index1 = IndexModel::new(doc!{ "n": 1, "id": 1}, Some(opts1));
 
     // Test negative value and index name generation
-    let index2 = IndexModel::new(doc!{ "test" => (-1), "height" => 1}, None);
+    let index2 = IndexModel::new(doc!{ "test": -1, "height": 1}, None);
 
     coll.create_indexes(vec![index1, index2]).unwrap();
     coll.drop_indexes().unwrap();

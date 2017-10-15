@@ -19,7 +19,7 @@ fn ssl_connect_and_insert() {
     let db = client.db("test");
     let coll = db.collection("stuff");
 
-    let doc = doc! { "x" => 1 };
+    let doc = doc! { "x": 1 };
 
     coll.insert_one(doc, None).unwrap();
 }
@@ -36,7 +36,7 @@ fn unauthenticated_ssl_connect_and_insert() {
     let db = client.db("test");
     let coll = db.collection("stuff");
 
-    let doc = doc! { "x" => 1 };
+    let doc = doc! { "x": 1 };
 
     coll.insert_one(doc, None).unwrap();
 }

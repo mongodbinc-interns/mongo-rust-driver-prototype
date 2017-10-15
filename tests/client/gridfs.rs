@@ -43,7 +43,7 @@ fn put_get() {
     grid_file.close().unwrap();
 
     // Check file
-    let mut cursor = fs.find(Some(doc!{"filename" => name}), None).unwrap();
+    let mut cursor = fs.find(Some(doc!{"filename": name}), None).unwrap();
 
     match cursor.next() {
         Some(file) => assert_eq!(file.len() as usize, src_len),
@@ -51,11 +51,11 @@ fn put_get() {
     }
 
     let mut opts = FindOptions::new();
-    opts.sort = Some(doc!{ "n" => 1});
+    opts.sort = Some(doc!{ "n": 1});
 
     // Check chunks
     let mut cursor = fschunks
-        .find(Some(doc!{"files_id" => (id.clone())}), Some(opts))
+        .find(Some(doc!{"files_id": id.clone()}), Some(opts))
         .unwrap();
 
     let chunks = cursor.drain_current_batch().expect(
@@ -83,7 +83,7 @@ fn put_get() {
     let mut opts = IndexOptions::new();
     opts.unique = Some(true);
     fschunks
-        .create_index(doc!{ "files_id" => 1, "n" => 1}, Some(opts))
+        .create_index(doc!{ "files_id": 1, "n": 1}, Some(opts))
         .unwrap();
     let mut cursor = fschunks.list_indexes().unwrap();
     let results = cursor.next_n(10).unwrap();
@@ -119,13 +119,13 @@ fn remove() {
 
     assert!(
         fsfiles
-            .find_one(Some(doc!{"_id" => (id.clone())}), None)
+            .find_one(Some(doc!{"_id": id.clone()}), None)
             .unwrap()
             .is_some()
     );
 
     let mut cursor = fschunks
-        .find(Some(doc!{"files_id" => (id.clone())}), None)
+        .find(Some(doc!{"files_id": id.clone()}), None)
         .unwrap();
     let results = cursor.drain_current_batch().unwrap();
     assert_eq!(2, results.len());
@@ -133,13 +133,13 @@ fn remove() {
     fs.remove(name.to_owned()).unwrap();
     assert!(
         fsfiles
-            .find_one(Some(doc!{"_id" => (id.clone())}), None)
+            .find_one(Some(doc!{"_id": id.clone()}), None)
             .unwrap()
             .is_none()
     );
 
     let mut cursor = fschunks
-        .find(Some(doc!{"files_id" => (id.clone())}), None)
+        .find(Some(doc!{"files_id": id.clone()}), None)
         .unwrap();
     let results = cursor.drain_current_batch().unwrap();
     assert_eq!(0, results.len());
@@ -160,20 +160,20 @@ fn remove_id() {
 
     assert!(
         fsfiles
-            .find_one(Some(doc!{"_id" => (id.clone())}), None)
+            .find_one(Some(doc!{"_id": id.clone()}), None)
             .unwrap()
             .is_some()
     );
 
     let mut cursor = fschunks
-        .find(Some(doc!{"files_id" => (id.clone())}), None)
+        .find(Some(doc!{"files_id": id.clone()}), None)
         .unwrap();
     let results = cursor.drain_current_batch().unwrap();
     assert_eq!(2, results.len());
 
     fs.remove_id(id.clone()).unwrap();
     let mut cursor = fschunks
-        .find(Some(doc!{"files_id" => (id.clone())}), None)
+        .find(Some(doc!{"files_id": id.clone()}), None)
         .unwrap();
     let results = cursor.drain_current_batch().unwrap();
     assert_eq!(0, results.len());

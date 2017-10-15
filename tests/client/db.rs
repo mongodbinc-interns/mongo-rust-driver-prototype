@@ -116,7 +116,7 @@ fn create_and_get_users() {
     ).unwrap();
 
     let saghm_options = CreateUserOptions {
-        custom_data: Some(doc! { "foo" => "bar" }),
+        custom_data: Some(doc! { "foo": "bar" }),
         roles: vec![
             Role::Single {
                 role: SingleDatabaseRole::DbAdmin,

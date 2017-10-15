@@ -23,7 +23,7 @@ fn invalid_user() {
     let client = Client::connect("localhost", 27017).unwrap();
     let db = client.db("test-auth-mod-invalid_user");
     let _ = db.drop_user("test-auth-mod-invalid_user-saghm", None);
-    let doc = doc! { "connectionStatus" => 1};
+    let doc = doc! { "connectionStatus": 1};
     let before = db.command(doc.clone(), CommandType::Suppressed, None)
         .unwrap();
 
@@ -69,7 +69,7 @@ fn invalid_password() {
     let client = Client::connect("localhost", 27017).unwrap();
     let db = client.db("test-auth-mod-invalid_password");
     let _ = db.drop_user("test-auth-mod-invalid_password-saghm", None);
-    let doc = doc! { "connectionStatus" => 1};
+    let doc = doc! { "connectionStatus": 1};
     let before = db.command(doc.clone(), CommandType::Suppressed, None)
         .unwrap();
 
@@ -121,7 +121,7 @@ fn successful_login() {
     let client = Client::connect("localhost", 27017).unwrap();
     let db = client.db("test-auth-mod-successful_login");
     let _ = db.drop_user("test-auth-mod-successful_login-saghm", None);
-    let doc = doc! { "connectionStatus" => 1};
+    let doc = doc! { "connectionStatus": 1};
     let before = db.command(doc.clone(), CommandType::Suppressed, None)
         .unwrap();
 

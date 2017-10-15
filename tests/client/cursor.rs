@@ -17,7 +17,7 @@ fn cursor_features() {
 
     let docs = (0..10)
         .map(|i| {
-            doc! { "foo" => (i as i64) }
+            doc! { "foo": i as i64 }
         })
         .collect();
 

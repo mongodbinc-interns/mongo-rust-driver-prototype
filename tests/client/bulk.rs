@@ -14,8 +14,8 @@ fn bulk_ordered_insert_only() {
         .map(|i| {
             WriteModel::InsertOne {
                 document: doc! {
-        "_id" => (i),
-        "x" => (i * 11)
+        "_id": i,
+        "x": i * 11
     },
             }
         })
@@ -55,8 +55,8 @@ fn bulk_unordered_insert_only() {
         .map(|i| {
             WriteModel::InsertOne {
                 document: doc! {
-        "_id" => (i),
-        "x" => (i * 11)
+        "_id": i,
+        "x": i * 11
     },
             }
         })
@@ -89,81 +89,81 @@ fn bulk_ordered_mix() {
     let models = vec![
         WriteModel::InsertOne {
             document: doc! {
-            "_id" => (1),
-            "x" => (11)
+            "_id": 1,
+            "x": 11
         },
         },
         WriteModel::InsertOne {
             document: doc! {
-            "_id" => (2),
-            "x" => (22)
+            "_id": 2,
+            "x": 22
         },
         },
         WriteModel::InsertOne {
             document: doc! {
-            "_id" => (3),
-            "x" => (33)
+            "_id": 3,
+            "x": 33
         },
         },
         WriteModel::InsertOne {
             document: doc! {
-            "_id" => (4),
-            "x" => (44)
+            "_id": 4,
+            "x": 44
         },
         },
         WriteModel::ReplaceOne {
-            filter: doc! { "_id" => (3) },
-            replacement: doc! { "x" => (37) },
+            filter: doc! { "_id": 3 },
+            replacement: doc! { "x": 37 },
             upsert: Some(true),
         },
         WriteModel::UpdateMany {
-            filter: doc! { "_id" => { "$lt" => (3) } },
-            update: doc! { "$inc" => { "x" => (1) } },
+            filter: doc! { "_id": { "$lt": 3 } },
+            update: doc! { "$inc": { "x": 1 } },
             upsert: Some(false),
         },
         WriteModel::DeleteOne {
             filter: doc! {
-            "_id" => (4)
+            "_id": 4
         },
         },
         WriteModel::InsertOne {
             document: doc! {
-            "_id" => (5),
-            "x" => (55)
+            "_id": 5,
+            "x": 55
         },
         },
         WriteModel::UpdateOne {
-            filter: doc! { "_id" => (6) },
-            update: doc! { "$set" =>  { "x" => (62) } },
+            filter: doc! { "_id": 6 },
+            update: doc! { "$set":  { "x": 62 } },
             upsert: Some(true),
         },
         WriteModel::InsertOne {
             document: doc! {
-            "_id" => (101),
-            "x" => ("dalmations")
+            "_id": 101,
+            "x": "dalmations"
         },
         },
         WriteModel::InsertOne {
             document: doc! {
-            "_id" => (102),
-            "x" => ("strawberries")
+            "_id": 102,
+            "x": "strawberries"
         },
         },
         WriteModel::InsertOne {
             document: doc! {
-            "_id" => (103),
-            "x" => ("blueberries")
+            "_id": 103,
+            "x": "blueberries"
         },
         },
         WriteModel::InsertOne {
             document: doc! {
-            "_id" => (104),
-            "x" => ("bananas")
+            "_id": 104,
+            "x": "bananas"
         },
         },
         WriteModel::DeleteMany {
             filter: doc! {
-            "_id" => { "$gte" => (103) }
+            "_id": { "$gte": 103 }
         },
         },
     ];
