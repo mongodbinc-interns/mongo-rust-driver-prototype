@@ -99,8 +99,8 @@ impl Collection {
 
         let mut spec =
             doc! {
-            "aggregate" => (self.name()),
-            "pipeline" => pipeline_map
+            "aggregate": (self.name()),
+            "pipeline": pipeline_map
         };
 
         let mut read_preference = self.read_preference.clone();
@@ -215,8 +215,8 @@ impl Collection {
         let doc = match find_options.sort {
             Some(ref sort_opt) => {
                 doc! {
-                    "$query" => (filter.unwrap_or_else(bson::Document::new)),
-                    "$orderby" => (Bson::Document(sort_opt.clone()))
+                    "$query": (filter.unwrap_or_else(bson::Document::new)),
+                    "$orderby": (Bson::Document(sort_opt.clone()))
                 }
             }
             None => filter.unwrap_or_else(bson::Document::new),
@@ -281,8 +281,8 @@ impl Collection {
     ) -> Result<Option<bson::Document>> {
         let mut cmd =
             doc! {
-            "findAndModify" => (self.name()),
-            "query" => filter
+            "findAndModify": (self.name()),
+            "query": filter
         };
 
         cmd = merge_options(cmd, options);
@@ -310,7 +310,7 @@ impl Collection {
             None => (None, None),
         };
 
-        let mut options_doc = doc! { "remove" => true };
+        let mut options_doc = doc! { "remove": true };
 
         if let Some(find_one_and_delete_options) = options {
             options_doc = merge_options(options_doc, find_one_and_delete_options);
@@ -340,7 +340,7 @@ impl Collection {
             None => (None, None),
         };
 
-        let mut options_doc = doc! { "update" => replacement };
+        let mut options_doc = doc! { "update": replacement };
 
         if let Some(find_one_and_replace_options) = options {
             options_doc = merge_options(options_doc, find_one_and_replace_options);
@@ -370,7 +370,7 @@ impl Collection {
             None => (None, None),
         };
 
-        let mut options_doc = doc! { "update" => update };
+        let mut options_doc = doc! { "update": update };
 
         if let Some(find_one_and_update_options) = options {
             options_doc = merge_options(options_doc, find_one_and_update_options);
@@ -639,8 +639,8 @@ impl Collection {
 
         let mut cmd =
             doc! {
-            "insert" => (self.name()),
-            "documents" => converted_docs
+            "insert": (self.name()),
+            "documents": converted_docs
         };
 
         if let Some(insert_options) = options {
@@ -842,9 +842,9 @@ impl Collection {
 
         let cmd =
             doc! {
-            "update" => (self.name()),
-            "updates" => updates,
-            "writeConcern" => (wc.to_bson())
+            "update": (self.name()),
+            "updates": updates,
+            "writeConcern": (wc.to_bson())
         };
 
         let result = try!(self.db.command(cmd, cmd_type, None));

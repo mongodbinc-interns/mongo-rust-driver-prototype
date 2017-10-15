@@ -147,10 +147,10 @@ impl ThreadedStore for Store {
 
     fn open(&self, name: String) -> Result<File> {
         let mut options = FindOptions::new();
-        options.sort = Some(doc!{ "uploadDate" => 1 });
+        options.sort = Some(doc!{ "uploadDate": 1 });
 
         match try!(self.files.find_one(
-            Some(doc!{ "filename" => name }),
+            Some(doc!{ "filename": name }),
             Some(options),
         )) {
             Some(bdoc) => Ok(File::with_doc(self.clone(), bdoc)),
@@ -159,7 +159,7 @@ impl ThreadedStore for Store {
     }
 
     fn open_id(&self, id: oid::ObjectId) -> Result<File> {
-        match try!(self.files.find_one(Some(doc!{ "_id" => id }), None)) {
+        match try!(self.files.find_one(Some(doc!{ "_id": id }), None)) {
             Some(bdoc) => Ok(File::with_doc(self.clone(), bdoc)),
             None => Err(ArgumentError(String::from("File does not exist."))),
         }
@@ -179,9 +179,9 @@ impl ThreadedStore for Store {
 
     fn remove(&self, name: String) -> Result<()> {
         let mut options = FindOptions::new();
-        options.projection = Some(doc!{ "_id" => 1 });
+        options.projection = Some(doc!{ "_id": 1 });
 
-        let cursor = try!(self.find(Some(doc!{ "filename" => name }), Some(options)));
+        let cursor = try!(self.find(Some(doc!{ "filename": name }), Some(options)));
         for doc in cursor {
             try!(self.remove_id(doc.id.clone()));
         }
@@ -190,9 +190,9 @@ impl ThreadedStore for Store {
     }
 
     fn remove_id(&self, id: oid::ObjectId) -> Result<()> {
-        try!(self.files.delete_many(doc!{ "_id" => (id.clone()) }, None));
+        try!(self.files.delete_many(doc!{ "_id": (id.clone()) }, None));
         try!(self.chunks.delete_many(
-            doc!{ "files_id" => (id.clone()) },
+            doc!{ "files_id": (id.clone()) },
             None,
         ));
         Ok(())

@@ -48,7 +48,7 @@
 //! # let client = Client::connect("localhost", 27017).unwrap();
 //! #
 //! let db = client.db("movies");
-//! let cmd = doc! { "connectionStatus" => 1 };
+//! let cmd = doc! { "connectionStatus": 1 };
 //! let result = db.command(cmd, CommandType::Suppressed, None).unwrap();
 //! if let Some(&Bson::Document(ref doc)) = result.get("authInfo") {
 //!     // Read authentication info.
@@ -301,7 +301,7 @@ impl ThreadedDatabase for Database {
     }
 
     fn version(&self) -> Result<Version> {
-        let doc = doc! { "buildinfo" => 1 };
+        let doc = doc! { "buildinfo": 1 };
         let out = try!(self.command(doc, CommandType::BuildInfo, None));
 
         match out.get("version") {
@@ -322,7 +322,7 @@ impl ThreadedDatabase for Database {
         name: &str,
         options: Option<CreateCollectionOptions>,
     ) -> Result<()> {
-        let mut doc = doc! { "create" => name };
+        let mut doc = doc! { "create": name };
 
         if let Some(create_collection_options) = options {
             doc = merge_options(doc, create_collection_options);
@@ -341,8 +341,8 @@ impl ThreadedDatabase for Database {
     ) -> Result<()> {
         let mut doc =
             doc! {
-            "createUser" => name,
-            "pwd" => password
+            "createUser": name,
+            "pwd": password
         };
 
         match options {
@@ -358,7 +358,7 @@ impl ThreadedDatabase for Database {
     }
 
     fn drop_all_users(&self, write_concern: Option<WriteConcern>) -> Result<(i32)> {
-        let mut doc = doc! { "dropAllUsersFromDatabase" => 1 };
+        let mut doc = doc! { "dropAllUsersFromDatabase": 1 };
 
         if let Some(concern) = write_concern {
             doc.insert("writeConcern", Bson::Document(concern.to_bson()));
@@ -388,7 +388,7 @@ impl ThreadedDatabase for Database {
     }
 
     fn drop_user(&self, name: &str, write_concern: Option<WriteConcern>) -> Result<()> {
-        let mut doc = doc! { "dropUser" => name };
+        let mut doc = doc! { "dropUser": name };
 
         if let Some(concern) = write_concern {
             doc.insert("writeConcern", (concern.to_bson()));
@@ -400,8 +400,8 @@ impl ThreadedDatabase for Database {
     fn get_all_users(&self, show_credentials: bool) -> Result<Vec<bson::Document>> {
         let doc =
             doc! {
-            "usersInfo" => 1,
-            "showCredentials" => show_credentials
+            "usersInfo": 1,
+            "showCredentials": show_credentials
         };
 
         let out = try!(self.command(doc, CommandType::GetUsers, None));
@@ -425,7 +425,7 @@ impl ThreadedDatabase for Database {
     fn get_user(&self, user: &str, options: Option<UserInfoOptions>) -> Result<bson::Document> {
         let mut doc =
             doc! {
-            "usersInfo" => { "user" => user, "db" => (self.name.to_owned()) }
+            "usersInfo": { "user": user, "db": (self.name.to_owned()) }
         };
 
         if let Some(user_info_options) = options {
@@ -456,12 +456,12 @@ impl ThreadedDatabase for Database {
         let vec: Vec<_> = users
             .into_iter()
             .map(|user| {
-                let doc = doc! { "user" => user, "db" => (self.name.to_owned()) };
+                let doc = doc! { "user": user, "db": (self.name.to_owned()) };
                 Bson::Document(doc)
             })
             .collect();
 
-        let mut doc = doc! { "usersInfo" => vec };
+        let mut doc = doc! { "usersInfo": vec };
 
         if let Some(user_info_options) = options {
             doc = merge_options(doc, user_info_options);

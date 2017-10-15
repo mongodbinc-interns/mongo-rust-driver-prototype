@@ -63,10 +63,10 @@ impl Authenticator {
 
         let start_doc =
             doc! {
-            "saslStart" => 1,
-            "autoAuthorize" => 1,
-            "payload" => binary,
-            "mechanism" => "SCRAM-SHA-1"
+            "saslStart": 1,
+            "autoAuthorize": 1,
+            "payload": binary,
+            "mechanism": "SCRAM-SHA-1"
         };
 
         let doc = try!(self.db.command(start_doc, Suppressed, None));
@@ -189,9 +189,9 @@ impl Authenticator {
 
         let next_doc =
             doc! {
-                "saslContinue" => 1,
-                "payload" => binary,
-                "conversationId" => (initial_data.conversation_id.clone())
+                "saslContinue": 1,
+                "payload": binary,
+                "conversationId": (initial_data.conversation_id.clone())
             };
 
         let response = try!(self.db.command(next_doc, Suppressed, None));
@@ -206,9 +206,9 @@ impl Authenticator {
     fn finish(&self, conversation_id: Bson, auth_data: AuthData) -> Result<()> {
         let final_doc =
             doc! {
-                "saslContinue" => 1,
-                "payload" => (Binary(Generic, vec![])),
-                "conversationId" => conversation_id
+                "saslContinue": 1,
+                "payload": (Binary(Generic, vec![])),
+                "conversationId": conversation_id
             };
 
         // Compute server key

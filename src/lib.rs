@@ -39,8 +39,8 @@
 //! # let client = Client::connect("localhost", 27017).unwrap();
 //! #
 //! let coll = client.db("media").collection("movies");
-//! coll.insert_one(doc!{ "title" => "Back to the Future" }, None).unwrap();
-//! coll.update_one(doc!{}, doc!{ "director" => "Robert Zemeckis" }, None).unwrap();
+//! coll.insert_one(doc!{ "title": "Back to the Future" }, None).unwrap();
+//! coll.update_one(doc!{}, doc!{ "director": "Robert Zemeckis" }, None).unwrap();
 //! coll.delete_many(doc!{}, None).unwrap();
 //!
 //! let mut cursor = coll.find(None, None).unwrap();
