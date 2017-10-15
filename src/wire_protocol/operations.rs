@@ -467,7 +467,7 @@ impl Message {
     /// Returns nothing on success, or an error string on failure.
     pub fn write<W: Write>(&self, buffer: &mut W) -> Result<()> {
         match *self {
-            /// Only the server should send replies
+            // Only the server should send replies
             Message::OpReply { .. } => {
                 Err(ArgumentError(
                     String::from("OP_REPLY should not be sent to the client."),

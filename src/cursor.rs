@@ -279,7 +279,7 @@ impl Cursor {
     ) -> Result<Cursor> {
 
         let mut stream = stream;
-        let mut socket = stream.get_socket();
+        let socket = stream.get_socket();
         let req_id = client.get_req_id();
 
         let index = namespace.find('.').unwrap_or_else(|| namespace.len());
@@ -418,7 +418,7 @@ impl Cursor {
 
     fn get_from_stream(&mut self) -> Result<()> {
         let (mut stream, _, _) = try!(self.client.acquire_stream(self.read_preference.to_owned()));
-        let mut socket = stream.get_socket();
+        let socket = stream.get_socket();
 
         let req_id = self.client.get_req_id();
         let get_more = Message::new_get_more(
