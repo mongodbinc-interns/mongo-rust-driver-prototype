@@ -206,12 +206,15 @@ impl File {
                 let mut opts = IndexOptions::new();
                 opts.unique = Some(true);
                 try!(self.gfs.chunks.create_index(
-                    doc!{ "files_id": 1, "n": 1},
+                    doc! {
+                        "files_id": 1,
+                        "n": 1,
+                    },
                     Some(opts),
                 ));
             } else {
                 try!(self.gfs.chunks.delete_many(
-                    doc!{ "files_id": self.doc.id.clone() },
+                    doc! { "files_id": self.doc.id.clone() },
                     None,
                 ));
             }
@@ -278,7 +281,11 @@ impl File {
 
     // Retrieves a binary file chunk from GridFS.
     pub fn find_chunk(&mut self, id: oid::ObjectId, chunk_num: i32) -> Result<Vec<u8>> {
-        let filter = doc!{"files_id": id, "n": chunk_num };
+        let filter = doc! {
+            "files_id": id,
+            "n": chunk_num,
+        };
+
         match try!(self.gfs.chunks.find_one(Some(filter), None)) {
             Some(doc) => {
                 match doc.get("data") {
@@ -328,7 +335,10 @@ impl File {
                 };
 
                 let result = arc_gfs.chunks.find_one(
-                    Some(doc!{ "files_id": id, "n": next_chunk_num }),
+                    Some(doc! {
+                        "files_id": id,
+                        "n": next_chunk_num
+                    }),
                     None,
                 );
 

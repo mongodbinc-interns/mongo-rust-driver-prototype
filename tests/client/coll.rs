@@ -693,10 +693,22 @@ fn create_list_drop_indexes() {
     opts1.name = Some("nid".to_owned());
 
     // Test name option
-    let index1 = IndexModel::new(doc!{ "n": 1, "id": 1}, Some(opts1));
+    let index1 = IndexModel::new(
+        doc! {
+            "n": 1,
+            "id": 1
+        },
+        Some(opts1),
+    );
 
     // Test negative value and index name generation
-    let index2 = IndexModel::new(doc!{ "test": -1, "height": 1}, None);
+    let index2 = IndexModel::new(
+        doc! {
+            "test": -1,
+            "height": 1,
+        },
+        None,
+    );
 
     coll.create_indexes(vec![index1, index2]).unwrap();
     let mut cursor = coll.list_indexes().unwrap();
@@ -751,8 +763,14 @@ fn create_list_drop_indexes() {
 
     assert_eq!(2, results.len());
 
-    coll.drop_index(doc!{ "test": -1, "height": 1 }, None)
-        .unwrap();
+    coll.drop_index(
+        doc! {
+            "test": -1,
+            "height": 1,
+        },
+        None,
+    ).unwrap();
+
     let mut cursor = coll.list_indexes().unwrap();
     let results = cursor.next_n(5).unwrap();
 

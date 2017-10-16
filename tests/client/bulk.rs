@@ -14,9 +14,9 @@ fn bulk_ordered_insert_only() {
         .map(|i| {
             WriteModel::InsertOne {
                 document: doc! {
-        "_id": i,
-        "x": i * 11
-    },
+                    "_id": i,
+                    "x": i * 11,
+                },
             }
         })
         .collect();
