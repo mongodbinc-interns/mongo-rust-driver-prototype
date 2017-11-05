@@ -9,7 +9,7 @@ use crypto::mac::Mac;
 use crypto::md5::Md5;
 use crypto::pbkdf2;
 use crypto::sha1::Sha1;
-use data_encoding::base64;
+use data_encoding::BASE64;
 use db::{Database, ThreadedDatabase};
 use error::Error::{DefaultError, MaliciousServerError, ResponseError};
 use error::MaliciousServerErrorType;
@@ -123,7 +123,7 @@ impl Authenticator {
             ResponseError(String::from("Invalid salt returned"))
         })?;
 
-        let salt = base64::decode(salt_b64.as_bytes()).or_else(|e| {
+        let salt = BASE64.decode(salt_b64.as_bytes()).or_else(|e| {
             Err(ResponseError(
                 format!("Invalid base64 salt returned: {}", e),
             ))
@@ -183,7 +183,7 @@ impl Authenticator {
         }
 
         // Encode proof and produce the message to send to the server
-        let b64_proof = base64::encode(&proof);
+        let b64_proof = BASE64.encode(&proof);
         let final_message = format!("{},p={}", without_proof, b64_proof);
         let binary = Binary(Generic, final_message.into_bytes());
 
@@ -247,7 +247,7 @@ impl Authenticator {
                 };
 
                 // Check that the signature is valid
-                if verifier.ne(&base64::encode(&server_signature)[..]) {
+                if verifier.ne(&BASE64.encode(&server_signature)[..]) {
                     return Err(MaliciousServerError(
                         MaliciousServerErrorType::InvalidServerSignature,
                     ));
