@@ -85,7 +85,7 @@ impl StreamConnector {
     /// `verify_peer` - Whether or not to verify that the server's certificate is trusted.
     pub fn with_unauthenticated_ssl(ca_file: &str, verify_peer: bool) -> Self {
         StreamConnector::Ssl {
-            ca_file: String::from(ca_file),
+            ca_file: Some(String::from(ca_file)),
             certificate_file: None,
             key_file: None,
             verify_peer: verify_peer,
