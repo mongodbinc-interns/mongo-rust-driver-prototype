@@ -255,6 +255,13 @@ impl ClientOptions {
         options.stream_connector = StreamConnector::with_unauthenticated_ssl(ca_file, verify_peer);
         options
     }
+
+    #[cfg(feature = "ssl")]
+    pub fn with_simple_ssl() -> ClientOptions {
+        let mut options = ClientOptions::new();
+        options.stream_connector = StreamConnector::with_simple_ssl();
+        options
+    }
 }
 
 pub trait ThreadedClient: Sync + Sized {
