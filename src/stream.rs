@@ -19,7 +19,7 @@ pub enum StreamConnector {
     ///
     /// Note that it's invalid to have one of certificate_file and key_file set but not the other.
     Ssl {
-        ca_file: String,
+        ca_file: Option<String>,
         certificate_file: Option<String>,
         key_file: Option<String>,
         verify_peer: bool,
@@ -59,7 +59,7 @@ impl StreamConnector {
         verify_peer: bool,
     ) -> Self {
         StreamConnector::Ssl {
-            ca_file: String::from(ca_file),
+            ca_file: Some(String::from(ca_file)),
             certificate_file: Some(String::from(certificate_file)),
             key_file: Some(String::from(key_file)),
             verify_peer: verify_peer,
@@ -92,6 +92,16 @@ impl StreamConnector {
         }
     }
 
+    #[cfg(feature = "ssl")]
+    pub fn with_simple_ssl() -> Self {
+        StreamConnector::Ssl {
+            ca_file: None,
+            certificate_file: None,
+            key_file: None,
+            verify_peer: true,
+        }
+    }
+
     pub fn connect(&self, hostname: &str, port: u16) -> Result<Stream> {
         match *self {
             StreamConnector::Tcp => TcpStream::connect((hostname, port)).map(Stream::Tcp),
@@ -111,8 +121,10 @@ impl StreamConnector {
                 ssl_context.set_options(SSL_OP_NO_SSLV2);
                 ssl_context.set_options(SSL_OP_NO_SSLV3);
                 ssl_context.set_options(SSL_OP_NO_COMPRESSION);
-                ssl_context.set_ca_file(ca_file)?;
 
+                if let &Some(ref file) = ca_file {
+                    ssl_context.set_ca_file(file)?;
+                }
                 if let &Some(ref file) = certificate_file {
                     ssl_context.set_certificate_file(file, X509_FILETYPE_PEM)?;
                 }
