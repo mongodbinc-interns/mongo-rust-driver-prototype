@@ -537,9 +537,9 @@ impl Collection {
         let original_models = models
             .iter()
             .map(|model| if model.multi {
-                WriteModel::DeleteMany { filter: model.filter.clone() }
+                WriteModel::UpdateMany { filter: model.filter.clone(), update: model.update.clone(), upsert: model.upsert.clone() }
             } else {
-                WriteModel::DeleteOne { filter: model.filter.clone() }
+                WriteModel::UpdateOne { filter: model.filter.clone(), update: model.update.clone(), upsert: model.upsert.clone() }
             })
             .collect();
 
@@ -603,7 +603,7 @@ impl Collection {
             start_index += length;
         }
 
-        if exception.unprocessed_requests.is_empty() {
+        if !exception.unprocessed_requests.is_empty() {
             result.bulk_write_exception = Some(exception);
         }
 
@@ -831,11 +831,7 @@ impl Collection {
 
         let mut updates = Vec::new();
         for model in models {
-            let mut update = bson::Document::from(model);
-
-            if !ordered {
-                update.insert("ordered", Bson::Boolean(ordered));
-            }
+            let update = bson::Document::from(model);
 
             updates.push(Bson::Document(update));
         }
@@ -844,6 +840,7 @@ impl Collection {
             doc! {
             "update": self.name(),
             "updates": updates,
+			"ordered": ordered,
             "writeConcern": wc.to_bson()
         };
 
