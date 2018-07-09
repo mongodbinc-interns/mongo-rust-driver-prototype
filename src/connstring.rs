@@ -1,7 +1,6 @@
 //! Connection string parsing and options.
 use Result;
 use Error::ArgumentError;
-use std::ascii::AsciiExt;
 use std::collections::BTreeMap;
 
 pub const DEFAULT_PORT: u16 = 27017;

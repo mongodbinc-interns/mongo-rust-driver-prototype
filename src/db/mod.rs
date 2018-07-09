@@ -391,7 +391,7 @@ impl ThreadedDatabase for Database {
         let mut doc = doc! { "dropUser": name };
 
         if let Some(concern) = write_concern {
-            doc.insert("writeConcern", (concern.to_bson()));
+            doc.insert("writeConcern", concern.to_bson());
         }
 
         self.command(doc, CommandType::DropUser, None).map(|_| ())

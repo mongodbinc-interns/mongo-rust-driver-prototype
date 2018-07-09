@@ -3,7 +3,6 @@ use Error::{self, ArgumentError};
 use Result;
 
 use bson::{self, Bson};
-use std::ascii::AsciiExt;
 use std::collections::BTreeMap;
 use std::str::FromStr;
 
