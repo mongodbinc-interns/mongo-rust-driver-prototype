@@ -117,6 +117,7 @@ pub trait ThreadedDatabase {
         spec: bson::Document,
         cmd_type: CommandType,
         read_pref: ReadPreference,
+        batch_size: Option<i32>
     ) -> Result<Cursor>;
     /// Sends an administrative command over find_one.
     fn command(
@@ -226,6 +227,7 @@ impl ThreadedDatabase for Database {
         spec: bson::Document,
         cmd_type: CommandType,
         read_pref: ReadPreference,
+        batch_size: Option<i32>,
     ) -> Result<Cursor> {
         Cursor::command_cursor(
             self.client.clone(),
@@ -233,6 +235,7 @@ impl ThreadedDatabase for Database {
             spec,
             cmd_type,
             read_pref,
+            batch_size,
         )
     }
 
@@ -281,6 +284,7 @@ impl ThreadedDatabase for Database {
             spec,
             CommandType::ListCollections,
             self.read_preference.to_owned(),
+            Some(batch_size)
         )
     }
 

@@ -96,6 +96,8 @@ impl Cursor {
     /// `doc` - Specifies the command that is being run.
     /// `cmd_type` - The type of command, which will be used for monitoring events.
     /// `read_pref` - The read preference for the query.
+    /// `batch_size` - The number of records to return per batch. The default is 1
+    ///     to facilitate sending commands.
     ///
     /// # Return value
     ///
@@ -106,9 +108,10 @@ impl Cursor {
         doc: bson::Document,
         cmd_type: CommandType,
         read_pref: ReadPreference,
+        batch_size: Option<i32>,
     ) -> Result<Cursor> {
         let mut options = FindOptions::new();
-        options.batch_size = Some(1);
+        options.batch_size = Some(batch_size.unwrap_or(1));
 
         Cursor::query(
             client.clone(),
