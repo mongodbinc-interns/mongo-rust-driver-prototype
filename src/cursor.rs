@@ -96,7 +96,8 @@ impl Cursor {
     /// `doc` - Specifies the command that is being run.
     /// `cmd_type` - The type of command, which will be used for monitoring events.
     /// `read_pref` - The read preference for the query.
-    /// `batch_size` - The number of records to return per batch
+    /// `batch_size` - The number of records to return per batch. The default is 1
+    ///     to facilitate sending commands.
     ///
     /// # Return value
     ///

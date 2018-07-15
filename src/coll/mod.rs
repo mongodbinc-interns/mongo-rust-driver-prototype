@@ -104,7 +104,7 @@ impl Collection {
         };
 
         let mut read_preference = self.read_preference.clone();
-        let mut batch_size = 1;
+        let mut batch_size: Option<i32> = None;
 
         match options {
             Some(aggregate_options) => {
@@ -112,7 +112,7 @@ impl Collection {
                     read_preference = read_preference_option.clone();
                 }
 
-                batch_size = aggregate_options.batch_size;
+                batch_size = Some(aggregate_options.batch_size);
 
                 spec = merge_options(spec, aggregate_options);
             }
@@ -125,7 +125,7 @@ impl Collection {
             spec,
             CommandType::Aggregate,
             read_preference,
-            Some(batch_size),
+            batch_size,
         )
     }
 
@@ -1033,7 +1033,7 @@ impl Collection {
             cmd,
             CommandType::ListIndexes,
             self.read_preference.to_owned(),
-            Some(1)
+            None
         )
     }
 }
