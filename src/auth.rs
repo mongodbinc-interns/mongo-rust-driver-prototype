@@ -137,9 +137,7 @@ impl Authenticator {
         })?;
 
         // Hash password
-        let mut md5 = Md5::new();
-        md5.input(password.as_bytes());
-        let hashed_password = hex::encode(md5.result());
+        let hashed_password = hex::encode(Md5::digest(password.as_bytes()));
 
         // Salt password
         let mut salted_password = [0u8; SHA1_OUTPUT];
