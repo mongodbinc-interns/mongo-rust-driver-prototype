@@ -3,8 +3,8 @@ use bson::{self, Bson, oid};
 use bson::spec::BinarySubtype;
 
 use chrono::{DateTime, Utc};
-use crypto::digest::Digest;
-use crypto::md5::Md5;
+use md5::{Md5, Digest};
+use hex;
 
 use Error::{self, ArgumentError, OperationError, PoisonLockError};
 use Result;
@@ -197,7 +197,7 @@ impl File {
                 if self.doc.upload_date.is_none() {
                     self.doc.upload_date = Some(Utc::now());
                 }
-                self.doc.md5 = self.wsum.result_str();
+                self.doc.md5 = hex::encode(self.wsum.result());
                 try!(self.gfs.files.insert_one(self.doc.to_bson(), None));
 
                 // Ensure indexes

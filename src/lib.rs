@@ -131,7 +131,6 @@ extern crate bson;
 extern crate bufstream;
 extern crate byteorder;
 extern crate chrono;
-extern crate crypto;
 extern crate data_encoding;
 #[cfg(feature = "ssl")]
 extern crate openssl;
@@ -142,6 +141,11 @@ extern crate semver;
 extern crate separator;
 extern crate textnonce;
 extern crate time;
+extern crate md5;
+extern crate sha1;
+extern crate hmac;
+extern crate pbkdf2;
+extern crate hex;
 
 pub mod db;
 pub mod coll;

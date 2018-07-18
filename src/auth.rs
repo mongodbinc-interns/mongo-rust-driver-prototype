@@ -3,12 +3,12 @@ use bson::Bson::{self, Binary};
 use bson::Document;
 use bson::spec::BinarySubtype::Generic;
 use CommandType::Suppressed;
-use crypto::digest::Digest;
-use crypto::hmac::Hmac;
-use crypto::mac::Mac;
-use crypto::md5::Md5;
-use crypto::pbkdf2;
-use crypto::sha1::Sha1;
+use hmac::{Hmac, Mac};
+use md5::Md5;
+use pbkdf2::pbkdf2;
+use sha1::{Sha1, Digest};
+use hex;
+
 use data_encoding::BASE64;
 use db::{Database, ThreadedDatabase};
 use error::Error::{DefaultError, MaliciousServerError, ResponseError};
@@ -29,10 +29,13 @@ struct InitialData {
 }
 
 struct AuthData {
-    salted_password: Vec<u8>,
+    salted_password: [u8; 20],
     message: String,
     response: Document,
 }
+
+type HmacSha1 = Hmac<Sha1>;
+const SHA1_OUTPUT: usize = 20;
 
 impl Authenticator {
     /// Creates a new authenticator.
@@ -135,16 +138,16 @@ impl Authenticator {
 
         // Hash password
         let mut md5 = Md5::new();
-        md5.input_str(&password[..]);
-        let hashed_password = md5.result_str();
+        md5.input(password.as_bytes());
+        let hashed_password = hex::encode(md5.result());
 
         // Salt password
-        let mut hmac = Hmac::new(Sha1::new(), hashed_password.as_bytes());
-        let mut salted_password: Vec<_> = (0..hmac.output_bytes()).map(|_| 0).collect();
-        pbkdf2::pbkdf2(&mut hmac, &salt[..], i, &mut salted_password);
+        let mut salted_password = [0u8; SHA1_OUTPUT];
+        pbkdf2::<HmacSha1>(hashed_password.as_bytes(), &salt, i as usize, &mut salted_password);
 
         // Compute client key
-        let mut client_key_hmac = Hmac::new(Sha1::new(), &salted_password[..]);
+        let mut client_key_hmac = HmacSha1::new_varkey(&salted_password)
+            .expect("HMAC can take key of any size");
         let client_key_bytes = b"Client Key";
         client_key_hmac.input(client_key_bytes);
         let client_key = client_key_hmac.result().code().to_owned();
@@ -152,8 +155,7 @@ impl Authenticator {
         // Hash into stored key
         let mut stored_key_sha1 = Sha1::new();
         stored_key_sha1.input(&client_key[..]);
-        let mut stored_key: Vec<_> = (0..stored_key_sha1.output_bytes()).map(|_| 0).collect();
-        stored_key_sha1.result(&mut stored_key);
+        let stored_key = stored_key_sha1.result();
 
         // Create auth message
         let without_proof = format!("c=biws,r={}", rnonce_b64);
@@ -165,7 +167,8 @@ impl Authenticator {
         );
 
         // Compute client signature
-        let mut client_signature_hmac = Hmac::new(Sha1::new(), &stored_key[..]);
+        let mut client_signature_hmac = HmacSha1::new_varkey(&stored_key)
+            .expect("HMAC can take key of any size");
         client_signature_hmac.input(auth_message.as_bytes());
         let client_signature = client_signature_hmac.result().code().to_owned();
 
@@ -212,15 +215,17 @@ impl Authenticator {
             };
 
         // Compute server key
-        let mut server_key_hmac = Hmac::new(Sha1::new(), &auth_data.salted_password[..]);
+        let mut server_key_hmac = HmacSha1::new_varkey(&auth_data.salted_password)
+            .expect("HMAC can take key of any size");
         let server_key_bytes = b"Server Key";
         server_key_hmac.input(server_key_bytes);
-        let server_key = server_key_hmac.result().code().to_owned();
+        let server_key = server_key_hmac.result().code();
 
         // Compute server signature
-        let mut server_signature_hmac = Hmac::new(Sha1::new(), &server_key[..]);
+        let mut server_signature_hmac = HmacSha1::new_varkey(&server_key)
+            .expect("HMAC can take key of any size");
         server_signature_hmac.input(auth_data.message.as_bytes());
-        let server_signature = server_signature_hmac.result().code().to_owned();
+        let server_signature = server_signature_hmac.result().code();
 
         let mut doc = auth_data.response;
 
