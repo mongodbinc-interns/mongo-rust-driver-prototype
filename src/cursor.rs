@@ -405,7 +405,7 @@ impl Cursor {
         Ok(Cursor {
             client: client,
             namespace: namespace,
-            batch_size: options.batch_size.unwrap_or(DEFAULT_BATCH_SIZE),
+            batch_size: buf.len() as i32,
             cursor_id: cursor_id,
             limit: options.limit.unwrap_or(0) as i32,
             count: 0,

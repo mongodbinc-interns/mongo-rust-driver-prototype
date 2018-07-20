@@ -1,3 +1,4 @@
+mod batch_size;
 mod bulk;
 mod coll;
 mod connstring;
