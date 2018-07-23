@@ -8,7 +8,6 @@ use md5::Md5;
 use pbkdf2::pbkdf2;
 use sha1::{Sha1, Digest};
 use hex;
-
 use data_encoding::BASE64;
 use db::{Database, ThreadedDatabase};
 use error::Error::{DefaultError, MaliciousServerError, ResponseError};
