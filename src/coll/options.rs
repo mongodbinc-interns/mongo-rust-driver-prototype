@@ -5,7 +5,7 @@ use Error::ArgumentError;
 use Result;
 
 /// Describes the type of cursor to return on collection queries.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum CursorType {
     NonTailable,
     Tailable,
@@ -19,7 +19,7 @@ impl Default for CursorType {
 }
 
 /// Describes the type of document to return on write operations.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum ReturnDocument {
     Before,
     After,
@@ -35,7 +35,7 @@ impl ReturnDocument {
 }
 
 /// Marker interface for writes that can be batched together.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum WriteModel {
     InsertOne { document: bson::Document },
     DeleteOne { filter: bson::Document },
@@ -58,7 +58,7 @@ pub enum WriteModel {
 }
 
 /// Options for aggregation queries.
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Hash)]
 pub struct AggregateOptions {
     pub allow_disk_use: Option<bool>,
     pub use_cursor: Option<bool>,
@@ -78,14 +78,14 @@ impl From<AggregateOptions> for bson::Document {
         let mut document = bson::Document::new();
 
         if let Some(allow_disk_use) = options.allow_disk_use {
-            document.insert("allowDiskUse", Bson::Boolean(allow_disk_use));
+            document.insert("allowDiskUse", allow_disk_use);
         }
 
         // useCursor not currently used by the driver.
 
 
         let cursor = doc! { "batchSize": options.batch_size };
-        document.insert("cursor", Bson::Document(cursor));
+        document.insert("cursor", cursor);
 
         // maxTimeMS is not currently used by the driver.
 
@@ -96,7 +96,7 @@ impl From<AggregateOptions> for bson::Document {
 }
 
 /// Options for count queries.
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct CountOptions {
     pub skip: Option<i64>,
     pub limit: Option<i64>,
@@ -117,19 +117,19 @@ impl From<CountOptions> for bson::Document {
         let mut document = bson::Document::new();
 
         if let Some(skip) = options.skip {
-            document.insert("skip", Bson::I64(skip));
+            document.insert("skip", skip);
         }
 
         if let Some(limit) = options.limit {
-            document.insert("limit", Bson::I64(limit));
+            document.insert("limit", limit);
         }
 
         if let Some(hint) = options.hint {
-            document.insert("hint", Bson::String(hint));
+            document.insert("hint", hint);
         }
 
         if let Some(hint_doc) = options.hint_doc {
-            document.insert("hint_doc", Bson::Document(hint_doc));
+            document.insert("hint_doc", hint_doc);
         }
 
         // maxTimeMS is not currently used by the driver.
@@ -141,7 +141,7 @@ impl From<CountOptions> for bson::Document {
 }
 
 /// Options for distinct queries.
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Hash)]
 pub struct DistinctOptions {
     pub max_time_ms: Option<i64>,
     pub read_preference: Option<ReadPreference>,
@@ -154,7 +154,7 @@ impl DistinctOptions {
 }
 
 /// Options for collection queries.
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct FindOptions {
     pub allow_partial_results: bool,
     pub no_cursor_timeout: bool,
@@ -190,23 +190,23 @@ impl From<FindOptions> for bson::Document {
         // read_preference is used directly by Collection::find_with_command_type.
 
         if let Some(projection) = options.projection {
-            document.insert("projection", Bson::Document(projection));
+            document.insert("projection", projection);
         }
 
         if let Some(skip) = options.skip {
-            document.insert("skip", Bson::I64(skip));
+            document.insert("skip", skip);
         }
 
         if let Some(limit) = options.limit {
-            document.insert("limit", Bson::I64(limit));
+            document.insert("limit", limit);
         }
 
         if let Some(batch_size) = options.batch_size {
-            document.insert("batchSize", Bson::I32(batch_size));
+            document.insert("batchSize", batch_size);
         }
 
         if let Some(sort) = options.sort {
-            document.insert("sort", Bson::Document(sort));
+            document.insert("sort", sort);
         }
 
         document
@@ -214,7 +214,7 @@ impl From<FindOptions> for bson::Document {
 }
 
 /// Options for `findOneAndDelete` operations.
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct FindOneAndDeleteOptions {
     pub max_time_ms: Option<i64>,
     pub projection: Option<bson::Document>,
@@ -235,15 +235,15 @@ impl From<FindOneAndDeleteOptions> for bson::Document {
         // max_time_ms is not currently used by the driver
 
         if let Some(projection) = options.projection {
-            document.insert("fields", Bson::Document(projection));
+            document.insert("fields", projection);
         }
 
         if let Some(sort) = options.sort {
-            document.insert("sort", Bson::Document(sort));
+            document.insert("sort", sort);
         }
 
         if let Some(write_concern) = options.write_concern {
-            document.insert("writeConcern", Bson::Document(write_concern.to_bson()));
+            document.insert("writeConcern", write_concern.to_bson());
         }
 
         document
@@ -251,7 +251,7 @@ impl From<FindOneAndDeleteOptions> for bson::Document {
 }
 
 /// Options for `findOneAndUpdate` operations.
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct FindOneAndUpdateOptions {
     pub return_document: Option<ReturnDocument>,
     pub max_time_ms: Option<i64>,
@@ -272,17 +272,17 @@ impl From<FindOneAndUpdateOptions> for bson::Document {
         let mut document = bson::Document::new();
 
         if let Some(return_document) = options.return_document {
-            document.insert("new", Bson::Boolean(return_document.as_bool()));
+            document.insert("new", return_document.as_bool());
         }
 
         // max_time_ms is not currently used by the driver
 
         if let Some(projection) = options.projection {
-            document.insert("fields", Bson::Document(projection));
+            document.insert("fields", projection);
         }
 
         if let Some(sort) = options.sort {
-            document.insert("sort", Bson::Document(sort));
+            document.insert("sort", sort);
         }
 
         if let Some(upsert) = options.upsert {
@@ -290,7 +290,7 @@ impl From<FindOneAndUpdateOptions> for bson::Document {
         }
 
         if let Some(write_concern) = options.write_concern {
-            document.insert("writeConcern", Bson::Document(write_concern.to_bson()));
+            document.insert("writeConcern", write_concern.to_bson());
         }
 
         document
@@ -298,7 +298,7 @@ impl From<FindOneAndUpdateOptions> for bson::Document {
 }
 
 /// Options for index operations.
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct IndexOptions {
     pub background: Option<bool>,
     pub expire_after_seconds: Option<i32>,
@@ -329,7 +329,7 @@ impl IndexOptions {
 }
 
 /// A single index model.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct IndexModel {
     pub keys: bson::Document,
     pub options: IndexOptions,
@@ -381,58 +381,57 @@ impl IndexModel {
 
     /// Converts the model to its BSON document representation.
     pub fn to_bson(&self) -> Result<bson::Document> {
-        let mut doc = bson::Document::new();
-        doc.insert("key", Bson::Document(self.keys.clone()));
+        let mut doc = doc!{ "key": self.keys.clone() };
 
-        if let Some(ref val) = self.options.background {
-            doc.insert("background", Bson::Boolean(*val));
+        if let Some(val) = self.options.background {
+            doc.insert("background", val);
         }
-        if let Some(ref val) = self.options.expire_after_seconds {
-            doc.insert("expireAfterSeconds", Bson::I32(*val));
+        if let Some(val) = self.options.expire_after_seconds {
+            doc.insert("expireAfterSeconds", val);
         }
         if let Some(ref val) = self.options.name {
-            doc.insert("name", Bson::String(val.to_owned()));
+            doc.insert("name", val);
         } else {
-            doc.insert("name", Bson::String(try!(self.generate_index_name())));
+            doc.insert("name", self.generate_index_name()?);
         }
-        if let Some(ref val) = self.options.sparse {
-            doc.insert("sparse", Bson::Boolean(*val));
+        if let Some(val) = self.options.sparse {
+            doc.insert("sparse", val);
         }
         if let Some(ref val) = self.options.storage_engine {
-            doc.insert("storageEngine", Bson::String(val.to_owned()));
+            doc.insert("storageEngine", val);
         }
-        if let Some(ref val) = self.options.unique {
-            doc.insert("unique", Bson::Boolean(*val));
+        if let Some(val) = self.options.unique {
+            doc.insert("unique", val);
         }
-        if let Some(ref val) = self.options.version {
-            doc.insert("v", Bson::I32(*val));
+        if let Some(val) = self.options.version {
+            doc.insert("v", val);
         }
         if let Some(ref val) = self.options.default_language {
-            doc.insert("default_language", Bson::String(val.to_owned()));
+            doc.insert("default_language", val);
         }
         if let Some(ref val) = self.options.language_override {
-            doc.insert("language_override", Bson::String(val.to_owned()));
+            doc.insert("language_override", val);
         }
-        if let Some(ref val) = self.options.text_version {
-            doc.insert("textIndexVersion", Bson::I32(*val));
+        if let Some(val) = self.options.text_version {
+            doc.insert("textIndexVersion", val);
         }
         if let Some(ref val) = self.options.weights {
-            doc.insert("weights", Bson::Document(val.clone()));
+            doc.insert("weights", val.clone());
         }
-        if let Some(ref val) = self.options.sphere_version {
-            doc.insert("2dsphereIndexVersion", Bson::I32(*val));
+        if let Some(val) = self.options.sphere_version {
+            doc.insert("2dsphereIndexVersion", val);
         }
-        if let Some(ref val) = self.options.bits {
-            doc.insert("bits", Bson::I32(*val));
+        if let Some(val) = self.options.bits {
+            doc.insert("bits", val);
         }
-        if let Some(ref val) = self.options.max {
-            doc.insert("max", Bson::FloatingPoint(*val));
+        if let Some(val) = self.options.max {
+            doc.insert("max", val);
         }
-        if let Some(ref val) = self.options.min {
-            doc.insert("min", Bson::FloatingPoint(*val));
+        if let Some(val) = self.options.min {
+            doc.insert("min", val);
         }
-        if let Some(ref val) = self.options.bucket_size {
-            doc.insert("bucketSize", Bson::I32(*val));
+        if let Some(val) = self.options.bucket_size {
+            doc.insert("bucketSize", val);
         }
 
         Ok(doc)
@@ -440,7 +439,7 @@ impl IndexModel {
 }
 
 /// Options for insertMany operations.
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Hash)]
 pub struct InsertManyOptions {
     pub ordered: Option<bool>,
     pub write_concern: Option<WriteConcern>,
@@ -457,11 +456,11 @@ impl From<InsertManyOptions> for bson::Document {
         let mut document = bson::Document::new();
 
         if let Some(ordered) = options.ordered {
-            document.insert("ordered", Bson::Boolean(ordered));
+            document.insert("ordered", ordered);
         }
 
         if let Some(write_concern) = options.write_concern {
-            document.insert("writeConcern", Bson::Document(write_concern.to_bson()));
+            document.insert("writeConcern", write_concern.to_bson());
         }
 
         document
@@ -469,7 +468,7 @@ impl From<InsertManyOptions> for bson::Document {
 }
 
 /// Options for update operations.
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Hash)]
 pub struct UpdateOptions {
     pub upsert: Option<bool>,
     pub write_concern: Option<WriteConcern>,
