@@ -1,7 +1,7 @@
 //! Monitorable command types.
 
 /// Executable command types that can be monitored by the driver.
-#[derive(PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
 pub enum CommandType {
     Aggregate,
     BuildInfo,

@@ -29,7 +29,7 @@ pub const DEFAULT_LOCAL_THRESHOLD_MS: i64 = 15;
 pub const DEFAULT_SERVER_SELECTION_TIMEOUT_MS: i64 = 30000;
 
 /// Describes the type of topology for a server set.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum TopologyType {
     Single,
     ReplicaSetNoPrimary,

@@ -167,6 +167,7 @@ pub use apm::{CommandStarted, CommandResult};
 pub use command_type::CommandType;
 pub use error::{Error, ErrorCode, Result};
 
+use std::fmt;
 use std::fs::{File, OpenOptions};
 use std::io::Write;
 use std::ops::DerefMut;
@@ -198,6 +199,19 @@ pub struct ClientInner {
     topology: Topology,
     listener: Listener,
     log_file: Option<Mutex<File>>,
+}
+
+impl fmt::Debug for ClientInner {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("ClientInner")
+            .field("read_preference", &self.read_preference)
+            .field("write_concern", &self.write_concern)
+            .field("req_id", &self.req_id)
+            .field("topology", &"Topology { .. }")
+            .field("listener", &"Listener { .. }")
+            .field("log_file", &self.log_file)
+            .finish()
+    }
 }
 
 /// Configuration options for a client.

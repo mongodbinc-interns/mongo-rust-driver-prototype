@@ -41,7 +41,7 @@ impl Host {
 }
 
 /// Encapsulates the options and read preference tags of a MongoDB connection.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ConnectionOptions {
     pub options: BTreeMap<String, String>,
     pub read_pref_tags: Vec<String>,
@@ -265,8 +265,8 @@ fn split_hosts(host_str: &str) -> Result<Vec<Host>> {
 
 // Parses the delimited string into its options and Read Preference Tags.
 fn parse_options(opts: &str, delim: Option<&str>) -> ConnectionOptions {
-    let mut options: BTreeMap<String, String> = BTreeMap::new();
-    let mut read_pref_tags: Vec<String> = Vec::new();
+    let mut options = BTreeMap::new();
+    let mut read_pref_tags = Vec::new();
 
     // Split and collect options into a vec
     let opt_list = match delim {

@@ -4,7 +4,7 @@ use super::options::WriteModel;
 use bson::{Bson, Document};
 use std::convert::From;
 
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct DeleteModel {
     pub filter: Document,
     pub multi: bool,
@@ -19,7 +19,7 @@ impl DeleteModel {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct UpdateModel {
     pub filter: Document,
     pub update: Document,
@@ -63,7 +63,7 @@ impl From<UpdateModel> for Document {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Batch {
     Insert(Vec<Document>),
     Delete(Vec<DeleteModel>),

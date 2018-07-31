@@ -41,6 +41,7 @@ pub const DEFAULT_BATCH_SIZE: i32 = 0;
 
 /// Maintains a connection to the server and lazily returns documents from a
 /// query.
+#[derive(Debug)]
 pub struct Cursor {
     // The client to read from.
     client: Client,
@@ -131,29 +132,24 @@ impl Cursor {
                 documents: docs,
                 ..
             } => {
-                let mut v = VecDeque::new();
-                let mut out_doc = doc!{};
-
-                if !docs.is_empty() {
-                    out_doc = docs[0].clone();
-                    if let Some(&Bson::I32(ref code)) = docs[0].get("code") {
+                let out_doc = if let Some(out_doc) = docs.get(0) {
+                    if let Some(&Bson::I32(code)) = out_doc.get("code") {
                         // If command doesn't exist or namespace not found, return
                         // an empty array instead of throwing an error.
-                        if *code != ErrorCode::CommandNotFound as i32 &&
-                            *code != ErrorCode::NamespaceNotFound as i32
+                        if code != ErrorCode::CommandNotFound as i32 &&
+                            code != ErrorCode::NamespaceNotFound as i32
                         {
-                            if let Some(&Bson::String(ref msg)) = docs[0].get("errmsg") {
+                            if let Some(&Bson::String(ref msg)) = out_doc.get("errmsg") {
                                 return Err(Error::OperationError(msg.to_owned()));
                             }
                         }
                     }
-                }
+                    out_doc.clone()
+                } else {
+                    bson::Document::new()
+                };
 
-                for doc in docs {
-                    v.push_back(doc.clone());
-                }
-
-                Ok((out_doc, v, cid))
+                Ok((out_doc, docs.into_iter().collect(), cid))
             }
             _ => Err(Error::CursorNotFoundError),
         }
@@ -164,15 +160,14 @@ impl Cursor {
     ) -> Result<(bson::Document, VecDeque<bson::Document>, i64, String)> {
 
         let (first, v, _) = try!(Cursor::get_bson_and_cid_from_message(message));
-        if v.len() != 1 {
-            return Err(Error::CursorNotFoundError);
-        }
-
-        let doc = &v[0];
+        let doc = match v.get(0) {
+            Some(value) => value,
+            None => return Err(Error::CursorNotFoundError),
+        };
 
         // Extract cursor information
         if let Some(&Bson::Document(ref cursor)) = doc.get("cursor") {
-            if let Some(&Bson::I64(ref id)) = cursor.get("id") {
+            if let Some(&Bson::I64(id)) = cursor.get("id") {
                 if let Some(&Bson::String(ref ns)) = cursor.get("ns") {
                     if let Some(&Bson::Array(ref batch)) = cursor.get("firstBatch") {
 
@@ -186,7 +181,7 @@ impl Cursor {
                             })
                             .collect();
 
-                        return Ok((first, map, *id, ns.to_owned()));
+                        return Ok((first, map, id, ns.to_owned()));
                     }
                 }
             }
@@ -296,7 +291,7 @@ impl Cursor {
         let command = match cmd_type {
             CommandType::Find => {
                 let document =
-                    doc! { 
+                    doc! {
                     "find": coll_name,
                     "filter": filter
                 };
