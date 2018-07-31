@@ -4,7 +4,7 @@ use std::sync::RwLock;
 
 use apm::event::{CommandStarted, CommandResult};
 use Client;
-use error::{Error, Result};
+use error::Result;
 
 pub type StartHook = fn(Client, &CommandStarted);
 pub type CompletionHook = fn(Client, &CommandResult);
@@ -21,27 +21,19 @@ impl Listener {
         Listener {
             no_start_hooks: AtomicBool::new(true),
             no_completion_hooks: AtomicBool::new(true),
-            start_hooks: RwLock::new(vec![]),
-            completion_hooks: RwLock::new(vec![]),
+            start_hooks: RwLock::new(Vec::new()),
+            completion_hooks: RwLock::new(Vec::new()),
         }
     }
 
     pub fn add_start_hook(&self, hook: StartHook) -> Result<()> {
-        let mut guard = match self.start_hooks.write() {
-            Ok(guard) => guard,
-            Err(_) => return Err(Error::PoisonLockError),
-        };
-
+        let mut guard = self.start_hooks.write()?;
         self.no_start_hooks.store(false, Ordering::SeqCst);
         Ok(guard.deref_mut().push(hook))
     }
 
     pub fn add_completion_hook(&self, hook: CompletionHook) -> Result<()> {
-        let mut guard = match self.completion_hooks.write() {
-            Ok(guard) => guard,
-            Err(_) => return Err(Error::PoisonLockError),
-        };
-
+        let mut guard = self.completion_hooks.write()?;
         self.no_completion_hooks.store(false, Ordering::SeqCst);
         Ok(guard.deref_mut().push(hook))
     }
@@ -51,10 +43,7 @@ impl Listener {
             return Ok(());
         }
 
-        let guard = match self.start_hooks.read() {
-            Ok(guard) => guard,
-            Err(_) => return Err(Error::PoisonLockError),
-        };
+        let guard = self.start_hooks.read()?;
 
         for hook in guard.deref().iter() {
             hook(client.clone(), started);
@@ -68,10 +57,7 @@ impl Listener {
             return Ok(());
         }
 
-        let guard = match self.completion_hooks.read() {
-            Ok(guard) => guard,
-            Err(_) => return Err(Error::PoisonLockError),
-        };
+        let guard = self.completion_hooks.read()?;
 
         for hook in guard.deref().iter() {
             hook(client.clone(), result);

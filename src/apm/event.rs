@@ -5,6 +5,7 @@ use error::Error as MongoError;
 use separator::Separatable;
 
 /// Contains the information about a given command that started.
+#[derive(Debug, Clone, PartialEq)]
 pub struct CommandStarted {
     pub command: Document,
     pub database_name: String,
@@ -15,16 +16,18 @@ pub struct CommandStarted {
 
 impl Display for CommandStarted {
     fn fmt(&self, fmt: &mut Formatter) -> Result<(), Error> {
-        fmt.write_fmt(format_args!(
+        write!(
+            fmt,
             "COMMAND.{} {} STARTED: {}",
             self.command_name,
             self.connection_string,
             self.command
-        ))
+        )
     }
 }
 
 /// Contains the information about a given command that completed.
+#[derive(Debug, Clone)]
 pub enum CommandResult<'a> {
     Success {
         duration: u64,
@@ -52,13 +55,14 @@ impl<'a> Display for CommandResult<'a> {
                 ref connection_string,
                 ..
             } => {
-                fmt.write_fmt(format_args!(
+                write!(
+                    fmt,
                     "COMMAND.{} {} COMPLETED: {} ({} ns)",
                     command_name,
                     connection_string,
                     reply,
                     duration.separated_string()
-                ))
+                )
             }
             CommandResult::Failure {
                 duration,
@@ -67,13 +71,14 @@ impl<'a> Display for CommandResult<'a> {
                 ref connection_string,
                 ..
             } => {
-                fmt.write_fmt(format_args!(
+                write!(
+                    fmt,
                     "COMMAND.{} {} FAILURE: {} ({} ns)",
                     command_name,
                     connection_string,
                     failure,
                     duration.separated_string()
-                ))
+                )
             }
         }
     }
