@@ -73,6 +73,7 @@ use std::error::Error;
 use std::sync::Arc;
 
 /// Interfaces with a MongoDB database.
+#[derive(Debug)]
 pub struct DatabaseInner {
     /// The database name.
     pub name: String,
@@ -244,14 +245,16 @@ impl ThreadedDatabase for Database {
     ) -> Result<bson::Document> {
 
         let coll = self.collection("$cmd");
-        let mut options = FindOptions::new();
-        options.batch_size = Some(1);
-        options.read_preference = read_preference;
-        let res = try!(coll.find_one_with_command_type(
+        let options = FindOptions {
+            batch_size: Some(1),
+            read_preference: read_preference,
+            ..FindOptions::new()
+        };
+        let res = coll.find_one_with_command_type(
             Some(spec.clone()),
             Some(options),
             cmd_type,
-        ));
+        )?;
         res.ok_or_else(|| {
             OperationError(format!("Failed to execute command with spec {:?}.", spec))
         })
@@ -267,14 +270,13 @@ impl ThreadedDatabase for Database {
         batch_size: i32,
     ) -> Result<Cursor> {
 
-        let mut spec = bson::Document::new();
-        let mut cursor = bson::Document::new();
-
-        cursor.insert("batchSize", Bson::I32(batch_size));
-        spec.insert("listCollections", Bson::I32(1));
-        spec.insert("cursor", Bson::Document(cursor));
-        if filter.is_some() {
-            spec.insert("filter", Bson::Document(filter.unwrap()));
+        let cursor = doc!{ "batchSize": batch_size };
+        let mut spec = doc!{
+            "listCollections": 1,
+            "cursor": cursor,
+        };
+        if let Some(f) = filter {
+            spec.insert("filter", f);
         }
 
         self.command_cursor(
@@ -285,24 +287,20 @@ impl ThreadedDatabase for Database {
     }
 
     fn collection_names(&self, filter: Option<bson::Document>) -> Result<Vec<String>> {
-        let mut cursor = try!(self.list_collections(filter));
-        let mut results = vec![];
-        loop {
-            match cursor.next() {
-                Some(Ok(doc)) => {
-                    if let Some(&Bson::String(ref name)) = doc.get("name") {
-                        results.push(name.to_owned());
-                    }
+        self.list_collections(filter)?
+            .filter_map(|result| match result {
+                Err(err) => Some(Err(err)),
+                Ok(mut doc) => match doc.remove("name") {
+                    Some(Bson::String(name)) => Some(Ok(name)),
+                    _ => None,
                 }
-                Some(Err(err)) => return Err(err),
-                None => return Ok(results),
-            }
-        }
+            })
+            .collect()
     }
 
     fn version(&self) -> Result<Version> {
         let doc = doc! { "buildinfo": 1 };
-        let out = try!(self.command(doc, CommandType::BuildInfo, None));
+        let out = self.command(doc, CommandType::BuildInfo, None)?;
 
         match out.get("version") {
             Some(&Bson::String(ref s)) => {
@@ -328,9 +326,7 @@ impl ThreadedDatabase for Database {
             doc = merge_options(doc, create_collection_options);
         }
 
-        self.command(doc, CommandType::CreateCollection, None).map(
-            |_| (),
-        )
+        self.command(doc, CommandType::CreateCollection, None).map(drop)
     }
 
     fn create_user(
@@ -339,8 +335,7 @@ impl ThreadedDatabase for Database {
         password: &str,
         options: Option<CreateUserOptions>,
     ) -> Result<()> {
-        let mut doc =
-            doc! {
+        let mut doc = doc! {
             "createUser": name,
             "pwd": password
         };
@@ -350,21 +345,21 @@ impl ThreadedDatabase for Database {
                 doc = merge_options(doc, user_options);
             }
             None => {
-                doc.insert("roles", Bson::Array(Vec::new()));
+                doc.insert("roles", Vec::new());
             }
         };
 
-        self.command(doc, CommandType::CreateUser, None).map(|_| ())
+        self.command(doc, CommandType::CreateUser, None).map(drop)
     }
 
     fn drop_all_users(&self, write_concern: Option<WriteConcern>) -> Result<(i32)> {
         let mut doc = doc! { "dropAllUsersFromDatabase": 1 };
 
         if let Some(concern) = write_concern {
-            doc.insert("writeConcern", Bson::Document(concern.to_bson()));
+            doc.insert("writeConcern", concern.to_bson());
         }
 
-        let response = try!(self.command(doc, CommandType::DropAllUsers, None));
+        let response = self.command(doc, CommandType::DropAllUsers, None)?;
 
         match response.get("n") {
             Some(&Bson::I32(i)) => Ok(i),
@@ -374,17 +369,13 @@ impl ThreadedDatabase for Database {
     }
 
     fn drop_collection(&self, name: &str) -> Result<()> {
-        let mut spec = bson::Document::new();
-        spec.insert("drop", Bson::String(String::from(name)));
-        try!(self.command(spec, CommandType::DropCollection, None));
-        Ok(())
+        let spec = doc!{ "drop": name };
+        self.command(spec, CommandType::DropCollection, None).map(drop)
     }
 
     fn drop_database(&self) -> Result<()> {
-        let mut spec = bson::Document::new();
-        spec.insert("dropDatabase", Bson::I32(1));
-        try!(self.command(spec, CommandType::DropDatabase, None));
-        Ok(())
+        let spec = doc!{ "dropDatabase": 1_i32 };
+        self.command(spec, CommandType::DropDatabase, None).map(drop)
     }
 
     fn drop_user(&self, name: &str, write_concern: Option<WriteConcern>) -> Result<()> {
@@ -394,39 +385,35 @@ impl ThreadedDatabase for Database {
             doc.insert("writeConcern", concern.to_bson());
         }
 
-        self.command(doc, CommandType::DropUser, None).map(|_| ())
+        self.command(doc, CommandType::DropUser, None).map(drop)
     }
 
     fn get_all_users(&self, show_credentials: bool) -> Result<Vec<bson::Document>> {
-        let doc =
-            doc! {
+        let doc = doc! {
             "usersInfo": 1,
             "showCredentials": show_credentials
         };
 
-        let out = try!(self.command(doc, CommandType::GetUsers, None));
+        let out = self.command(doc, CommandType::GetUsers, None)?;
+
         let vec = match out.get("users") {
             Some(&Bson::Array(ref vec)) => vec.clone(),
             _ => return Err(CursorNotFoundError),
         };
 
-        let mut users = vec![];
-
-        for bson in vec {
-            match bson {
-                Bson::Document(doc) => users.push(doc),
-                _ => return Err(CursorNotFoundError),
-            };
-        }
-
-        Ok(users)
+        vec.into_iter()
+            .map(|bson| match bson {
+                Bson::Document(doc) => Ok(doc),
+                _ => Err(CursorNotFoundError),
+            })
+            .collect()
     }
 
     fn get_user(&self, user: &str, options: Option<UserInfoOptions>) -> Result<bson::Document> {
         let mut doc = doc! {
             "usersInfo": {
                 "user": user,
-                "db": self.name.to_owned(),
+                "db": &self.name,
             },
         };
 
@@ -434,11 +421,7 @@ impl ThreadedDatabase for Database {
             doc = merge_options(doc, user_info_options);
         }
 
-        let out = match self.command(doc, CommandType::GetUser, None) {
-            Ok(doc) => doc,
-            Err(e) => return Err(e),
-        };
-
+        let out = self.command(doc, CommandType::GetUser, None)?;
         let users = match out.get("users") {
             Some(&Bson::Array(ref v)) => v.clone(),
             _ => return Err(CursorNotFoundError),
@@ -457,12 +440,10 @@ impl ThreadedDatabase for Database {
     ) -> Result<Vec<bson::Document>> {
         let vec: Vec<_> = users
             .into_iter()
-            .map(|user| {
-                bson!({
-                    "user": user,
-                    "db": self.name.to_owned(),
-                })
-            })
+            .map(|user| bson!({
+                "user": user,
+                "db": &self.name,
+            }))
             .collect();
 
         let mut doc = doc! { "usersInfo": vec };
@@ -471,21 +452,17 @@ impl ThreadedDatabase for Database {
             doc = merge_options(doc, user_info_options);
         }
 
-        let out = try!(self.command(doc, CommandType::GetUsers, None));
+        let out = self.command(doc, CommandType::GetUsers, None)?;
         let vec = match out.get("users") {
             Some(&Bson::Array(ref vec)) => vec.clone(),
             _ => return Err(CursorNotFoundError),
         };
 
-        let mut users = vec![];
-
-        for bson in vec {
-            match bson {
-                Bson::Document(doc) => users.push(doc),
-                _ => return Err(CursorNotFoundError),
-            };
-        }
-
-        Ok(users)
+        vec.into_iter()
+            .map(|bson| match bson {
+                Bson::Document(doc) => Ok(doc),
+                _ => Err(CursorNotFoundError),
+            })
+            .collect()
     }
 }
