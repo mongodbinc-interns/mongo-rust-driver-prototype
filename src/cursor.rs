@@ -159,7 +159,7 @@ impl Cursor {
         message: Message,
     ) -> Result<(bson::Document, VecDeque<bson::Document>, i64, String)> {
 
-        let (first, v, _) = try!(Cursor::get_bson_and_cid_from_message(message));
+        let (first, v, _) = Cursor::get_bson_and_cid_from_message(message)?;
         let doc = match v.get(0) {
             Some(value) => value,
             None => return Err(Error::CursorNotFoundError),
@@ -221,9 +221,9 @@ impl Cursor {
 
         // Select a server stream from the topology.
         let (mut stream, slave_ok, send_read_pref) = if cmd_type.is_write_command() {
-            (try!(client.acquire_write_stream()), false, false)
+            (client.acquire_write_stream()?, false, false)
         } else {
-            try!(client.acquire_stream(read_pref.to_owned()))
+            client.acquire_stream(read_pref.to_owned())?
         };
 
         // Set slave_ok flag based on the result from server selection.
@@ -280,7 +280,7 @@ impl Cursor {
         let db_name = String::from(&namespace[..index]);
         let coll_name = String::from(&namespace[index + 1..]);
         let cmd_name = cmd_type.to_str();
-        let connstring = format!("{}", try!(socket.get_ref().peer_addr()));
+        let connstring = format!("{}", socket.get_ref().peer_addr()?);
 
         let filter = match query.get("$query") {
             Some(&Bson::Document(ref doc)) => doc.clone(),
@@ -290,8 +290,7 @@ impl Cursor {
 
         let command = match cmd_type {
             CommandType::Find => {
-                let document =
-                    doc! {
+                let document = doc! {
                     "find": coll_name,
                     "filter": filter
                 };
@@ -302,7 +301,7 @@ impl Cursor {
         };
 
         let init_time = time::precise_time_ns();
-        let result = Message::new_query(
+        let message = Message::new_query(
             req_id,
             flags,
             namespace.clone(),
@@ -310,9 +309,7 @@ impl Cursor {
             options.batch_size.unwrap_or(DEFAULT_BATCH_SIZE),
             query,
             options.projection,
-        );
-
-        let message = try!(result);
+        )?;
 
         if cmd_type != CommandType::Suppressed {
             let hook_result = client.run_start_hooks(&CommandStarted {
@@ -368,19 +365,15 @@ impl Cursor {
             (doc, buf, id, namespace)
         };
 
-        let vec: Vec<_> = buf.iter().map(|doc| Bson::Document(doc.clone())).collect();
-
         let reply = match cmd_type {
-            CommandType::Find => {
-                doc! {
+            CommandType::Find => doc! {
                 "cursor": {
                     "id": cursor_id,
                     "ns": &namespace[..],
-                    "firstBatch": Bson::Array(vec)
+                    "firstBatch": buf.iter().cloned().map(Bson::from).collect::<Vec<_>>(),
                 },
                 "ok": 1
-            }
-            }
+            },
             _ => doc,
         };
 
@@ -411,7 +404,7 @@ impl Cursor {
     }
 
     fn get_from_stream(&mut self) -> Result<()> {
-        let (mut stream, _, _) = try!(self.client.acquire_stream(self.read_preference.to_owned()));
+        let (mut stream, _, _) = self.client.acquire_stream(self.read_preference.to_owned())?;
         let socket = stream.get_socket();
 
         let req_id = self.client.get_req_id();
@@ -427,7 +420,7 @@ impl Cursor {
         );
         let db_name = String::from(&self.namespace[..index]);
         let cmd_name = String::from("get_more");
-        let connstring = format!("{}", try!(socket.get_ref().peer_addr()));
+        let connstring = format!("{}", socket.get_ref().peer_addr()?);
 
         if self.cmd_type != CommandType::Suppressed {
             let hook_result = self.client.run_start_hooks(&CommandStarted {
@@ -451,9 +444,9 @@ impl Cursor {
             get_more.write(socket.get_mut()),
             self.client
         );
-        let reply = try!(Message::read(socket.get_mut()));
+        let reply = Message::read(socket.get_mut())?;
 
-        let (_, v, _) = try!(Cursor::get_bson_and_cid_from_message(reply));
+        let (_, v, _) = Cursor::get_bson_and_cid_from_message(reply)?;
         self.buffer.extend(v);
         Ok(())
     }
@@ -468,19 +461,8 @@ impl Cursor {
     ///
     /// Returns a vector containing the BSON documents that were read.
     pub fn next_n(&mut self, n: i32) -> Result<Vec<bson::Document>> {
-        let mut vec = vec![];
-
-        for _ in 0..n {
-            let bson_option = self.next();
-
-            match bson_option {
-                Some(Ok(bson)) => vec.push(bson),
-                Some(Err(err)) => return Err(err),
-                None => break,
-            };
-        }
-
-        Ok(vec)
+        let n = ::std::cmp::max(0, n) as usize;
+        self.take(n).collect()
     }
 
     /// # Return value
@@ -521,7 +503,7 @@ impl Cursor {
             Ok(false)
         } else {
             if self.buffer.is_empty() && self.limit != 1 && self.cursor_id != 0 {
-                try!(self.get_from_stream());
+                self.get_from_stream()?;
             }
             Ok(!self.buffer.is_empty())
         }
@@ -542,10 +524,7 @@ impl Iterator for Cursor {
         match self.has_next() {
             Ok(true) => {
                 self.count += 1;
-                match self.buffer.pop_front() {
-                    Some(bson) => Some(Ok(bson)),
-                    None => None,
-                }
+                self.buffer.pop_front().map(Ok)
             }
             Ok(false) => None,
             Err(err) => Some(Err(err)),
