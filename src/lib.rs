@@ -341,12 +341,12 @@ impl ThreadedClient for Client {
     }
 
     fn with_uri(uri: &str) -> Result<Client> {
-        let config = try!(connstring::parse(uri));
+        let config = connstring::parse(uri)?;
         Client::with_config(config, None, None)
     }
 
     fn with_uri_and_options(uri: &str, options: ClientOptions) -> Result<Client> {
-        let config = try!(connstring::parse(uri));
+        let config = connstring::parse(uri)?;
         Client::with_config(config, Some(options), None)
     }
 
@@ -370,24 +370,24 @@ impl ThreadedClient for Client {
             Some(string) => {
                 let _ = listener.add_start_hook(log_command_started);
                 let _ = listener.add_completion_hook(log_command_completed);
-                Some(Mutex::new(try!(
+                Some(Mutex::new(
                     OpenOptions::new()
                         .write(true)
                         .append(true)
                         .create(true)
-                        .open(&string)
-                )))
+                        .open(&string)?
+                ))
             }
             None => None,
         };
 
         let client = Arc::new(ClientInner {
             req_id: Arc::new(ATOMIC_ISIZE_INIT),
-            topology: try!(Topology::new(
+            topology: Topology::new(
                 config.clone(),
                 description,
                 client_options.stream_connector.clone(),
-            )),
+            )?,
             listener: listener,
             read_preference: rp,
             write_concern: wc,
@@ -397,12 +397,12 @@ impl ThreadedClient for Client {
         // Fill servers array and set options
         {
             let top_description = &client.topology.description;
-            let mut top = try!(top_description.write());
+            let mut top = top_description.write()?;
             top.heartbeat_frequency_ms = client_options.heartbeat_frequency_ms;
             top.server_selection_timeout_ms = client_options.server_selection_timeout_ms;
             top.local_threshold_ms = client_options.local_threshold_ms;
 
-            for host in &config.hosts {
+            for host in config.hosts {
                 let server = Server::new(
                     client.clone(),
                     host.clone(),
@@ -411,7 +411,7 @@ impl ThreadedClient for Client {
                     client_options.stream_connector.clone(),
                 );
 
-                top.servers.insert(host.clone(), server);
+                top.servers.insert(host, server);
             }
         }
 
@@ -447,11 +447,10 @@ impl ThreadedClient for Client {
     }
 
     fn database_names(&self) -> Result<Vec<String>> {
-        let mut doc = bson::Document::new();
-        doc.insert("listDatabases", Bson::I32(1));
-
+        let doc = doc!{ "listDatabases": 1 };
         let db = self.db("admin");
-        let res = try!(db.command(doc, CommandType::ListDatabases, None));
+        let res = db.command(doc, CommandType::ListDatabases, None)?;
+
         if let Some(&Bson::Array(ref batch)) = res.get("databases") {
             // Extract database names
             let map = batch
@@ -465,26 +464,23 @@ impl ThreadedClient for Client {
                     None
                 })
                 .collect();
-            return Ok(map);
-        }
 
-        Err(ResponseError(
-            String::from("Server reply does not contain 'databases'."),
-        ))
+            Ok(map)
+        } else {
+            Err(ResponseError(
+                String::from("Server reply does not contain 'databases'."),
+            ))
+        }
     }
 
     fn drop_database(&self, db_name: &str) -> Result<()> {
-        let db = self.db(db_name);
-        try!(db.drop_database());
-        Ok(())
+        self.db(db_name).drop_database()
     }
 
     fn is_master(&self) -> Result<bool> {
-        let mut doc = bson::Document::new();
-        doc.insert("isMaster", Bson::I32(1));
-
+        let doc = doc!{ "isMaster": 1 };
         let db = self.db("local");
-        let res = try!(db.command(doc, CommandType::IsMaster, None));
+        let res = db.command(doc, CommandType::IsMaster, None)?;
 
         match res.get("ismaster") {
             Some(&Bson::Boolean(is_master)) => Ok(is_master),
