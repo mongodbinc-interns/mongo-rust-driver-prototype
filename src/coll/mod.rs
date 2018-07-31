@@ -25,6 +25,7 @@ use std::collections::{BTreeMap, VecDeque};
 use std::iter::FromIterator;
 
 /// Interfaces with a MongoDB collection.
+#[derive(Debug)]
 pub struct Collection {
     /// A reference to the database that spawned this collection.
     pub db: Database,

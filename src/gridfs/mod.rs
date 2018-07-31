@@ -45,6 +45,7 @@ use std::{io, fs};
 use std::sync::Arc;
 
 /// A default cursor wrapper that maps bson documents into GridFS file representations.
+#[derive(Debug)]
 pub struct FileCursor {
     store: Store,
     cursor: Cursor,
@@ -69,21 +70,21 @@ impl Iterator for FileCursor {
 impl FileCursor {
     /// Returns the next n files.
     pub fn next_n(&mut self, n: i32) -> Result<Vec<File>> {
-        let docs = try!(self.cursor.next_n(n));
+        let docs = self.cursor.next_n(n)?;
         Ok(
             docs.into_iter()
                 .map(|doc| File::with_doc(self.store.clone(), doc.clone()))
-                .collect(),
+                .collect()
         )
     }
 
     /// Returns the next batch of files.
     pub fn drain_current_batch(&mut self) -> Result<Vec<File>> {
-        let docs = try!(self.cursor.drain_current_batch());
+        let docs = self.cursor.drain_current_batch()?;
         Ok(
             docs.into_iter()
                 .map(|doc| File::with_doc(self.store.clone(), doc))
-                .collect(),
+                .collect()
         )
     }
 }
@@ -92,6 +93,7 @@ impl FileCursor {
 pub type Store = Arc<StoreInner>;
 
 /// Interfaces with a GridFS instance.
+#[derive(Debug)]
 pub struct StoreInner {
     files: Collection,
     chunks: Collection,
@@ -131,8 +133,8 @@ impl ThreadedStore for Store {
 
     fn with_prefix(db: Database, prefix: String) -> Store {
         Arc::new(StoreInner {
-            files: db.collection(&format!("{}.files", prefix)[..]),
-            chunks: db.collection(&format!("{}.chunks", prefix)[..]),
+            files: db.collection(&format!("{}.files", prefix)),
+            chunks: db.collection(&format!("{}.chunks", prefix)),
         })
     }
 
@@ -140,7 +142,7 @@ impl ThreadedStore for Store {
         Ok(File::with_name(
             self.clone(),
             name,
-            try!(oid::ObjectId::new()),
+            oid::ObjectId::new()?,
             Mode::Write,
         ))
     }
@@ -149,17 +151,17 @@ impl ThreadedStore for Store {
         let mut options = FindOptions::new();
         options.sort = Some(doc!{ "uploadDate": 1 });
 
-        match try!(self.files.find_one(
+        match self.files.find_one(
             Some(doc!{ "filename": name }),
             Some(options),
-        )) {
+        )? {
             Some(bdoc) => Ok(File::with_doc(self.clone(), bdoc)),
             None => Err(ArgumentError(String::from("File does not exist."))),
         }
     }
 
     fn open_id(&self, id: oid::ObjectId) -> Result<File> {
-        match try!(self.files.find_one(Some(doc!{ "_id": id }), None)) {
+        match self.files.find_one(Some(doc!{ "_id": id }), None)? {
             Some(bdoc) => Ok(File::with_doc(self.clone(), bdoc)),
             None => Err(ArgumentError(String::from("File does not exist."))),
         }
@@ -172,7 +174,7 @@ impl ThreadedStore for Store {
     ) -> Result<FileCursor> {
         Ok(FileCursor {
             store: self.clone(),
-            cursor: try!(self.files.find(filter, options)),
+            cursor: self.files.find(filter, options)?,
             err: None,
         })
     }
@@ -181,36 +183,36 @@ impl ThreadedStore for Store {
         let mut options = FindOptions::new();
         options.projection = Some(doc!{ "_id": 1 });
 
-        let cursor = try!(self.find(Some(doc!{ "filename": name }), Some(options)));
+        let cursor = self.find(Some(doc!{ "filename": name }), Some(options))?;
         for doc in cursor {
-            try!(self.remove_id(doc.id.clone()));
+            self.remove_id(doc.id.clone())?;
         }
 
         Ok(())
     }
 
     fn remove_id(&self, id: oid::ObjectId) -> Result<()> {
-        try!(self.files.delete_many(doc!{ "_id": id.clone() }, None));
-        try!(self.chunks.delete_many(
+        self.files.delete_many(doc!{ "_id": id.clone() }, None)?;
+        self.chunks.delete_many(
             doc!{ "files_id": id.clone() },
             None,
-        ));
+        )?;
         Ok(())
     }
 
     fn put(&self, name: String) -> Result<()> {
-        let mut file = try!(self.create(name.clone()));
-        let mut f = try!(fs::File::open(name));
-        try!(io::copy(&mut f, &mut file));
-        try!(file.close());
+        let mut file = self.create(name.clone())?;
+        let mut f = fs::File::open(name)?;
+        io::copy(&mut f, &mut file)?;
+        file.close()?;
         Ok(())
     }
 
     fn get(&self, name: String) -> Result<()> {
-        let mut f = try!(fs::File::create(name.clone()));
-        let mut file = try!(self.open(name));
-        try!(io::copy(&mut file, &mut f));
-        try!(file.close());
+        let mut f = fs::File::create(name.clone())?;
+        let mut file = self.open(name)?;
+        io::copy(&mut file, &mut f)?;
+        file.close()?;
         Ok(())
     }
 }
