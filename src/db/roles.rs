@@ -3,7 +3,7 @@ use std::string::ToString;
 
 use bson::Bson;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum SingleDatabaseRole {
     Read,
     ReadWrite,
@@ -18,9 +18,9 @@ pub enum SingleDatabaseRole {
     Restore,
 }
 
-impl ToString for SingleDatabaseRole {
-    fn to_string(&self) -> String {
-        let string = match *self {
+impl SingleDatabaseRole {
+    fn to_str(&self) -> &'static str {
+        match *self {
             SingleDatabaseRole::Read => "read",
             SingleDatabaseRole::ReadWrite => "readWrite",
             SingleDatabaseRole::DbAdmin => "dbAdmin",
@@ -32,13 +32,17 @@ impl ToString for SingleDatabaseRole {
             SingleDatabaseRole::HostManager => "hostManager",
             SingleDatabaseRole::Backup => "backup",
             SingleDatabaseRole::Restore => "restore",
-        };
-
-        String::from(string)
+        }
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+impl ToString for SingleDatabaseRole {
+    fn to_string(&self) -> String {
+        self.to_str().into()
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum AllDatabaseRole {
     Read,
     ReadWrite,
@@ -46,16 +50,20 @@ pub enum AllDatabaseRole {
     DbAdmin,
 }
 
-impl ToString for AllDatabaseRole {
-    fn to_string(&self) -> String {
-        let string = match *self {
+impl AllDatabaseRole {
+    fn to_str(&self) -> &'static str {
+        match *self {
             AllDatabaseRole::Read => "read",
             AllDatabaseRole::ReadWrite => "readWrite",
             AllDatabaseRole::UserAdmin => "userAdmin",
             AllDatabaseRole::DbAdmin => "dbAdmin",
-        };
+        }
+    }
+}
 
-        String::from(string)
+impl ToString for AllDatabaseRole {
+    fn to_string(&self) -> String {
+        self.to_str().into()
     }
 }
 
@@ -71,11 +79,11 @@ pub enum Role {
 impl From<Role> for Bson {
     fn from(role: Role) -> Bson {
         match role {
-            Role::All(role) => Bson::String(role.to_string()),
+            Role::All(role) => role.to_string().into(),
             Role::Single { role, db } => {
                 Bson::Document(doc! {
-                  "role": Bson::String(role.to_string()),
-                  "db": Bson::String(db)
+                  "role": role.to_string(),
+                  "db": db
               })
             }
         }
@@ -89,6 +97,6 @@ impl Role {
 
     #[deprecated(since = "0.2.4", note = "this method will be removed in the next major release")]
     pub fn to_bson_array(vec: Vec<Role>) -> Bson {
-        Bson::Array(vec.into_iter().map(|r| r.to_bson()).collect())
+        Bson::Array(vec.iter().map(Self::to_bson).collect())
     }
 }
