@@ -6,7 +6,7 @@ use super::error::{BulkWriteException, WriteException};
 use super::options::WriteModel;
 
 /// Results for a bulk write operation.
-#[derive(Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq)]
 pub struct BulkWriteResult {
     pub acknowledged: bool,
     pub inserted_count: i32,
@@ -20,7 +20,7 @@ pub struct BulkWriteResult {
 }
 
 /// Results for a bulk delete operation.
-#[derive(Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct BulkDeleteResult {
     pub acknowledged: bool,
     pub deleted_count: i32,
@@ -28,7 +28,7 @@ pub struct BulkDeleteResult {
 }
 
 /// Results for a bulk update operation.
-#[derive(Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct BulkUpdateResult {
     pub acknowledged: bool,
     pub matched_count: i32,
@@ -38,7 +38,7 @@ pub struct BulkUpdateResult {
 }
 
 /// Results for an insertOne operation.
-#[derive(Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct InsertOneResult {
     pub acknowledged: bool,
     pub inserted_id: Option<Bson>,
@@ -46,7 +46,7 @@ pub struct InsertOneResult {
 }
 
 /// Results for an insertMany operation.
-#[derive(Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct InsertManyResult {
     pub acknowledged: bool,
     pub inserted_ids: Option<BTreeMap<i64, Bson>>,
@@ -54,7 +54,7 @@ pub struct InsertManyResult {
 }
 
 /// Results for a deletion operation.
-#[derive(Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct DeleteResult {
     pub acknowledged: bool,
     pub deleted_count: i32,
@@ -62,7 +62,7 @@ pub struct DeleteResult {
 }
 
 /// Results for an update operation.
-#[derive(Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct UpdateResult {
     pub acknowledged: bool,
     pub matched_count: i32,
