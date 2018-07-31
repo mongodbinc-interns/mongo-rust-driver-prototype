@@ -8,30 +8,27 @@ use std::{error, fmt, io, result, sync};
 /// `mongodb::Error`.
 pub type Result<T> = result::Result<T, Error>;
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum MaliciousServerErrorType {
     InvalidRnonce,
     InvalidServerSignature,
     NoServerSignature,
 }
 
+impl MaliciousServerErrorType {
+    fn to_str(&self) -> &'static str {
+        use self::MaliciousServerErrorType::*;
+        match *self {
+            InvalidRnonce => "The server returned an invalid rnonce during authentication",
+            InvalidServerSignature => "The server returned an invalid signature during authentication",
+            NoServerSignature => "The server did not sign its reponse during authentication",
+        }
+    }
+}
+
 impl fmt::Display for MaliciousServerErrorType {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        match *self {
-            MaliciousServerErrorType::InvalidRnonce => {
-                fmt.write_str(
-                    "The server returned an invalid rnonce during authentication",
-                )
-            }
-            MaliciousServerErrorType::InvalidServerSignature => {
-                fmt.write_str(
-                    "The server returned an invalid signature during authentication",
-                )
-            }
-            MaliciousServerErrorType::NoServerSignature => {
-                fmt.write_str("The server did not sign its reponse during authentication")
-            }
-        }
+        fmt.write_str(self.to_str())
     }
 }
 
@@ -91,7 +88,7 @@ impl<'a> From<&'a str> for Error {
 
 impl From<String> for Error {
     fn from(s: String) -> Error {
-        Error::DefaultError(String::from(s))
+        Error::DefaultError(s)
     }
 }
 
@@ -156,10 +153,8 @@ impl fmt::Display for Error {
             Error::ArgumentError(ref inner) => inner.fmt(fmt),
             Error::OperationError(ref inner) => inner.fmt(fmt),
             Error::ResponseError(ref inner) => inner.fmt(fmt),
-            Error::CursorNotFoundError => write!(fmt, "No cursor found for cursor operation."),
-            Error::PoisonLockError => {
-                write!(fmt, "Socket lock poisoned while attempting to access.")
-            }
+            Error::CursorNotFoundError => fmt.write_str("No cursor found for cursor operation."),
+            Error::PoisonLockError => fmt.write_str("Socket lock poisoned while attempting to access."),
             Error::CodedError(ref err) => write!(fmt, "{}", err),
             Error::EventListenerError(ref err) => {
                 match *err {
@@ -170,7 +165,7 @@ impl fmt::Display for Error {
                             e
                         )
                     }
-                    None => write!(fmt, "Unable to emit failure due to poisoned lock"),
+                    None => fmt.write_str("Unable to emit failure due to poisoned lock"),
                 }
             }
             Error::MaliciousServerError(ref err) => write!(fmt, "{}", err),
@@ -198,19 +193,7 @@ impl error::Error for Error {
                     None => "Due to a poisoned lock on the listeners, unable to emit event",
                 }
             }
-            Error::MaliciousServerError(ref err) => {
-                match *err {
-                    MaliciousServerErrorType::InvalidRnonce => {
-                        "The server returned an invalid rnonce during authentication"
-                    }
-                    MaliciousServerErrorType::InvalidServerSignature => {
-                        "The server returned an invalid signature during authentication"
-                    }
-                    MaliciousServerErrorType::NoServerSignature => {
-                        "The server did not sign its reponse during authentication"
-                    }
-                }
-            }
+            Error::MaliciousServerError(err) => err.to_str(),
             Error::ArgumentError(ref inner) |
             Error::OperationError(ref inner) |
             Error::ResponseError(ref inner) |
@@ -241,7 +224,7 @@ impl error::Error for Error {
 }
 
 #[allow(non_camel_case_types)]
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ErrorCode {
     OK = 0,
     InternalError = 1,
@@ -416,7 +399,7 @@ impl ErrorCode {
             *self == ErrorCode::IndexAlreadyExists
     }
 
-    fn to_str(&self) -> &str {
+    fn to_str(&self) -> &'static str {
         match *self {
             ErrorCode::OK => "OK",
             ErrorCode::InternalError => "InternalError",
