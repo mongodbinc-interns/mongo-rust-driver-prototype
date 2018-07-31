@@ -23,7 +23,7 @@ pub const DEFAULT_CHUNK_SIZE: i32 = 255 * 1024;
 pub const MEGABYTE: usize = 1024 * 1024;
 
 /// File modes.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Mode {
     Closed,
     Read,
@@ -31,11 +31,13 @@ pub enum Mode {
 }
 
 // Helper class to implement a threaded mutable error.
+#[derive(Debug)]
 struct InnerError {
     inner: Option<Error>,
 }
 
 /// A writable or readable file stream within GridFS.
+#[derive(Debug)]
 pub struct File {
     // The file lock.
     mutex: Arc<Mutex<()>>,
@@ -66,6 +68,7 @@ pub struct File {
 }
 
 /// A one-to-one representation of a file document within GridFS.
+#[derive(Debug)]
 pub struct GfsFile {
     // The byte length.
     len: i64,
@@ -87,13 +90,14 @@ pub struct GfsFile {
     pub metadata: Option<Vec<u8>>,
 }
 
-// A pre-loaded chunk.
+/// A pre-loaded chunk.
+#[derive(Debug)]
 struct CachedChunk {
-    // The file chunk index.
+    /// The file chunk index.
     n: i32,
-    // The binary chunk data.
+    /// The binary chunk data.
     data: Vec<u8>,
-    // The error that occurred during reading, if any occurred.
+    /// The error that occurred during reading, if any occurred.
     err: Option<Error>,
 }
 
@@ -158,7 +162,7 @@ impl File {
 
     /// Retrieves the description of the threaded error, if one occurred.
     pub fn err_description(&self) -> Result<Option<String>> {
-        let err = try!(self.err.read());
+        let err = self.err.read()?;
         let inner = &err.deref().inner;
         let description = match *inner {
             Some(ref err) => Some(String::from(err.description())),
@@ -169,14 +173,16 @@ impl File {
 
     /// Ensures the file mode matches the desired mode.
     pub fn assert_mode(&self, mode: Mode) -> Result<()> {
-        if self.mode != mode {
-            return match self.mode {
-                Mode::Read => Err(ArgumentError(String::from("File is open for reading."))),
-                Mode::Write => Err(ArgumentError(String::from("File is open for writing."))),
-                Mode::Closed => Err(ArgumentError(String::from("File is closed."))),
+        if self.mode == mode {
+            Ok(())
+        } else {
+            let message = match self.mode {
+                Mode::Read => "File is open for reading.",
+                Mode::Write => "File is open for writing.",
+                Mode::Closed => "File is closed.",
             };
+            Err(ArgumentError(String::from(message)))
         }
-        Ok(())
     }
 
     /// Completes writing or reading and closes the file. This will be called when the
@@ -186,37 +192,38 @@ impl File {
 
         // Flush chunks
         if self.mode == Mode::Write {
-            try!(self.flush());
+            self.flush()?;
         }
 
-        let _ = try!(self.mutex.lock());
+        // XXX: Shouldn't this be `_variable`? Binding to `_` drops the value immediately...
+        let _ = self.mutex.lock()?;
 
         // Complete file write
         if self.mode == Mode::Write {
-            if try!(self.err_description()).is_none() {
+            if self.err_description()?.is_none() {
                 if self.doc.upload_date.is_none() {
                     self.doc.upload_date = Some(Utc::now());
                 }
                 self.doc.md5 = hex::encode(self.wsum.result());
-                try!(self.gfs.files.insert_one(self.doc.to_bson(), None));
+                self.gfs.files.insert_one(self.doc.to_bson(), None)?;
 
                 // Ensure indexes
-                try!(self.gfs.files.create_index(doc!{ "filename": 1 }, None));
+                self.gfs.files.create_index(doc!{ "filename": 1 }, None)?;
 
                 let mut opts = IndexOptions::new();
                 opts.unique = Some(true);
-                try!(self.gfs.chunks.create_index(
+                self.gfs.chunks.create_index(
                     doc! {
                         "files_id": 1,
                         "n": 1,
                     },
                     Some(opts),
-                ));
+                )?;
             } else {
-                try!(self.gfs.chunks.delete_many(
+                self.gfs.chunks.delete_many(
                     doc! { "files_id": self.doc.id.clone() },
                     None,
-                ));
+                )?;
             }
         }
 
@@ -224,14 +231,15 @@ impl File {
         if self.mode == Mode::Read && self.rcache.is_some() {
             {
                 let cache = self.rcache.as_ref().unwrap();
-                let _ = try!(cache.lock());
+                // XXX: what's the point in an immediately-dropped lock guard?
+                let _ = cache.lock()?;
             }
             self.rcache = None;
         }
 
         self.mode = Mode::Closed;
 
-        let description = try!(self.err_description());
+        let description = self.err_description()?;
         if description.is_some() {
             Err(OperationError(description.unwrap()))
         } else {
@@ -247,9 +255,8 @@ impl File {
         let mut vec_buf = Vec::with_capacity(buf.len());
         vec_buf.extend(buf.iter().cloned());
 
-        let document =
-            doc! {
-            "_id": try!(oid::ObjectId::new()),
+        let document = doc! {
+            "_id": oid::ObjectId::new()?,
             "files_id": self.doc.id.clone(),
             "n": n,
             "data": (BinarySubtype::Generic, vec_buf)
@@ -266,6 +273,7 @@ impl File {
             let result = arc_gfs.chunks.insert_one(document, None);
 
             // Complete pending write
+            // XXX: shouldn't this be `_variable` too? Assigning to `_` drops the guard immediately.
             let _ = arc_mutex.lock();
             arc_wpending.fetch_sub(1, Ordering::SeqCst);
             if result.is_err() {
@@ -286,7 +294,7 @@ impl File {
             "n": chunk_num,
         };
 
-        match try!(self.gfs.chunks.find_one(Some(filter), None)) {
+        match self.gfs.chunks.find_one(Some(filter), None)? {
             Some(doc) => {
                 match doc.get("data") {
                     Some(&Bson::Binary(_, ref buf)) => Ok(buf.clone()),
@@ -304,14 +312,14 @@ impl File {
 
         // Find the file chunk from the cache or from GridFS.
         let data = if let Some(lock) = self.rcache.take() {
-            let cache = try!(lock.lock());
+            let cache = lock.lock()?;
             if cache.n == curr_chunk_num && cache.err.is_none() {
                 cache.data.clone()
             } else {
-                try!(self.find_chunk(id, curr_chunk_num))
+                self.find_chunk(id, curr_chunk_num)?
             }
         } else {
-            try!(self.find_chunk(id, curr_chunk_num))
+            self.find_chunk(id, curr_chunk_num)?
         };
 
         self.chunk_num += 1;
@@ -371,14 +379,14 @@ impl File {
 
 impl io::Write for File {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        try!(self.assert_mode(Mode::Write));
+        self.assert_mode(Mode::Write)?;
 
         let mut guard = match self.mutex.lock() {
             Ok(guard) => guard,
             Err(_) => return Err(io::Error::new(io::ErrorKind::Other, PoisonLockError)),
         };
 
-        let description = try!(self.err_description());
+        let description = self.err_description()?;
         if description.is_some() {
             return Err(io::Error::new(
                 io::ErrorKind::Other,
@@ -422,7 +430,7 @@ impl io::Write for File {
                     Err(_) => return Err(io::Error::new(io::ErrorKind::Other, PoisonLockError)),
                 };
 
-                let description = try!(self.err_description());
+                let description = self.err_description()?;
                 if description.is_some() {
                     return Err(io::Error::new(
                         io::ErrorKind::Other,
@@ -433,7 +441,7 @@ impl io::Write for File {
 
             // Flush chunk to GridFS
             let chunk = self.wbuf.clone();
-            try!(self.insert_chunk(curr_chunk_num, &chunk));
+            self.insert_chunk(curr_chunk_num, &chunk)?;
             self.wbuf.clear();
         }
 
@@ -455,7 +463,7 @@ impl io::Write for File {
                     Err(_) => return Err(io::Error::new(io::ErrorKind::Other, PoisonLockError)),
                 };
 
-                let description = try!(self.err_description());
+                let description = self.err_description()?;
                 if description.is_some() {
                     return Err(io::Error::new(
                         io::ErrorKind::Other,
@@ -464,7 +472,7 @@ impl io::Write for File {
                 }
             }
 
-            try!(self.insert_chunk(curr_chunk_num, part1));
+            self.insert_chunk(curr_chunk_num, part1)?;
             data = part2;
         }
 
@@ -474,7 +482,7 @@ impl io::Write for File {
     }
 
     fn flush(&mut self) -> io::Result<()> {
-        try!(self.assert_mode(Mode::Write));
+        self.assert_mode(Mode::Write)?;
 
         let mut guard = match self.mutex.lock() {
             Ok(guard) => guard,
@@ -482,7 +490,7 @@ impl io::Write for File {
         };
 
         // Flush local buffer to GridFS
-        if !self.wbuf.is_empty() && try!(self.err_description()).is_none() {
+        if !self.wbuf.is_empty() && self.err_description()?.is_none() {
             let chunk_num = self.chunk_num;
             self.chunk_num += 1;
             self.wsum.input(&self.wbuf);
@@ -498,9 +506,9 @@ impl io::Write for File {
             }
 
             // Flush and clear local buffer.
-            if try!(self.err_description()).is_none() {
+            if self.err_description()?.is_none() {
                 let chunk = self.wbuf.clone();
-                try!(self.insert_chunk(chunk_num, &chunk));
+                self.insert_chunk(chunk_num, &chunk)?;
                 self.wbuf.clear();
             }
         }
@@ -513,7 +521,7 @@ impl io::Write for File {
             }
         }
 
-        let description = try!(self.err_description());
+        let description = self.err_description()?;
         if description.is_some() {
             return Err(io::Error::new(
                 io::ErrorKind::Other,
@@ -527,7 +535,7 @@ impl io::Write for File {
 
 impl io::Read for File {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        try!(self.assert_mode(Mode::Read));
+        self.assert_mode(Mode::Read)?;
 
         let _ = match self.mutex.lock() {
             Ok(guard) => guard,
@@ -541,12 +549,12 @@ impl io::Read for File {
 
         // Read all required chunks into memory
         while self.rbuf.len() < buf.len() {
-            let chunk = try!(self.get_chunk());
+            let chunk = self.get_chunk()?;
             self.rbuf.extend(chunk);
         }
 
         // Write into buf
-        let i = try!((&mut *buf).write(&self.rbuf));
+        let i = (&mut *buf).write(&self.rbuf)?;
         self.offset += i as i64;
 
         // Save unread chunk portion into local read buffer
@@ -616,16 +624,16 @@ impl GfsFile {
             file.name = Some(name.to_owned());
         }
 
-        if let Some(&Bson::I32(ref chunk_size)) = doc.get("chunkSize") {
-            file.chunk_size = *chunk_size;
+        if let Some(&Bson::I32(chunk_size)) = doc.get("chunkSize") {
+            file.chunk_size = chunk_size;
         }
 
-        if let Some(&Bson::UtcDatetime(ref datetime)) = doc.get("uploadDate") {
-            file.upload_date = Some(*datetime);
+        if let Some(&Bson::UtcDatetime(datetime)) = doc.get("uploadDate") {
+            file.upload_date = Some(datetime);
         }
 
-        if let Some(&Bson::I64(ref length)) = doc.get("length") {
-            file.len = *length;
+        if let Some(&Bson::I64(length)) = doc.get("length") {
+            file.len = length;
         }
 
         if let Some(&Bson::String(ref hash)) = doc.get("md5") {
@@ -645,8 +653,7 @@ impl GfsFile {
 
     /// Converts a GfsFile into a bson document.
     pub fn to_bson(&self) -> bson::Document {
-        let mut doc =
-            doc! {
+        let mut doc = doc! {
             "_id": self.id.clone(),
             "chunkSize": self.chunk_size,
             "length": self.len,
@@ -654,28 +661,16 @@ impl GfsFile {
             "uploadDate": self.upload_date.as_ref().unwrap().clone()
         };
 
-        if self.name.is_some() {
-            doc.insert(
-                "filename",
-                Bson::String(self.name.as_ref().unwrap().to_owned()),
-            );
+        if let Some(name) = self.name.as_ref() {
+            doc.insert("filename", name);
         }
 
-        if self.content_type.is_some() {
-            doc.insert(
-                "contentType",
-                Bson::String(self.content_type.as_ref().unwrap().to_owned()),
-            );
+        if let Some(content_type) = self.content_type.as_ref() {
+            doc.insert("contentType", content_type);
         }
 
-        if self.metadata.is_some() {
-            doc.insert(
-                "metadata",
-                Bson::Binary(
-                    BinarySubtype::Generic,
-                    self.metadata.as_ref().unwrap().clone(),
-                ),
-            );
+        if let Some(metadata) = self.metadata.as_ref() {
+            doc.insert("metadata", (BinarySubtype::Generic, metadata.clone()));
         }
 
         doc
