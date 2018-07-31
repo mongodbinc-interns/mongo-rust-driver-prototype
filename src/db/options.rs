@@ -3,7 +3,7 @@ use bson::{Bson, Document};
 use common::WriteConcern;
 use db::roles::Role;
 
-#[derive(Default)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
 pub struct CreateCollectionOptions {
     pub capped: Option<bool>,
     pub auto_index_id: Option<bool>,
@@ -39,25 +39,25 @@ impl From<CreateCollectionOptions> for Document {
             document.insert("max", Bson::I64(max));
         }
 
-        let mut flags = 0;
+        let mut flags = 0_i32;
 
         if let Some(true) = options.use_power_of_two_sizes {
-            flags += 1;
+            flags |= 1;
         }
 
         if let Some(true) = options.no_padding {
-            flags += 2;
+            flags |= 2;
         }
 
-        if options.use_power_of_two_sizes.is_some() || options.no_padding.is_some() {
-            document.insert("flags", Bson::I32(flags));
+        if flags != 0 {
+            document.insert("flags", flags);
         }
 
         document
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Clone, Debug, PartialEq)]
 pub struct CreateUserOptions {
     pub custom_data: Option<Document>,
     pub roles: Vec<Role>,
@@ -78,19 +78,19 @@ impl From<CreateUserOptions> for Document {
             document.insert("customData", Bson::Document(custom_data));
         }
 
-        let roles_barr = options.roles.into_iter().map(|r| r.to_bson()).collect();
+        let roles_barr = options.roles.iter().map(Role::to_bson).collect();
 
         document.insert("roles", Bson::Array(roles_barr));
 
         if let Some(write_concern) = options.write_concern {
-            document.insert("writeConcern", Bson::Document(write_concern.to_bson()));
+            document.insert("writeConcern", write_concern.to_bson());
         }
 
         document
     }
 }
 
-#[derive(Default)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
 pub struct UserInfoOptions {
     pub show_credentials: Option<bool>,
     pub show_privileges: Option<bool>,
@@ -107,11 +107,11 @@ impl From<UserInfoOptions> for Document {
         let mut document = Document::new();
 
         if let Some(show_credentials) = options.show_credentials {
-            document.insert("showCredentials", Bson::Boolean(show_credentials));
+            document.insert("showCredentials", show_credentials);
         }
 
         if let Some(show_privileges) = options.show_privileges {
-            document.insert("showPrivileges", Bson::Boolean(show_privileges));
+            document.insert("showPrivileges", show_privileges);
         }
 
         document
