@@ -16,10 +16,12 @@ use error::Result;
 use textnonce::TextNonce;
 
 /// Handles SCRAM-SHA-1 authentication logic.
+#[derive(Debug)]
 pub struct Authenticator {
     db: Database,
 }
 
+#[derive(Debug, Clone, PartialEq)]
 struct InitialData {
     message: String,
     response: String,
@@ -27,6 +29,7 @@ struct InitialData {
     conversation_id: Bson,
 }
 
+#[derive(Debug, Clone, PartialEq)]
 struct AuthData {
     salted_password: [u8; 20],
     message: String,
@@ -39,15 +42,15 @@ const SHA1_OUTPUT: usize = 20;
 impl Authenticator {
     /// Creates a new authenticator.
     pub fn new(db: Database) -> Authenticator {
-        Authenticator { db: db }
+        Authenticator { db }
     }
 
     /// Authenticates a user-password pair against a database.
     pub fn auth(self, user: &str, password: &str) -> Result<()> {
-        let initial_data = try!(self.start(user));
+        let initial_data = self.start(user)?;
         let conversation_id = initial_data.conversation_id.clone();
         let full_password = format!("{}:mongo:{}", user, password);
-        let auth_data = try!(self.next(full_password, initial_data));
+        let auth_data = self.next(full_password, initial_data)?;
 
         self.finish(conversation_id, auth_data)
     }
@@ -63,15 +66,14 @@ impl Authenticator {
         let bytes = format!("n,,{}", message).into_bytes();
         let binary = Binary(Generic, bytes);
 
-        let start_doc =
-            doc! {
+        let start_doc = doc! {
             "saslStart": 1,
             "autoAuthorize": 1,
             "payload": binary,
             "mechanism": "SCRAM-SHA-1"
         };
 
-        let doc = try!(self.db.command(start_doc, Suppressed, None));
+        let doc = self.db.command(start_doc, Suppressed, None)?;
 
         let data = match doc.get("payload") {
             Some(&Binary(_, ref payload)) => payload.to_owned(),
@@ -177,24 +179,24 @@ impl Authenticator {
         }
 
         // Compute proof by xor'ing key and signature
-        let mut proof = vec![];
-        for i in 0..client_key.len() {
-            proof.push(client_key[i] ^ client_signature[i]);
-        }
+        let proof: Vec<_> = client_key
+            .into_iter()
+            .zip(client_signature)
+            .map(|(key_byte, sig_byte)| key_byte ^ sig_byte)
+            .collect();
 
         // Encode proof and produce the message to send to the server
         let b64_proof = BASE64.encode(&proof);
         let final_message = format!("{},p={}", without_proof, b64_proof);
         let binary = Binary(Generic, final_message.into_bytes());
 
-        let next_doc =
-            doc! {
-                "saslContinue": 1,
-                "payload": binary,
-                "conversationId": initial_data.conversation_id.clone()
-            };
+        let next_doc = doc! {
+            "saslContinue": 1,
+            "payload": binary,
+            "conversationId": initial_data.conversation_id.clone(),
+        };
 
-        let response = try!(self.db.command(next_doc, Suppressed, None));
+        let response = self.db.command(next_doc, Suppressed, None)?;
 
         Ok(AuthData {
             salted_password: salted_password,
@@ -204,12 +206,11 @@ impl Authenticator {
     }
 
     fn finish(&self, conversation_id: Bson, auth_data: AuthData) -> Result<()> {
-        let final_doc =
-            doc! {
-                "saslContinue": 1,
-                "payload": Binary(Generic, vec![]),
-                "conversationId": conversation_id
-            };
+        let final_doc = doc! {
+            "saslContinue": 1,
+            "payload": Binary(Generic, Vec::new()),
+            "conversationId": conversation_id,
+        };
 
         // Compute server key
         let mut server_key_hmac = HmacSha1::new_varkey(&auth_data.salted_password)
@@ -256,7 +257,7 @@ impl Authenticator {
                 }
             }
 
-            doc = try!(self.db.command(final_doc.clone(), Suppressed, None));
+            doc = self.db.command(final_doc.clone(), Suppressed, None)?;
 
             if let Some(&Bson::Boolean(true)) = doc.get("done") {
                 return Ok(());

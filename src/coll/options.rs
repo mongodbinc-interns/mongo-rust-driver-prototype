@@ -348,7 +348,7 @@ impl IndexModel {
     pub fn name(&self) -> Result<String> {
         Ok(match self.options.name {
             Some(ref name) => name.to_owned(),
-            None => try!(self.generate_index_name()),
+            None => self.generate_index_name()?,
         })
     }
 

@@ -183,11 +183,11 @@ impl Collection {
             self.read_preference.clone()
         });
 
-        let result = try!(self.db.command(
+        let result = self.db.command(
             spec,
             CommandType::Distinct,
             Some(read_preference),
-        ));
+        )?;
         match result.get("values") {
             Some(&Bson::Array(ref vals)) => Ok(vals.to_owned()),
             _ => Err(ResponseError(
@@ -334,7 +334,7 @@ impl Collection {
         replacement: bson::Document,
         options: Option<FindOneAndUpdateOptions>,
     ) -> Result<Option<bson::Document>> {
-        try!(Collection::validate_replace(&replacement));
+        Collection::validate_replace(&replacement)?;
 
         let (max_time_ms, write_concern) = match options {
             Some(ref opts) => (opts.max_time_ms, opts.write_concern.clone()),

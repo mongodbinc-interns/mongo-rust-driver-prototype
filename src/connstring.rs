@@ -139,12 +139,12 @@ pub fn parse(address: &str) -> Result<ConnectionString> {
     // Split on authentication and hosts
     if host_str.contains('@') {
         let (user_info, host_string) = rpartition(host_str, "@");
-        let (u, p) = try!(parse_user_info(user_info));
+        let (u, p) = parse_user_info(user_info)?;
         user = Some(String::from(u));
         password = Some(String::from(p));
-        hosts = try!(split_hosts(host_string));
+        hosts = split_hosts(host_string)?;
     } else {
-        hosts = try!(split_hosts(host_str));
+        hosts = split_hosts(host_str)?;
     }
 
     let mut opts = "";
@@ -257,7 +257,7 @@ fn split_hosts(host_str: &str) -> Result<Vec<Host>> {
                 String::from("Empty host, or extra comma in host list."),
             ));
         }
-        let host = try!(parse_host(entity));
+        let host = parse_host(entity)?;
         hosts.push(host);
     }
     Ok(hosts)
