@@ -11,6 +11,8 @@ use stream::{Stream, StreamConnector};
 use wire_protocol::flags::OpQueryFlags;
 
 use bufstream::BufStream;
+
+use std::fmt;
 use std::sync::{Arc, Condvar, Mutex};
 use std::sync::atomic::{AtomicUsize, Ordering, ATOMIC_USIZE_INIT};
 
@@ -27,6 +29,14 @@ pub struct ConnectionPool {
     // to be repopulated with available connections.
     wait_lock: Arc<Condvar>,
     stream_connector: StreamConnector,
+}
+
+impl fmt::Debug for ConnectionPool {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("ConnectionPool")
+            .field("host", &self.host)
+            .finish()
+    }
 }
 
 struct Pool {

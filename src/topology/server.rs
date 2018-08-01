@@ -23,7 +23,7 @@ use super::TopologyDescription;
 pub const ROUND_TRIP_DIVISOR: i64 = 5;
 
 /// Describes the server role within a server set.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum ServerType {
     /// Standalone server.
     Standalone,
@@ -43,8 +43,14 @@ pub enum ServerType {
     Unknown,
 }
 
+impl Default for ServerType {
+    fn default() -> Self {
+        ServerType::Unknown
+    }
+}
+
 /// Server information gathered from server monitoring.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct ServerDescription {
     /// The server type.
     pub server_type: ServerType,
@@ -77,7 +83,7 @@ pub struct ServerDescription {
 }
 
 /// Holds status and connection information about a single server.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Server {
     /// Host connection details.
     pub host: Host,
@@ -91,6 +97,7 @@ pub struct Server {
 
 impl FromStr for ServerType {
     type Err = Error;
+
     fn from_str(s: &str) -> Result<Self> {
         Ok(match s {
             "Standalone" => ServerType::Standalone,
@@ -105,31 +112,10 @@ impl FromStr for ServerType {
     }
 }
 
-impl Default for ServerDescription {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl ServerDescription {
     /// Returns a default, unknown server description.
     pub fn new() -> ServerDescription {
-        ServerDescription {
-            server_type: ServerType::Unknown,
-            err: Arc::new(None),
-            round_trip_time: None,
-            min_wire_version: 0,
-            max_wire_version: 0,
-            me: None,
-            hosts: Vec::new(),
-            passives: Vec::new(),
-            arbiters: Vec::new(),
-            tags: BTreeMap::new(),
-            set_name: String::new(),
-            election_id: None,
-            primary: None,
-            set_version: None,
-        }
+        Default::default()
     }
 
     // Updates the server description using an isMaster server response.

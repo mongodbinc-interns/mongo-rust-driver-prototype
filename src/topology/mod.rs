@@ -15,6 +15,7 @@ use stream::StreamConnector;
 use rand::{thread_rng, Rng};
 
 use std::collections::HashMap;
+use std::fmt;
 use std::i64;
 use std::str::FromStr;
 use std::sync::{Arc, RwLock};
@@ -67,8 +68,26 @@ pub struct TopologyDescription {
     stream_connector: StreamConnector,
 }
 
+impl fmt::Debug for TopologyDescription {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("TopologyDescription")
+            .field("topology_type", &self.topology_type)
+            .field("set_name", &self.set_name)
+            .field("servers", &"HashMap<Host, Server> { .. }")
+            .field("heartbeat_frequency_ms", &self.heartbeat_frequency_ms)
+            .field("local_threshold_ms", &self.local_threshold_ms)
+            .field("server_selection_timeout_ms", &self.server_selection_timeout_ms)
+            .field("max_election_id", &self.max_election_id)
+            .field("compatible", &self.compatible)
+            .field("max_set_version", &self.max_set_version)
+            .field("compat_error", &self.compat_error)
+            .field("stream_connector", &"StreamConnector { .. }")
+            .finish()
+    }
+}
+
 /// Holds status and connection information about a server set.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Topology {
     /// The initial connection configuration.
     pub config: ConnectionString,
@@ -78,6 +97,7 @@ pub struct Topology {
 
 impl FromStr for TopologyType {
     type Err = Error;
+
     fn from_str(s: &str) -> Result<Self> {
         Ok(match s {
             "Single" => TopologyType::Single,
@@ -109,10 +129,8 @@ impl Default for TopologyDescription {
 
 impl TopologyDescription {
     /// Returns a default, unknown topology description.
-    pub fn new(connector: StreamConnector) -> TopologyDescription {
-        let mut description = TopologyDescription::default();
-        description.stream_connector = connector;
-        description
+    pub fn new(stream_connector: StreamConnector) -> TopologyDescription {
+        TopologyDescription { stream_connector, ..Default::default() }
     }
 
     /// Returns the nearest server stream, calculated by round trip time.
@@ -135,7 +153,7 @@ impl TopologyDescription {
         });
 
         // Iterate over each host until one's stream can be acquired.
-        for host in servers.iter() {
+        for host in servers {
             if let Some(server) = self.servers.get(host) {
                 if let Ok(description) = server.description.read() {
                     if description.round_trip_time.is_none() {
@@ -189,8 +207,10 @@ impl TopologyDescription {
         // Special case - If secondaries are found, by are filtered out by tag sets,
         // the topology should return any available primaries instead.
         if hosts.is_empty() && read_preference.mode == ReadMode::SecondaryPreferred {
-            let mut read_pref = read_preference.clone();
-            read_pref.mode = ReadMode::PrimaryPreferred;
+            let read_pref = ReadPreference {
+                mode: ReadMode::PrimaryPreferred,
+                ..read_preference.clone()
+            };
             return self.acquire_stream(client, &read_pref);
         }
 
@@ -206,9 +226,9 @@ impl TopologyDescription {
 
         // Retrieve a server stream from the list of acceptable hosts.
         let (pooled_stream, server_type) = if rand {
-            try!(self.get_rand_from_vec(client, &mut hosts))
+            self.get_rand_from_vec(client, &mut hosts)?
         } else {
-            try!(self.get_nearest_from_vec(client, &mut hosts))
+            self.get_nearest_from_vec(client, &mut hosts)?
         };
 
         // Determine how to handle server-side logic based on ReadMode and TopologyType.
@@ -263,9 +283,9 @@ impl TopologyDescription {
         }
 
         if rand {
-            Ok(try!(self.get_rand_from_vec(client, &mut hosts)).0)
+            Ok(self.get_rand_from_vec(client, &mut hosts)?.0)
         } else {
-            Ok(try!(self.get_nearest_from_vec(client, &mut hosts)).0)
+            Ok(self.get_nearest_from_vec(client, &mut hosts)?.0)
         }
     }
 
@@ -279,14 +299,14 @@ impl TopologyDescription {
 
         // Set the tag_filter to the first tag set that matches at least one server in the set.
         for tags in &read_preference.tag_sets {
-            for host in hosts.iter() {
+            for host in &*hosts {
                 if let Some(server) = self.servers.get(host) {
                     let description = server.description.read().unwrap();
 
                     // Check whether the read preference tags are contained
                     // within the server description tags.
                     let mut valid = true;
-                    for (key, val) in tags.iter() {
+                    for (key, val) in tags {
                         match description.tags.get(key) {
                             Some(v) => {
                                 if val != v {
@@ -342,7 +362,7 @@ impl TopologyDescription {
                         let description = server.description.read().unwrap();
 
                         // Validate tag sets.
-                        for (key, val) in tag_filter.iter() {
+                        for (key, val) in tag_filter {
                             match description.tags.get(key) {
                                 Some(v) => {
                                     if val != v {
@@ -855,8 +875,7 @@ impl Topology {
 
         if config.hosts.len() > 1 && options.topology_type == TopologyType::Single {
             return Err(ArgumentError(String::from(
-                "TopologyType::Single cannot be used with \
-                                                   multiple seeds.",
+                "TopologyType::Single cannot be used with multiple seeds.",
             )));
         }
 
@@ -871,8 +890,7 @@ impl Topology {
             options.topology_type != TopologyType::ReplicaSetNoPrimary
         {
             return Err(ArgumentError(String::from(
-                "TopologyType must be ReplicaSetNoPrimary if \
-                                                   set_name is provided.",
+                "TopologyType must be ReplicaSetNoPrimary if  set_name is provided.",
             )));
         }
 
@@ -937,7 +955,7 @@ impl Topology {
 
     /// Returns a server stream for write operations.
     pub fn acquire_write_stream(&self, client: Client) -> Result<PooledStream> {
-        let (stream, _, _) = try!(self.acquire_stream_private(client, None, true));
+        let (stream, _, _) = self.acquire_stream_private(client, None, true)?;
         Ok(stream)
     }
 }

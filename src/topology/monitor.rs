@@ -13,6 +13,7 @@ use pool::ConnectionPool;
 use stream::StreamConnector;
 use wire_protocol::flags::OpQueryFlags;
 
+use std::fmt;
 use std::collections::BTreeMap;
 use std::sync::{Arc, Condvar, Mutex, RwLock};
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
@@ -83,6 +84,17 @@ pub struct Monitor {
     pub running: Arc<AtomicBool>,
 }
 
+impl fmt::Debug for Monitor {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("Monitor")
+            .field("host", &self.host)
+            .field("client", &self.client)
+            .field("heartbeat_frequency_ms", &self.heartbeat_frequency_ms)
+            .field("running", &self.running)
+            .finish()
+    }
+}
+
 impl IsMasterResult {
     /// Parses an isMaster response document from the server.
     pub fn new(doc: bson::Document) -> Result<IsMasterResult> {
@@ -121,8 +133,8 @@ impl IsMasterResult {
             result.is_master = b;
         }
 
-        if let Some(&Bson::UtcDatetime(ref datetime)) = doc.get("localTime") {
-            result.local_time = Some(*datetime);
+        if let Some(&Bson::UtcDatetime(datetime)) = doc.get("localTime") {
+            result.local_time = Some(datetime);
         }
 
         if let Some(&Bson::I64(v)) = doc.get("minWireVersion") {
@@ -137,12 +149,12 @@ impl IsMasterResult {
             result.msg = s.to_owned();
         }
 
-        if let Some(&Bson::Boolean(ref b)) = doc.get("secondary") {
-            result.is_secondary = *b;
+        if let Some(&Bson::Boolean(b)) = doc.get("secondary") {
+            result.is_secondary = b;
         }
 
-        if let Some(&Bson::Boolean(ref b)) = doc.get("isreplicaset") {
-            result.is_replica_set = *b;
+        if let Some(&Bson::Boolean(b)) = doc.get("isreplicaset") {
+            result.is_replica_set = b;
         }
 
         if let Some(&Bson::String(ref s)) = doc.get("setName") {
@@ -150,7 +162,7 @@ impl IsMasterResult {
         }
 
         if let Some(&Bson::String(ref s)) = doc.get("me") {
-            result.me = Some(try!(connstring::parse_host(s)));
+            result.me = Some(connstring::parse_host(s)?);
         }
 
         if let Some(&Bson::Array(ref arr)) = doc.get("hosts") {
@@ -181,15 +193,15 @@ impl IsMasterResult {
         }
 
         if let Some(&Bson::String(ref s)) = doc.get("primary") {
-            result.primary = Some(try!(connstring::parse_host(s)));
+            result.primary = Some(connstring::parse_host(s)?);
         }
 
-        if let Some(&Bson::Boolean(ref b)) = doc.get("arbiterOnly") {
-            result.arbiter_only = *b;
+        if let Some(&Bson::Boolean(b)) = doc.get("arbiterOnly") {
+            result.arbiter_only = b;
         }
 
-        if let Some(&Bson::Boolean(ref h)) = doc.get("hidden") {
-            result.hidden = *h;
+        if let Some(&Bson::Boolean(h)) = doc.get("hidden") {
+            result.hidden = h;
         }
 
         if let Some(&Bson::I64(v)) = doc.get("setVersion") {
@@ -208,7 +220,7 @@ impl IsMasterResult {
             Some(&Bson::ObjectId(ref id)) => result.election_id = Some(id.clone()),
             Some(&Bson::Document(ref doc)) => {
                 if let Some(&Bson::String(ref s)) = doc.get("$oid") {
-                    result.election_id = Some(try!(oid::ObjectId::with_string(s)));
+                    result.election_id = Some(oid::ObjectId::with_string(s)?);
                 }
             }
             _ => (),
@@ -259,25 +271,20 @@ impl Monitor {
         options.batch_size = Some(1);
 
         let flags = OpQueryFlags::with_find_options(&options);
-        let mut filter = bson::Document::new();
-        filter.insert("isMaster", Bson::I32(1));
-
-        let mut stream = try!(self.personal_pool.acquire_stream(self.client.clone()));
-
+        let filter = doc!{ "isMaster": 1_i32 };
+        let mut stream = self.personal_pool.acquire_stream(self.client.clone())?;
         let time_start = time::get_time();
-
-        let cursor = try!(Cursor::query_with_stream(
+        let cursor = Cursor::query_with_stream(
             &mut stream,
             self.client.clone(),
             String::from("local.$cmd"),
             flags,
-            filter.clone(),
+            filter,
             options,
             CommandType::IsMaster,
             false,
             None,
-        ));
-
+        )?;
         let time_end = time::get_time();
 
         let sec_start_ms: i64 = time_start.sec * 1000;
@@ -287,6 +294,7 @@ impl Monitor {
         let end_ms = sec_end_ms + time_end.nsec as i64 / 1000000;
 
         let round_trip_time = end_ms - start_ms;
+
         Ok((cursor, round_trip_time))
     }
 

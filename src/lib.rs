@@ -207,7 +207,7 @@ impl fmt::Debug for ClientInner {
             .field("read_preference", &self.read_preference)
             .field("write_concern", &self.write_concern)
             .field("req_id", &self.req_id)
-            .field("topology", &"Topology { .. }")
+            .field("topology", &self.topology)
             .field("listener", &"Listener { .. }")
             .field("log_file", &self.log_file)
             .finish()
