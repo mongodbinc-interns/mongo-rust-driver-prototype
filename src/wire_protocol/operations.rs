@@ -23,14 +23,16 @@ impl ByteLength for bson::Document {
     /// Returns the number of bytes in the serialized BSON document, or an
     /// Error if the document couldn't be serialized.
     fn byte_length(&self) -> Result<i32> {
-        let mut temp_buffer = vec![];
+        let mut temp_buffer = Vec::new();
 
-        try!(bson::encode_document(&mut temp_buffer, self));
+        bson::encode_document(&mut temp_buffer, self)?;
+
         Ok(temp_buffer.len() as i32)
     }
 }
 
 /// Represents a message in the MongoDB Wire Protocol.
+#[derive(Debug, Clone, PartialEq)]
 pub enum Message {
     OpReply {
         /// The message header.
@@ -140,8 +142,8 @@ impl Message {
         // a bit vector, and the wire protocol-specified ZERO field.
         let i32_length = mem::size_of::<i32>() as i32 * 2;
 
-        let selector_length = try!(selector.byte_length());
-        let update_length = try!(update.byte_length());
+        let selector_length = selector.byte_length()?;
+        let update_length = update.byte_length()?;
 
         let total_length = header_length + string_length + i32_length + selector_length +
             update_length;
@@ -173,7 +175,7 @@ impl Message {
         let mut total_length = header_length + flags_length + string_length;
 
         for doc in &documents {
-            total_length += try!(doc.byte_length());
+            total_length += doc.byte_length()?;
         }
 
         let header = Header::new_insert(total_length, request_id);
@@ -206,11 +208,11 @@ impl Message {
         // Add an extra byte after the string for null-termination.
         let string_length = namespace.len() as i32 + 1;
 
-        let bson_length = try!(query.byte_length());
+        let bson_length = query.byte_length()?;
 
         // Add the length of the optional BSON document only if it exists.
         let option_length = match return_field_selector {
-            Some(ref bson) => try!(bson.byte_length()),
+            Some(ref bson) => bson.byte_length()?,
             None => 0,
         };
 
@@ -268,10 +270,11 @@ impl Message {
     ///
     /// Returns nothing on success, or an Error on failure.
     fn write_bson_document<W: Write>(buffer: &mut W, bson: &bson::Document) -> Result<()> {
-        let mut temp_buffer = vec![];
+        let mut temp_buffer = Vec::new();
 
-        try!(bson::encode_document(&mut temp_buffer, bson));
-        try!(buffer.write_all(&temp_buffer));
+        bson::encode_document(&mut temp_buffer, bson)?;
+        buffer.write_all(&temp_buffer)?;
+
         Ok(())
     }
 
@@ -299,22 +302,22 @@ impl Message {
         update: &bson::Document,
     ) -> Result<()> {
 
-        try!(header.write(buffer));
+        header.write(buffer)?;
 
         // Write ZERO field
-        try!(buffer.write_i32::<LittleEndian>(0));
+        buffer.write_i32::<LittleEndian>(0)?;
 
         for byte in namespace.bytes() {
-            try!(buffer.write_u8(byte));
+            buffer.write_u8(byte)?;
         }
 
         // Writes the null terminator for the collection name string.
-        try!(buffer.write_u8(0));
+        buffer.write_u8(0)?;
 
-        try!(buffer.write_i32::<LittleEndian>(flags.bits()));
+        buffer.write_i32::<LittleEndian>(flags.bits())?;
 
-        try!(Message::write_bson_document(buffer, selector));
-        try!(Message::write_bson_document(buffer, update));
+        Message::write_bson_document(buffer, selector)?;
+        Message::write_bson_document(buffer, update)?;
 
         let _ = buffer.flush();
         Ok(())
@@ -342,18 +345,18 @@ impl Message {
         documents: &[bson::Document],
     ) -> Result<()> {
 
-        try!(header.write(buffer));
-        try!(buffer.write_i32::<LittleEndian>(flags.bits()));
+        header.write(buffer)?;
+        buffer.write_i32::<LittleEndian>(flags.bits())?;
 
         for byte in namespace.bytes() {
-            try!(buffer.write_u8(byte));
+            buffer.write_u8(byte)?;
         }
 
         // Writes the null terminator for the collection name string.
-        try!(buffer.write_u8(0));
+        buffer.write_u8(0)?;
 
         for doc in documents {
-            try!(Message::write_bson_document(buffer, doc));
+            Message::write_bson_document(buffer, doc)?;
         }
 
         let _ = buffer.flush();
@@ -392,22 +395,22 @@ impl Message {
         return_field_selector: &Option<bson::Document>,
     ) -> Result<()> {
 
-        try!(header.write(buffer));
-        try!(buffer.write_i32::<LittleEndian>(flags.bits()));
+        header.write(buffer)?;
+        buffer.write_i32::<LittleEndian>(flags.bits())?;
 
         for byte in namespace.bytes() {
-            try!(buffer.write_u8(byte));
+            buffer.write_u8(byte)?;
         }
 
         // Writes the null terminator for the collection name string.
-        try!(buffer.write_u8(0));
+        buffer.write_u8(0)?;
 
-        try!(buffer.write_i32::<LittleEndian>(number_to_skip));
-        try!(buffer.write_i32::<LittleEndian>(number_to_return));
-        try!(Message::write_bson_document(buffer, query));
+        buffer.write_i32::<LittleEndian>(number_to_skip)?;
+        buffer.write_i32::<LittleEndian>(number_to_return)?;
+        Message::write_bson_document(buffer, query)?;
 
         if let Some(ref doc) = *return_field_selector {
-            try!(Message::write_bson_document(buffer, doc));
+            Message::write_bson_document(buffer, doc)?;
         }
 
         let _ = buffer.flush();
@@ -437,20 +440,20 @@ impl Message {
         cursor_id: i64,
     ) -> Result<()> {
 
-        try!(header.write(buffer));
+        header.write(buffer)?;
 
         // Write ZERO field
-        try!(buffer.write_i32::<LittleEndian>(0));
+        buffer.write_i32::<LittleEndian>(0)?;
 
         for byte in namespace.bytes() {
-            try!(buffer.write_u8(byte));
+            buffer.write_u8(byte)?;
         }
 
         // Writes the null terminator for the collection name string.
-        try!(buffer.write_u8(0));
+        buffer.write_u8(0)?;
 
-        try!(buffer.write_i32::<LittleEndian>(number_to_return));
-        try!(buffer.write_i64::<LittleEndian>(cursor_id));
+        buffer.write_i32::<LittleEndian>(number_to_return)?;
+        buffer.write_i64::<LittleEndian>(cursor_id)?;
 
         let _ = buffer.flush();
         Ok(())
@@ -528,26 +531,26 @@ impl Message {
         let mut length = header.message_length - mem::size_of::<Header>() as i32;
 
         // Read flags
-        let flags = try!(buffer.read_i32::<LittleEndian>());
+        let flags = buffer.read_i32::<LittleEndian>()?;
         length -= mem::size_of::<i32>() as i32;
 
         // Read cursor_id
-        let cid = try!(buffer.read_i64::<LittleEndian>());
+        let cid = buffer.read_i64::<LittleEndian>()?;
         length -= mem::size_of::<i64>() as i32;
 
         // Read starting_from
-        let sf = try!(buffer.read_i32::<LittleEndian>());
+        let sf = buffer.read_i32::<LittleEndian>()?;
         length -= mem::size_of::<i32>() as i32;
 
         // Read number_returned
-        let nr = try!(buffer.read_i32::<LittleEndian>());
+        let nr = buffer.read_i32::<LittleEndian>()?;
         length -= mem::size_of::<i32>() as i32;
 
-        let mut v = vec![];
+        let mut v = Vec::new();
 
         while length > 0 {
-            let bson = try!(bson::decode_document(buffer));
-            length -= try!(bson.byte_length());
+            let bson = bson::decode_document(buffer)?;
+            length -= bson.byte_length()?;
             v.push(bson);
         }
 
@@ -567,7 +570,7 @@ impl Message {
     where
         T: Read + Write,
     {
-        let header = try!(Header::read(buffer));
+        let header = Header::read(buffer)?;
         match header.op_code {
             OpCode::Reply => Message::read_reply(buffer, header),
             opcode => {

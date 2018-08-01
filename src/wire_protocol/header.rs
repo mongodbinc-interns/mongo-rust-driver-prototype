@@ -1,4 +1,5 @@
 //! Message headers.
+
 use std::fmt;
 use std::io::{Read, Write};
 
@@ -7,7 +8,7 @@ use Result;
 use Error::ResponseError;
 
 /// Represents an opcode in the MongoDB Wire Protocol.
-#[derive(Clone)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum OpCode {
     Reply = 1,
     Update = 2001,
@@ -42,17 +43,17 @@ impl OpCode {
 impl fmt::Display for OpCode {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            OpCode::Reply => write!(fmt, "OP_REPLY"),
-            OpCode::Update => write!(fmt, "OP_UPDATE"),
-            OpCode::Insert => write!(fmt, "OP_INSERT"),
-            OpCode::Query => write!(fmt, "OP_QUERY"),
-            OpCode::GetMore => write!(fmt, "OP_GET_MORE"),
+            OpCode::Reply => fmt.write_str("OP_REPLY"),
+            OpCode::Update => fmt.write_str("OP_UPDATE"),
+            OpCode::Insert => fmt.write_str("OP_INSERT"),
+            OpCode::Query => fmt.write_str("OP_QUERY"),
+            OpCode::GetMore => fmt.write_str("OP_GET_MORE"),
         }
     }
 }
 
 /// Represents a header in the MongoDB Wire Protocol.
-#[derive(Clone)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct Header {
     /// The length of the entire message, in bytes.
     pub message_length: i32,
@@ -69,10 +70,10 @@ impl Header {
     /// Constructs a new Header.
     pub fn new(message_length: i32, request_id: i32, response_to: i32, op_code: OpCode) -> Header {
         Header {
-            message_length: message_length,
-            request_id: request_id,
-            response_to: response_to,
-            op_code: op_code,
+            message_length,
+            request_id,
+            response_to,
+            op_code,
         }
     }
 
@@ -115,12 +116,10 @@ impl Header {
     ///
     /// Returns nothing on success, or an Error on failure.
     pub fn write(&self, buffer: &mut Write) -> Result<()> {
-        try!(buffer.write_i32::<LittleEndian>(self.message_length));
-        try!(buffer.write_i32::<LittleEndian>(self.request_id));
-        try!(buffer.write_i32::<LittleEndian>(self.response_to));
-        try!(buffer.write_i32::<LittleEndian>(
-            self.op_code.clone() as i32,
-        ));
+        buffer.write_i32::<LittleEndian>(self.message_length)?;
+        buffer.write_i32::<LittleEndian>(self.request_id)?;
+        buffer.write_i32::<LittleEndian>(self.response_to)?;
+        buffer.write_i32::<LittleEndian>(self.op_code.clone() as i32)?;
         let _ = buffer.flush();
 
         Ok(())
@@ -136,11 +135,10 @@ impl Header {
     ///
     /// Returns the parsed Header on success, or an Error on failure.
     pub fn read(buffer: &mut Read) -> Result<Header> {
-        let message_length = try!(buffer.read_i32::<LittleEndian>());
-        let request_id = try!(buffer.read_i32::<LittleEndian>());
-        let response_to = try!(buffer.read_i32::<LittleEndian>());
-
-        let op_code_i32 = try!(buffer.read_i32::<LittleEndian>());
+        let message_length = buffer.read_i32::<LittleEndian>()?;
+        let request_id = buffer.read_i32::<LittleEndian>()?;
+        let response_to = buffer.read_i32::<LittleEndian>()?;
+        let op_code_i32 = buffer.read_i32::<LittleEndian>()?;
         let op_code = match OpCode::from_i32(op_code_i32) {
             Some(code) => code,
             _ => {

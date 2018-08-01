@@ -51,6 +51,7 @@ impl OpQueryFlags {
     /// Returns the newly created OpQueryFlags struct.
     pub fn with_find_options(options: &FindOptions) -> OpQueryFlags {
         let mut flags = OpQueryFlags::empty();
+
         if options.cursor_type != CursorType::NonTailable {
             flags.insert(Self::TAILABLE_CURSOR);
         }
