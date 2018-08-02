@@ -68,7 +68,7 @@ impl ReadPreference {
     }
 }
 
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct WriteConcern {
     /// Write replication
     pub w: i32,
@@ -91,11 +91,17 @@ impl WriteConcern {
     }
 
     pub fn to_bson(&self) -> bson::Document {
-        let mut bson = bson::Document::new();
-        bson.insert("w", Bson::I32(self.w));
-        bson.insert("wtimeout", Bson::I32(self.w_timeout));
-        bson.insert("j", Bson::Boolean(self.j));
-        bson
+        doc! {
+            "w": self.w,
+            "wtimeout": self.w_timeout,
+            "j": self.j,
+        }
+    }
+}
+
+impl Default for WriteConcern {
+    fn default() -> Self {
+        WriteConcern::new()
     }
 }
 
