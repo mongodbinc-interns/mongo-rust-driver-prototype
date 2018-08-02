@@ -890,7 +890,7 @@ impl Topology {
             options.topology_type != TopologyType::ReplicaSetNoPrimary
         {
             return Err(ArgumentError(String::from(
-                "TopologyType must be ReplicaSetNoPrimary if  set_name is provided.",
+                "TopologyType must be ReplicaSetNoPrimary if set_name is provided.",
             )));
         }
 

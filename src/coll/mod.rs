@@ -839,7 +839,7 @@ impl Collection {
         let cmd = doc! {
             "update": self.name(),
             "updates": updates,
-			"ordered": ordered,
+            "ordered": ordered,
             "writeConcern": wc.to_bson()
         };
 

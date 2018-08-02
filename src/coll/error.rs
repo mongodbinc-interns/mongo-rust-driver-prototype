@@ -254,10 +254,9 @@ impl BulkWriteException {
     ) -> BulkWriteException {
         use std::fmt::Write;
 
-        let mut s = match write_concern_error {
-            Some(ref error) => format!("{:?}\n", error),
-            None => String::new(),
-        };
+        let mut s = write_concern_error.as_ref()
+            .map(|e| format!("{:?}\n", e))
+            .unwrap_or_default();
 
         for v in &write_errors {
             write!(s, "{:?}\n", v).expect("can't format error");
