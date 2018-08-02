@@ -160,34 +160,32 @@ impl Cursor {
     ) -> Result<(bson::Document, VecDeque<bson::Document>, i64, String)> {
 
         let (first, v, _) = Cursor::get_bson_and_cid_from_message(message)?;
-        let doc = match v.get(0) {
-            Some(value) => value,
-            None => return Err(Error::CursorNotFoundError),
-        };
+        let doc = v.get(0).ok_or(Error::CursorNotFoundError)?;
 
         // Extract cursor information
-        if let Some(&Bson::Document(ref cursor)) = doc.get("cursor") {
-            if let Some(&Bson::I64(id)) = cursor.get("id") {
-                if let Some(&Bson::String(ref ns)) = cursor.get("ns") {
-                    if let Some(&Bson::Array(ref batch)) = cursor.get("firstBatch") {
+        let cursor = match doc.get("cursor") {
+            Some(&Bson::Document(ref cursor)) => cursor,
+            _ => return Err(Error::CursorNotFoundError),
+        };
 
-                        // Extract first batch documents
-                        let map = batch
-                            .iter()
-                            .filter_map(|bdoc| if let Bson::Document(ref doc) = *bdoc {
-                                Some(doc.clone())
-                            } else {
-                                None
-                            })
-                            .collect();
+        match (cursor.get("id"), cursor.get("ns"), cursor.get("firstBatch")) {
+            (Some(&Bson::I64(id)),
+             Some(&Bson::String(ref ns)),
+             Some(&Bson::Array(ref batch))) => {
+                // Extract first batch documents
+                let map = batch
+                    .iter()
+                    .filter_map(|bdoc| if let Bson::Document(ref doc) = *bdoc {
+                        Some(doc.clone())
+                    } else {
+                        None
+                    })
+                    .collect();
 
-                        return Ok((first, map, id, ns.to_owned()));
-                    }
-                }
+                Ok((first, map, id, ns.to_owned()))
             }
+            _ => Err(Error::CursorNotFoundError)
         }
-
-        Err(Error::CursorNotFoundError)
     }
 
     /// Executes a query where the batch size of the returned cursor is
@@ -236,16 +234,17 @@ impl Cursor {
         // Send read_preference to the server based on the result from server selection.
         let new_query = if !send_read_pref {
             query
-        } else if query.get("$query").is_some() {
+        } else if query.contains_key("$query") {
             // Query is already formatted as a $query document; add onto it.
-            let mut nq = query.clone();
-            nq.insert("read_preference", Bson::Document(read_pref.to_document()));
-            nq
+            let mut query = query;
+            query.insert("read_preference", read_pref.to_document());
+            query
         } else {
             // Convert the query to a $query document.
-            let mut nq = doc! { "$query": query };
-            nq.insert("read_preference", Bson::Document(read_pref.to_document()));
-            nq
+            doc! {
+                "$query": query,
+                "read_preference": read_pref.to_document(),
+            }
         };
 
         Cursor::query_with_stream(
@@ -280,13 +279,12 @@ impl Cursor {
         let db_name = String::from(&namespace[..index]);
         let coll_name = String::from(&namespace[index + 1..]);
         let cmd_name = cmd_type.to_str();
-        let connstring = format!("{}", socket.get_ref().peer_addr()?);
+        let connstring = socket.get_ref().peer_addr()?.to_string();
 
         let filter = match query.get("$query") {
             Some(&Bson::Document(ref doc)) => doc.clone(),
             _ => query.clone(),
         };
-
 
         let command = match cmd_type {
             CommandType::Find => {
@@ -369,7 +367,7 @@ impl Cursor {
             CommandType::Find => doc! {
                 "cursor": {
                     "id": cursor_id,
-                    "ns": &namespace[..],
+                    "ns": &namespace,
                     "firstBatch": buf.iter().cloned().map(Bson::from).collect::<Vec<_>>(),
                 },
                 "ok": 1
@@ -420,7 +418,7 @@ impl Cursor {
         );
         let db_name = String::from(&self.namespace[..index]);
         let cmd_name = String::from("get_more");
-        let connstring = format!("{}", socket.get_ref().peer_addr()?);
+        let connstring = socket.get_ref().peer_addr()?.to_string();
 
         if self.cmd_type != CommandType::Suppressed {
             let hook_result = self.client.run_start_hooks(&CommandStarted {
