@@ -65,11 +65,11 @@ impl fmt::Display for WriteException {
         fmt.write_str("WriteException:\n")?;
 
         if let Some(ref wc_err) = self.write_concern_error {
-            write!(fmt, "{:?}\n", wc_err)?;
+            writeln!(fmt, "{:?}", wc_err)?;
         }
 
         if let Some(ref w_err) = self.write_error {
-            write!(fmt, "{:?}\n", w_err)?;
+            writeln!(fmt, "{:?}", w_err)?;
         }
 
         Ok(())
@@ -113,7 +113,7 @@ impl fmt::Display for BulkWriteError {
         )?;
 
         match self.request {
-            Some(ref request) => write!(fmt, "Failed to execute request {:?}\n.", request),
+            Some(ref request) => writeln!(fmt, "Failed to execute request {:?}.", request),
             None => fmt.write_str("No additional error information was received.\n")
         }
     }
@@ -127,7 +127,7 @@ impl WriteException {
         let mut s = wc_err.as_ref().map(|error| format!("{:?}\n", error)).unwrap_or_default();
 
         if let Some(ref error) = w_err {
-            write!(s, "{:?}\n", error).expect("can't format error");
+            writeln!(s, "{:?}", error).expect("can't format error");
         }
 
         WriteException {
@@ -179,15 +179,15 @@ impl WriteConcernError {
 
     /// Parses a Bson document into a WriteConcernError with the provided write concern.
     pub fn parse(error: bson::Document, write_concern: WriteConcern) -> Result<WriteConcernError> {
-        if let Some(&Bson::I32(code)) = error.get("code") {
-            if let Some(&Bson::String(ref message)) = error.get("errmsg") {
-                return Ok(WriteConcernError::new(code, write_concern, message));
+        match (error.get("code"), error.get("errmsg")) {
+            (Some(&Bson::I32(code)), Some(&Bson::String(ref message))) => {
+                Ok(WriteConcernError::new(code, write_concern, message))
             }
+            _ => Err(Error::ResponseError(format!(
+                "WriteConcernError document is invalid: {:?}",
+                error
+            )))
         }
-        Err(Error::ResponseError(format!(
-            "WriteConcernError document is invalid: {:?}",
-            error
-        )))
     }
 }
 
@@ -231,16 +231,16 @@ impl BulkWriteError {
 
     /// Parses a Bson document into a BulkWriteError.
     pub fn parse(error: bson::Document) -> Result<BulkWriteError> {
-        if let Some(&Bson::I32(index)) = error.get("index") {
-            if let Some(&Bson::I32(code)) = error.get("code") {
-                if let Some(&Bson::String(ref message)) = error.get("errmsg") {
-                    return Ok(BulkWriteError::new(index, code, message, None));
-                }
+        match (error.get("index"), error.get("code"), error.get("errmsg")) {
+            (Some(&Bson::I32(index)),
+             Some(&Bson::I32(code)),
+             Some(&Bson::String(ref message))) => {
+                Ok(BulkWriteError::new(index, code, message, None))
             }
+            _ => Err(Error::ResponseError(
+                format!("WriteError document is invalid: {:?}", error),
+            ))
         }
-        Err(Error::ResponseError(
-            format!("WriteError document is invalid: {:?}", error),
-        ))
     }
 }
 

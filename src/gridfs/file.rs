@@ -195,8 +195,7 @@ impl File {
             self.flush()?;
         }
 
-        // XXX: Shouldn't this be `_variable`? Binding to `_` drops the value immediately...
-        let _ = self.mutex.lock()?;
+        let _guard = self.mutex.lock()?;
 
         // Complete file write
         if self.mode == Mode::Write {
@@ -273,9 +272,10 @@ impl File {
             let result = arc_gfs.chunks.insert_one(document, None);
 
             // Complete pending write
-            // XXX: shouldn't this be `_variable` too? Assigning to `_` drops the guard immediately.
-            let _ = arc_mutex.lock();
+            let _guard = arc_mutex.lock();
+
             arc_wpending.fetch_sub(1, Ordering::SeqCst);
+
             if result.is_err() {
                 if let Ok(mut err_mut) = err.write() {
                     err_mut.inner = Some(result.err().unwrap());

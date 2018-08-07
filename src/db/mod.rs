@@ -270,10 +270,11 @@ impl ThreadedDatabase for Database {
         batch_size: i32,
     ) -> Result<Cursor> {
 
-        let cursor = doc!{ "batchSize": batch_size };
         let mut spec = doc!{
             "listCollections": 1,
-            "cursor": cursor,
+            "cursor": {
+                "batchSize": batch_size,
+            },
         };
         if let Some(f) = filter {
             spec.insert("filter", f);
