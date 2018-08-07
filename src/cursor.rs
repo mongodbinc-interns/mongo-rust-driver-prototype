@@ -37,7 +37,7 @@ use wire_protocol::operations::Message;
 use std::collections::vec_deque::VecDeque;
 
 // Allows the server to decide the batch size.
-pub const DEFAULT_BATCH_SIZE: i32 = 0;
+pub const DEFAULT_BATCH_SIZE: usize = 0;
 
 /// Maintains a connection to the server and lazily returns documents from a
 /// query.
@@ -48,7 +48,7 @@ pub struct Cursor {
     // The namespace to read and write from.
     namespace: String,
     // How many documents to fetch at a given time from the server.
-    batch_size: i32,
+    batch_size: usize,
     // Uniquely identifies the cursor being returned by the reply.
     cursor_id: i64,
     // An upper bound on the total number of documents this cursor should return.
@@ -304,7 +304,7 @@ impl Cursor {
             flags,
             namespace.clone(),
             options.skip.unwrap_or(0) as i32,
-            options.batch_size.unwrap_or(DEFAULT_BATCH_SIZE),
+            options.batch_size.unwrap_or(DEFAULT_BATCH_SIZE as i32),
             query,
             options.projection,
         )?;
@@ -391,7 +391,7 @@ impl Cursor {
         Ok(Cursor {
             client: client,
             namespace: namespace,
-            batch_size: buf.len() as i32,
+            batch_size: buf.len(),
             cursor_id: cursor_id,
             limit: options.limit.unwrap_or(0) as i32,
             count: 0,
@@ -409,7 +409,7 @@ impl Cursor {
         let get_more = Message::new_get_more(
             req_id,
             self.namespace.to_owned(),
-            self.batch_size,
+            self.batch_size as i32,
             self.cursor_id,
         );
 
@@ -458,8 +458,7 @@ impl Cursor {
     /// # Return value
     ///
     /// Returns a vector containing the BSON documents that were read.
-    pub fn next_n(&mut self, n: i32) -> Result<Vec<bson::Document>> {
-        let n = ::std::cmp::max(0, n) as usize;
+    pub fn next_n(&mut self, n: usize) -> Result<Vec<bson::Document>> {
         self.take(n).collect()
     }
 

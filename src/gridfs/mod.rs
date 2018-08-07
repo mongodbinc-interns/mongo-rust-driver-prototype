@@ -69,7 +69,7 @@ impl Iterator for FileCursor {
 
 impl FileCursor {
     /// Returns the next n files.
-    pub fn next_n(&mut self, n: i32) -> Result<Vec<File>> {
+    pub fn next_n(&mut self, n: usize) -> Result<Vec<File>> {
         let docs = self.cursor.next_n(n)?;
         Ok(
             docs.into_iter()
