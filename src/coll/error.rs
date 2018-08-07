@@ -65,11 +65,11 @@ impl fmt::Display for WriteException {
         fmt.write_str("WriteException:\n")?;
 
         if let Some(ref wc_err) = self.write_concern_error {
-            writeln!(fmt, "{:?}", wc_err)?;
+            write!(fmt, "{:?}", wc_err)?;
         }
 
         if let Some(ref w_err) = self.write_error {
-            writeln!(fmt, "{:?}", w_err)?;
+            write!(fmt, "{:?}", w_err)?;
         }
 
         Ok(())
@@ -82,20 +82,20 @@ impl fmt::Display for BulkWriteException {
 
         fmt.write_str("Processed Requests:\n")?;
         for v in &self.processed_requests {
-            write!(fmt, "{:?}\n", v)?;
+            write!(fmt, "{:?}", v)?;
         }
 
         fmt.write_str("Unprocessed Requests:\n")?;
         for v in &self.unprocessed_requests {
-            write!(fmt, "{:?}\n", v)?;
+            write!(fmt, "{:?}", v)?;
         }
 
         if let Some(ref error) = self.write_concern_error {
-            write!(fmt, "{:?}\n", error)?;
+            write!(fmt, "{:?}", error)?;
         }
 
         for v in &self.write_errors {
-            write!(fmt, "{:?}\n", v)?;
+            write!(fmt, "{:?}", v)?;
         }
 
         Ok(())
@@ -106,15 +106,15 @@ impl fmt::Display for BulkWriteError {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         write!(
             fmt,
-            "BulkWriteError at index {} (code {}): {}\n",
+            "BulkWriteError at index {} (code {}): {}",
             self.index,
             self.code,
             self.message
         )?;
 
         match self.request {
-            Some(ref request) => writeln!(fmt, "Failed to execute request {:?}.", request),
-            None => fmt.write_str("No additional error information was received.\n")
+            Some(ref request) => write!(fmt, "Failed to execute request {:?}.", request),
+            None => fmt.write_str("No additional error information was received.")
         }
     }
 }
@@ -124,10 +124,10 @@ impl WriteException {
     pub fn new(wc_err: Option<WriteConcernError>, w_err: Option<WriteError>) -> WriteException {
         use std::fmt::Write;
 
-        let mut s = wc_err.as_ref().map(|error| format!("{:?}\n", error)).unwrap_or_default();
+        let mut s = wc_err.as_ref().map(|error| format!("{:?}", error)).unwrap_or_default();
 
         if let Some(ref error) = w_err {
-            writeln!(s, "{:?}", error).expect("can't format error");
+            write!(s, "{:?}", error).expect("can't format error");
         }
 
         WriteException {
@@ -255,11 +255,11 @@ impl BulkWriteException {
         use std::fmt::Write;
 
         let mut s = write_concern_error.as_ref()
-            .map(|e| format!("{:?}\n", e))
+            .map(|e| format!("{:?}", e))
             .unwrap_or_default();
 
         for v in &write_errors {
-            write!(s, "{:?}\n", v).expect("can't format error");
+            write!(s, "{:?}", v).expect("can't format error");
         }
 
         BulkWriteException {
