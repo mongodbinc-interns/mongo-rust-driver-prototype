@@ -159,30 +159,29 @@ impl Cursor {
         message: Message,
     ) -> Result<(bson::Document, VecDeque<bson::Document>, i64, String)> {
 
-        let (first, v, _) = Cursor::get_bson_and_cid_from_message(message)?;
-        let doc = v.get(0).ok_or(Error::CursorNotFoundError)?;
+        let (first, mut v, _) = Cursor::get_bson_and_cid_from_message(message)?;
 
         // Extract cursor information
-        let cursor = match doc.get("cursor") {
-            Some(&Bson::Document(ref cursor)) => cursor,
+        let mut cursor = match v.remove(0).and_then(|mut doc| doc.remove("cursor")) {
+            Some(Bson::Document(cursor)) => cursor,
             _ => return Err(Error::CursorNotFoundError),
         };
 
-        match (cursor.get("id"), cursor.get("ns"), cursor.get("firstBatch")) {
-            (Some(&Bson::I64(id)),
-             Some(&Bson::String(ref ns)),
-             Some(&Bson::Array(ref batch))) => {
+        match (cursor.remove("id"), cursor.remove("ns"), cursor.remove("firstBatch")) {
+            (Some(Bson::I64(id)),
+             Some(Bson::String(ns)),
+             Some(Bson::Array(batch))) => {
                 // Extract first batch documents
                 let map = batch
-                    .iter()
-                    .filter_map(|bdoc| if let Bson::Document(ref doc) = *bdoc {
-                        Some(doc.clone())
+                    .into_iter()
+                    .filter_map(|bdoc| if let Bson::Document(doc) = bdoc {
+                        Some(doc)
                     } else {
                         None
                     })
                     .collect();
 
-                Ok((first, map, id, ns.to_owned()))
+                Ok((first, map, id, ns))
             }
             _ => Err(Error::CursorNotFoundError)
         }
