@@ -58,7 +58,7 @@ pub enum WriteModel {
 }
 
 /// Options for aggregation queries.
-#[derive(Clone, Debug, Default, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct AggregateOptions {
     pub allow_disk_use: Option<bool>,
     pub use_cursor: Option<bool>,
@@ -141,7 +141,7 @@ impl From<CountOptions> for bson::Document {
 }
 
 /// Options for distinct queries.
-#[derive(Clone, Debug, Default, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct DistinctOptions {
     pub max_time_ms: Option<i64>,
     pub read_preference: Option<ReadPreference>,

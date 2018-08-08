@@ -39,7 +39,7 @@ impl From<CreateCollectionOptions> for Document {
             document.insert("max", Bson::I64(max));
         }
 
-        let mut flags = 0_i32;
+        let mut flags = 0;
 
         if let Some(true) = options.use_power_of_two_sizes {
             flags |= 1;

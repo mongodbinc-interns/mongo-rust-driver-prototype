@@ -21,7 +21,7 @@ impl MaliciousServerErrorType {
         match *self {
             InvalidRnonce => "The server returned an invalid rnonce during authentication",
             InvalidServerSignature => "The server returned an invalid signature during authentication",
-            NoServerSignature => "The server did not sign its reponse during authentication",
+            NoServerSignature => "The server did not sign its response during authentication",
         }
     }
 }

@@ -6,7 +6,7 @@ use {Error, Result};
 use std::{error, fmt};
 
 /// The error type for Write-related MongoDB operations.
-#[derive(Debug, Clone, Default, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct WriteException {
     pub write_concern_error: Option<WriteConcernError>,
     pub write_error: Option<WriteError>,
@@ -14,7 +14,7 @@ pub struct WriteException {
 }
 
 /// The error struct for a write-concern related error.
-#[derive(Debug, Clone, Default, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct WriteConcernError {
     pub code: i32,
     pub details: WriteConcern,
@@ -22,14 +22,14 @@ pub struct WriteConcernError {
 }
 
 /// The error struct for a write-related error.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct WriteError {
     pub code: i32,
     pub message: String,
 }
 
 /// The error struct for Bulk-Write related MongoDB operations.
-#[derive(Debug, Clone, Default, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct BulkWriteException {
     pub processed_requests: Vec<WriteModel>,
     pub unprocessed_requests: Vec<WriteModel>,
@@ -40,7 +40,7 @@ pub struct BulkWriteException {
 
 /// The error struct for a single bulk-write step, indicating the request
 /// and its index in the original bulk-write request.
-#[derive(Debug, Clone, Default, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct BulkWriteError {
     pub index: i32,
     pub code: i32,

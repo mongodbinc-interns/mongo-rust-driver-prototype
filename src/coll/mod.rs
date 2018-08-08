@@ -597,7 +597,7 @@ impl Collection {
         };
 
         let mut result = BulkWriteResult::new();
-        let mut exception = BulkWriteException::default();
+        let mut exception = BulkWriteException::new(Vec::new(), Vec::new(), Vec::new(), None);
 
         let mut start_index = 0;
 

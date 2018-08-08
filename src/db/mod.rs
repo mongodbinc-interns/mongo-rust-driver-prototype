@@ -375,7 +375,7 @@ impl ThreadedDatabase for Database {
     }
 
     fn drop_database(&self) -> Result<()> {
-        let spec = doc!{ "dropDatabase": 1_i32 };
+        let spec = doc!{ "dropDatabase": 1 };
         self.command(spec, CommandType::DropDatabase, None).map(drop)
     }
 

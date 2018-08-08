@@ -34,7 +34,7 @@ impl FromStr for ReadMode {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ReadPreference {
     /// Indicates how a server should be selected during read operations.
     pub mode: ReadMode,
