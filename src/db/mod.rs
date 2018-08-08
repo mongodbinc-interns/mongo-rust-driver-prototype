@@ -261,7 +261,7 @@ impl ThreadedDatabase for Database {
     }
 
     fn list_collections(&self, filter: Option<bson::Document>) -> Result<Cursor> {
-        self.list_collections_with_batch_size(filter, DEFAULT_BATCH_SIZE as i32)
+        self.list_collections_with_batch_size(filter, DEFAULT_BATCH_SIZE)
     }
 
     fn list_collections_with_batch_size(

@@ -34,10 +34,12 @@ use time;
 use wire_protocol::flags::OpQueryFlags;
 use wire_protocol::operations::Message;
 
+use std::{ i32, usize };
+use std::mem::size_of;
 use std::collections::vec_deque::VecDeque;
 
 // Allows the server to decide the batch size.
-pub const DEFAULT_BATCH_SIZE: usize = 0;
+pub const DEFAULT_BATCH_SIZE: i32 = 0;
 
 /// Maintains a connection to the server and lazily returns documents from a
 /// query.
@@ -48,7 +50,7 @@ pub struct Cursor {
     // The namespace to read and write from.
     namespace: String,
     // How many documents to fetch at a given time from the server.
-    batch_size: usize,
+    batch_size: i32,
     // Uniquely identifies the cursor being returned by the reply.
     cursor_id: i64,
     // An upper bound on the total number of documents this cursor should return.
@@ -303,7 +305,7 @@ impl Cursor {
             flags,
             namespace.clone(),
             options.skip.unwrap_or(0) as i32,
-            options.batch_size.unwrap_or(DEFAULT_BATCH_SIZE as i32),
+            options.batch_size.unwrap_or(DEFAULT_BATCH_SIZE),
             query,
             options.projection,
         )?;
@@ -387,10 +389,17 @@ impl Cursor {
         let read_preference =
             read_pref.unwrap_or_else(|| ReadPreference::new(ReadMode::Primary, None));
 
+        // Check if actual batch size fits into an `i32`.
+        if size_of::<i32>() <= size_of::<usize>() && buf.len() > i32::MAX as usize {
+            return Err(Error::DefaultError(
+                format!("Batch buffer size {} overflows i32", buf.len())
+            ));
+        }
+
         Ok(Cursor {
             client: client,
             namespace: namespace,
-            batch_size: buf.len(),
+            batch_size: buf.len() as i32,
             cursor_id: cursor_id,
             limit: options.limit.unwrap_or(0) as i32,
             count: 0,
@@ -408,7 +417,7 @@ impl Cursor {
         let get_more = Message::new_get_more(
             req_id,
             self.namespace.to_owned(),
-            self.batch_size as i32,
+            self.batch_size,
             self.cursor_id,
         );
 
@@ -473,7 +482,24 @@ impl Cursor {
             self.batch_size
         };
 
-        self.next_n(batch_size)
+        // If `usize` is at least as wide as `i32`, then all non-negative values
+        // of `i32` are guaranteed to fit into a `usize`. Otherwise `usize::MAX`
+        // fits into an `i32`.
+        if
+            batch_size < 0
+            ||
+            (
+                size_of::<usize>() < size_of::<i32>()
+                &&
+                batch_size > usize::MAX as i32
+            )
+        {
+            return Err(Error::DefaultError(
+                format!("batch size {} is out of range", batch_size)
+            ));
+        }
+
+        self.next_n(batch_size as usize)
     }
 
     /// Attempts to read a batch of BSON documents from the cursor.
