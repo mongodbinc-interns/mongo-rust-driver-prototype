@@ -327,7 +327,9 @@ impl ThreadedDatabase for Database {
             doc = merge_options(doc, create_collection_options);
         }
 
-        self.command(doc, CommandType::CreateCollection, None).map(drop)
+        self.command(doc, CommandType::CreateCollection, None)?;
+
+        Ok(())
     }
 
     fn create_user(
