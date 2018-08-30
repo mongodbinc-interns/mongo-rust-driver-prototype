@@ -230,7 +230,6 @@ impl File {
         if self.mode == Mode::Read && self.rcache.is_some() {
             {
                 let cache = self.rcache.as_ref().unwrap();
-                // XXX: what's the point in an immediately-dropped lock guard?
                 let _ = cache.lock()?;
             }
             self.rcache = None;
