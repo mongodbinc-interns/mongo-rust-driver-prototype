@@ -282,6 +282,8 @@ pub trait ThreadedClient: Sync + Sized {
     fn connect(host: &str, port: u16) -> Result<Self>;
     /// Creates a new Client directly connected to a single MongoDB server with options.
     fn connect_with_options(host: &str, port: u16, ClientOptions) -> Result<Self>;
+    /// Connect with authorizations
+    fn connect_with_auth(host: &str, port: u16, dbname: &str, uname: &str, pword: &str) -> Result<Client>;
     /// Creates a new Client connected to a complex topology, such as a
     /// replica set or sharded cluster.
     fn with_uri(uri: &str) -> Result<Self>;
@@ -327,9 +329,30 @@ pub type Client = Arc<ClientInner>;
 impl ThreadedClient for Client {
     fn connect(host: &str, port: u16) -> Result<Client> {
         let config = ConnectionString::new(host, port);
+        
         let mut description = TopologyDescription::new(StreamConnector::Tcp);
         description.topology_type = TopologyType::Single;
         Client::with_config(config, None, Some(description))
+    }
+
+    fn connect_with_auth(host: &str, port: u16, dbname: &str, uname: &str, pword: &str) -> Result<Client> {
+        let mut config = ConnectionString::new(host, port);
+
+        config.user = Some(uname.to_string());
+        config.password = Some(pword.to_string());
+
+        let mut description = TopologyDescription::new(StreamConnector::Tcp);
+        description.topology_type = TopologyType::Single;
+        
+        let client = Client::with_config(config, None, Some(description)).unwrap();
+
+        match client.db(dbname).auth(uname, pword) {
+            Ok(k) => k,
+            Err(_) => panic!("Error with authentication"),
+        };
+
+        Ok(client)
+
     }
 
     fn connect_with_options(host: &str, port: u16, options: ClientOptions) -> Result<Client> {
