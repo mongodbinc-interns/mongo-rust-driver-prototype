@@ -65,7 +65,7 @@ use {Client, CommandType, ThreadedClient, Result};
 use Error::{CursorNotFoundError, OperationError, ResponseError};
 use coll::Collection;
 use coll::options::FindOptions;
-use common::{ReadPreference, merge_options, WriteConcern};
+use common::{ReadConcern, ReadPreference, merge_options, WriteConcern};
 use cursor::{Cursor, DEFAULT_BATCH_SIZE};
 use self::options::{CreateCollectionOptions, CreateUserOptions, UserInfoOptions};
 use semver::Version;
@@ -79,6 +79,10 @@ pub struct DatabaseInner {
     pub name: String,
     /// A reference to the client that spawned this database.
     pub client: Client,
+    /// The cumulative time limit in milliseconds for processing operations on the cursor.
+    pub max_time_ms: Option<i64>,
+    /// Indicates the consistency and isolation properties of the data read.
+    pub read_concern: Option<ReadConcern>,
     /// Indicates how a server should be selected for read operations.
     pub read_preference: ReadPreference,
     /// Describes the guarantees provided by MongoDB when reporting the success of a write
@@ -93,6 +97,8 @@ pub trait ThreadedDatabase {
     fn open(
         client: Client,
         name: &str,
+        max_time_ms: Option<i64>,
+        read_concern: Option<ReadConcern>,
         read_preference: Option<ReadPreference>,
         write_concern: Option<WriteConcern>,
     ) -> Database;
@@ -107,6 +113,8 @@ pub trait ThreadedDatabase {
         &self,
         coll_name: &str,
         create: bool,
+        max_time_ms: Option<i64>,
+        read_concern: Option<ReadConcern>,
         read_preference: Option<ReadPreference>,
         write_concern: Option<WriteConcern>,
     ) -> Collection;
@@ -173,15 +181,21 @@ impl ThreadedDatabase for Database {
     fn open(
         client: Client,
         name: &str,
+        max_time_ms: Option<i64>,
+        read_concern: Option<ReadConcern>,
         read_preference: Option<ReadPreference>,
         write_concern: Option<WriteConcern>,
     ) -> Database {
+        let max_time_ms = max_time_ms.or_else(|| client.max_time_ms.to_owned());
+        let read_concern = read_concern.or_else(|| client.read_concern.to_owned());
         let rp = read_preference.unwrap_or_else(|| client.read_preference.to_owned());
         let wc = write_concern.unwrap_or_else(|| client.write_concern.to_owned());
 
         Arc::new(DatabaseInner {
             name: String::from(name),
             client: client,
+            max_time_ms,
+            read_concern,
             read_preference: rp,
             write_concern: wc,
         })
@@ -197,6 +211,8 @@ impl ThreadedDatabase for Database {
             self.clone(),
             coll_name,
             false,
+            self.max_time_ms.to_owned(),
+            self.read_concern.to_owned(),
             Some(self.read_preference.to_owned()),
             Some(self.write_concern.to_owned()),
         )
@@ -206,6 +222,8 @@ impl ThreadedDatabase for Database {
         &self,
         coll_name: &str,
         create: bool,
+        max_time_ms: Option<i64>,
+        read_concern: Option<ReadConcern>,
         read_preference: Option<ReadPreference>,
         write_concern: Option<WriteConcern>,
     ) -> Collection {
@@ -213,6 +231,8 @@ impl ThreadedDatabase for Database {
             self.clone(),
             coll_name,
             create,
+            max_time_ms,
+            read_concern,
             read_preference,
             write_concern,
         )

@@ -13,7 +13,7 @@ use self::options::*;
 use self::results::*;
 
 use ThreadedClient;
-use common::{merge_options, ReadPreference, WriteConcern};
+use common::{merge_options, ReadConcern, ReadPreference, WriteConcern};
 use cursor::Cursor;
 use db::{Database, ThreadedDatabase};
 
@@ -31,6 +31,8 @@ pub struct Collection {
     pub db: Database,
     /// The namespace of this collection, formatted as db_name.coll_name.
     pub namespace: String,
+    max_time_ms: Option<i64>,
+    read_concern: Option<ReadConcern>,
     read_preference: ReadPreference,
     write_concern: WriteConcern,
 }
@@ -43,10 +45,13 @@ impl Collection {
         db: Database,
         name: &str,
         create: bool,
+        max_time_ms: Option<i64>,
+        read_concern: Option<ReadConcern>,
         read_preference: Option<ReadPreference>,
         write_concern: Option<WriteConcern>,
     ) -> Collection {
-
+        let max_time_ms = max_time_ms.or_else(|| db.max_time_ms.to_owned());
+        let read_concern = read_concern.or_else(|| db.read_concern.to_owned());
         let rp = read_preference.unwrap_or_else(|| db.read_preference.to_owned());
         let wc = write_concern.unwrap_or_else(|| db.write_concern.to_owned());
 
@@ -58,6 +63,8 @@ impl Collection {
         Collection {
             db: db.clone(),
             namespace: format!("{}.{}", db.name, name),
+            max_time_ms,
+            read_concern,
             read_preference: rp,
             write_concern: wc,
         }
@@ -107,6 +114,13 @@ impl Collection {
 
         match options {
             Some(aggregate_options) => {
+                let aggregate_options = {
+                    let mut options = aggregate_options;
+                    options.max_time_ms = options.max_time_ms.or_else(|| self.max_time_ms.clone());
+                    options.read_concern = options.read_concern
+                        .or_else(|| self.read_concern.clone());
+                    options
+                };
                 if let Some(ref read_preference_option) = aggregate_options.read_preference {
                     read_preference = read_preference_option.clone();
                 }
@@ -142,6 +156,12 @@ impl Collection {
         let mut read_preference = self.read_preference.clone();
 
         if let Some(count_options) = options {
+            let count_options = {
+                let mut options = count_options;
+                options.max_time_ms = options.max_time_ms.or_else(|| self.max_time_ms.clone());
+                options.read_concern = options.read_concern.or_else(|| self.read_concern.clone());
+                options
+            };
             if let Some(ref read_preference_option) = count_options.read_preference {
                 read_preference = read_preference_option.clone();
             }
@@ -177,6 +197,19 @@ impl Collection {
 
         if let Some(filter_doc) = filter {
             spec.insert("query", filter_doc);
+        }
+
+        let max_time_ms = options.as_ref()
+            .and_then(|o| o.max_time_ms).or_else(|| self.max_time_ms);
+        if let Some(max_time_ms) = max_time_ms {
+            spec.insert("maxTimeMs", max_time_ms);
+        }
+
+        let read_concern = options.as_ref()
+            .and_then(|o| o.read_concern.as_ref()).or_else(|| self.read_concern.as_ref())
+            .map(|r| r.to_document());
+        if let Some(read_concern) = read_concern {
+            spec.insert("readConcern", read_concern);
         }
 
         let read_preference = options.and_then(|o| o.read_preference).unwrap_or_else(|| {
@@ -224,6 +257,12 @@ impl Collection {
             None => filter.unwrap_or_default(),
         };
 
+        let find_options = {
+            let mut options = find_options;
+            options.max_time_ms = options.max_time_ms.or_else(|| self.max_time_ms.clone());
+            options.read_concern = options.read_concern.or_else(|| self.read_concern.clone());
+            options
+        };
         let read_preference = match find_options.read_preference {
             Some(ref read_preference_option) => read_preference_option.clone(),
             None => self.read_preference.clone(),

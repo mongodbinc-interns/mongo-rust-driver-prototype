@@ -243,9 +243,16 @@ macro_rules! run_update_test {
 #[macro_export]
 macro_rules! run_suite {
     ( $file:expr, $coll:expr ) => {{
+        run_suite_with_options!($file, $coll, ClientOptions::new())
+    }};
+}
+
+#[macro_export]
+macro_rules! run_suite_with_options {
+    ( $file:expr, $coll:expr, $opts:expr ) => {{
         let json = Value::from_file($file).unwrap();
         let suite = json.get_suite().unwrap();
-        let client =  Client::connect("localhost", 27017).unwrap();
+        let client =  Client::connect_with_options("localhost", 27017, $opts).unwrap();
         let db = client.db("test");
         let coll = db.collection($coll);
 

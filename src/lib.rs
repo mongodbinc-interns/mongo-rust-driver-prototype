@@ -176,7 +176,7 @@ use std::sync::atomic::{AtomicIsize, Ordering, ATOMIC_ISIZE_INIT};
 
 use apm::Listener;
 use bson::Bson;
-use common::{ReadPreference, ReadMode, WriteConcern};
+use common::{ReadConcern, ReadPreference, ReadMode, WriteConcern};
 use connstring::ConnectionString;
 use db::{Database, ThreadedDatabase};
 use error::Error::ResponseError;
@@ -190,6 +190,10 @@ pub const DRIVER_NAME: &'static str = "mongo-rust-driver-prototype";
 
 /// Interfaces with a MongoDB server or replica set.
 pub struct ClientInner {
+    /// The cumulative time limit in milliseconds for processing operations on the cursor.
+    pub max_time_ms: Option<i64>,
+    /// Indicates the consistency and isolation properties of the data read.
+    pub read_concern: Option<ReadConcern>,
     /// Indicates how a server should be selected for read operations.
     pub read_preference: ReadPreference,
     /// Describes the guarantees provided by MongoDB when reporting the success of a write
@@ -219,6 +223,10 @@ impl fmt::Debug for ClientInner {
 pub struct ClientOptions {
     /// File path for command logging.
     pub log_file: Option<String>,
+    /// The cumulative time limit in milliseconds for processing operations on the cursor.
+    pub max_time_ms: Option<i64>,
+    /// Indicates the consistency and isolation properties of the data read.
+    pub read_concern: Option<ReadConcern>,
     /// Client-level server selection preferences for read operations.
     pub read_preference: Option<ReadPreference>,
     /// Client-level write guarantees when reporting a write success.
@@ -238,6 +246,8 @@ impl ClientOptions {
     pub fn new() -> ClientOptions {
         ClientOptions {
             log_file: None,
+            max_time_ms: None,
+            read_concern: None,
             read_preference: None,
             write_concern: None,
             heartbeat_frequency_ms: DEFAULT_HEARTBEAT_FREQUENCY_MS,
@@ -301,6 +311,8 @@ pub trait ThreadedClient: Sync + Sized {
     fn db_with_prefs(
         &self,
         db_name: &str,
+        max_time_ms: Option<i64>,
+        read_concern: Option<ReadConcern>,
         read_preference: Option<ReadPreference>,
         write_concern: Option<WriteConcern>,
     ) -> Database;
@@ -358,6 +370,8 @@ impl ThreadedClient for Client {
 
         let client_options = options.unwrap_or_else(ClientOptions::new);
 
+        let max_time_ms = client_options.max_time_ms;
+        let read_concern = client_options.read_concern;
         let rp = client_options.read_preference.unwrap_or_else(|| {
             ReadPreference::new(ReadMode::Primary, None)
         });
@@ -389,6 +403,8 @@ impl ThreadedClient for Client {
                 client_options.stream_connector.clone(),
             )?,
             listener: listener,
+            max_time_ms,
+            read_concern,
             read_preference: rp,
             write_concern: wc,
             log_file: file,
@@ -419,16 +435,25 @@ impl ThreadedClient for Client {
     }
 
     fn db(&self, db_name: &str) -> Database {
-        Database::open(self.clone(), db_name, None, None)
+        Database::open(self.clone(), db_name, None, None, None, None)
     }
 
     fn db_with_prefs(
         &self,
         db_name: &str,
+        max_time_ms: Option<i64>,
+        read_concern: Option<ReadConcern>,
         read_preference: Option<ReadPreference>,
         write_concern: Option<WriteConcern>,
     ) -> Database {
-        Database::open(self.clone(), db_name, read_preference, write_concern)
+        Database::open(
+            self.clone(),
+            db_name,
+            max_time_ms,
+            read_concern,
+            read_preference,
+            write_concern
+        )
     }
 
     fn acquire_stream(

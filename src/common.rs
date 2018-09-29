@@ -6,6 +6,62 @@ use bson::{self, Bson};
 use std::collections::BTreeMap;
 use std::str::FromStr;
 
+/// Level of desired consistency and isolation properties of the data read.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum ReadConcernLevel {
+    Local,
+    Available,
+    Majority,
+    Linearizable,
+    Snapshot,
+}
+
+impl ReadConcernLevel {
+    fn to_str(&self) -> &'static str {
+        match *self {
+            ReadConcernLevel::Available => "available",
+            ReadConcernLevel::Linearizable => "linearizable",
+            ReadConcernLevel::Local => "local",
+            ReadConcernLevel::Majority => "majority",
+            ReadConcernLevel::Snapshot => "snapshot",
+        }
+    }
+}
+
+impl FromStr for ReadConcernLevel {
+    type Err = Error;
+    fn from_str(s: &str) -> Result<Self> {
+        Ok(match s {
+            "available" => ReadConcernLevel::Available,
+            "linearizable" => ReadConcernLevel::Linearizable,
+            "local" => ReadConcernLevel::Local,
+            "majority" => ReadConcernLevel::Majority,
+            "snapshot" => ReadConcernLevel::Snapshot,
+            _ => {
+                return Err(ArgumentError(
+                    format!("Could not convert '{}' to ReadConcernLevel.", s),
+                ))
+            }
+        })
+    }
+}
+
+/// Indicates the consistency and isolation properties of the data read.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct ReadConcern {
+    pub level: ReadConcernLevel,
+}
+
+impl ReadConcern {
+    pub fn new(level: ReadConcernLevel) -> ReadConcern {
+        ReadConcern { level }
+    }
+
+    pub fn to_document(&self) -> bson::Document {
+        doc! { "level": self.level.to_str() }
+    }
+}
+
 /// Indicates how a server should be selected during read operations.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum ReadMode {

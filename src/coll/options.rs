@@ -1,6 +1,6 @@
 //! Options for collection-level operations.
 use bson::{self, Bson};
-use common::{ReadPreference, WriteConcern};
+use common::{ReadConcern, ReadPreference, WriteConcern};
 use Error::ArgumentError;
 use Result;
 
@@ -64,6 +64,7 @@ pub struct AggregateOptions {
     pub use_cursor: Option<bool>,
     pub batch_size: i32,
     pub max_time_ms: Option<i64>,
+    pub read_concern: Option<ReadConcern>,
     pub read_preference: Option<ReadPreference>,
 }
 
@@ -87,7 +88,13 @@ impl From<AggregateOptions> for bson::Document {
         let cursor = doc! { "batchSize": options.batch_size };
         document.insert("cursor", cursor);
 
-        // maxTimeMS is not currently used by the driver.
+        if let Some(max_time_ms) = options.max_time_ms {
+            document.insert("maxTimeMS", max_time_ms);
+        }
+
+        if let Some(read_concern) = options.read_concern {
+            document.insert("readConcern", read_concern.to_document());
+        }
 
         // read_preference is used directly by Collection::aggregate.
 
@@ -103,6 +110,7 @@ pub struct CountOptions {
     pub hint: Option<String>,
     pub hint_doc: Option<bson::Document>,
     pub max_time_ms: Option<i64>,
+    pub read_concern: Option<ReadConcern>,
     pub read_preference: Option<ReadPreference>,
 }
 
@@ -132,7 +140,13 @@ impl From<CountOptions> for bson::Document {
             document.insert("hint_doc", hint_doc);
         }
 
-        // maxTimeMS is not currently used by the driver.
+        if let Some(max_time_ms) = options.max_time_ms {
+            document.insert("maxTimeMS", max_time_ms);
+        }
+
+        if let Some(read_concern) = options.read_concern {
+            document.insert("readConcern", read_concern.to_document());
+        }
 
         // read_preference is used directly by Collection::count.
 
@@ -144,6 +158,7 @@ impl From<CountOptions> for bson::Document {
 #[derive(Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct DistinctOptions {
     pub max_time_ms: Option<i64>,
+    pub read_concern: Option<ReadConcern>,
     pub read_preference: Option<ReadPreference>,
 }
 
@@ -168,6 +183,7 @@ pub struct FindOptions {
     pub modifiers: Option<bson::Document>,
     pub projection: Option<bson::Document>,
     pub sort: Option<bson::Document>,
+    pub read_concern: Option<ReadConcern>,
     pub read_preference: Option<ReadPreference>,
 }
 
@@ -185,7 +201,7 @@ impl From<FindOptions> for bson::Document {
         // `allow_partial_results`, `no_cursor_timeout`, `oplog_relay`, and `cursor_type` are used by
         // wire_protocol::OpQueryFlags.
         //
-        // `max_time_ms` and `modifiers` are not currently used by the driver.
+        // `modifiers` are not currently used by the driver.
         //
         // read_preference is used directly by Collection::find_with_command_type.
 
@@ -207,6 +223,14 @@ impl From<FindOptions> for bson::Document {
 
         if let Some(sort) = options.sort {
             document.insert("sort", sort);
+        }
+
+        if let Some(max_time_ms) = options.max_time_ms {
+            document.insert("maxTimeMS", max_time_ms);
+        }
+
+        if let Some(read_concern) = options.read_concern {
+            document.insert("readConcern", read_concern.to_document());
         }
 
         document

@@ -2,7 +2,7 @@ use bson::Bson;
 use json::crud::arguments::Arguments;
 use json::crud::reader::SuiteContainer;
 use json::eq::{self, NumEq};
-use mongodb::{Client, ThreadedClient};
+use mongodb::{Client, ClientOptions, ThreadedClient};
 use mongodb::coll::options::{InsertManyOptions, ReplaceOptions, UpdateOptions};
 use mongodb::db::ThreadedDatabase;
 use serde_json::Value;
