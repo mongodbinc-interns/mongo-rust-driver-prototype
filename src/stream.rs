@@ -4,10 +4,7 @@ use std::io::{Read, Result, Write};
 use std::net::{SocketAddr, TcpStream};
 
 #[cfg(feature = "ssl")]
-use openssl::ssl::{Ssl, SslMethod, SslContext, SslStream, SSL_OP_NO_COMPRESSION, SSL_OP_NO_SSLV2,
-                   SSL_OP_NO_SSLV3, SSL_VERIFY_NONE, SSL_VERIFY_PEER};
-#[cfg(feature = "ssl")]
-use openssl::x509::X509_FILETYPE_PEM;
+use openssl::ssl::{Ssl, SslContext, SslFiletype, SslMethod, SslOptions, SslStream, SslVerifyMode};
 
 /// Encapsulates the functionality for how to connect to the server.
 #[derive(Clone)]
@@ -105,25 +102,23 @@ impl StreamConnector {
                 let inner_stream = TcpStream::connect((hostname, port))?;
 
                 let mut ssl_context = SslContext::builder(SslMethod::tls())?;
-                ssl_context.set_cipher_list(
-                    "ALL:!EXPORT:!eNULL:!aNULL:HIGH:@STRENGTH",
-                )?;
-                ssl_context.set_options(SSL_OP_NO_SSLV2);
-                ssl_context.set_options(SSL_OP_NO_SSLV3);
-                ssl_context.set_options(SSL_OP_NO_COMPRESSION);
+                ssl_context.set_cipher_list("ALL:!EXPORT:!eNULL:!aNULL:HIGH:@STRENGTH")?;
+                ssl_context.set_options(SslOptions::NO_SSLV2);
+                ssl_context.set_options(SslOptions::NO_SSLV3);
+                ssl_context.set_options(SslOptions::NO_COMPRESSION);
                 ssl_context.set_ca_file(ca_file)?;
 
                 if let &Some(ref file) = certificate_file {
-                    ssl_context.set_certificate_file(file, X509_FILETYPE_PEM)?;
+                    ssl_context.set_certificate_file(file, SslFiletype::PEM)?;
                 }
                 if let &Some(ref file) = key_file {
-                    ssl_context.set_private_key_file(file, X509_FILETYPE_PEM)?;
+                    ssl_context.set_private_key_file(file, SslFiletype::PEM)?;
                 }
 
                 let verify = if verify_peer {
-                    SSL_VERIFY_PEER
+                    SslVerifyMode::PEER
                 } else {
-                    SSL_VERIFY_NONE
+                    SslVerifyMode::NONE
                 };
                 ssl_context.set_verify(verify);
 
@@ -135,7 +130,6 @@ impl StreamConnector {
                     Err(e) => Err(Error::new(ErrorKind::Other, e)),
                 }
             }
-
         }
     }
 }

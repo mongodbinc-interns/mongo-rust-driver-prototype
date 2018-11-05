@@ -34,7 +34,7 @@ version = "~0"
 
 [dependencies.openssl]
 optional = true
-version = "0.9.19"
+version = "0.10.15"
 
 [dependencies.textnonce]
 default-features = false
