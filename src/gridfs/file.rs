@@ -547,7 +547,7 @@ impl io::Read for File {
         }
 
         // Read all required chunks into memory
-        while self.rbuf.len() < buf.len() && (self.chunk_num as i64) * (self.doc.chunk_size as i64) < self.doc.len{
+        while self.rbuf.len() < buf.len() && (self.chunk_num as i64) * (self.doc.chunk_size as i64) < self.doc.len {
             let chunk = self.get_chunk()?;
             self.rbuf.extend(chunk);
         }
