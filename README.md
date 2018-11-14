@@ -40,7 +40,7 @@ Then, import the bson and driver libraries within your code.
 extern crate mongodb;
 ```
 
-or with Rust 3.10+:
+or with Rust 2018:
 
 ```rust
 extern crate mongodb;
