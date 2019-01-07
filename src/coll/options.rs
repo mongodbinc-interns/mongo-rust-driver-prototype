@@ -298,27 +298,58 @@ impl From<FindOneAndUpdateOptions> for bson::Document {
 }
 
 /// Options for index operations.
-#[derive(Clone, Debug, Default, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq)]
 pub struct IndexOptions {
+    #[serde(skip_serializing_if="Option::is_none")]
     pub background: Option<bool>,
+
+    #[serde(rename="expireAfterSeconds", skip_serializing_if="Option::is_none")]
     pub expire_after_seconds: Option<i32>,
+
+    #[serde(skip_serializing_if="Option::is_none")]
     pub name: Option<String>,
+
+    #[serde(skip_serializing_if="Option::is_none")]
     pub sparse: Option<bool>,
-    pub storage_engine: Option<String>,
+
+    #[serde(rename="storageEngine", skip_serializing_if="Option::is_none")]
+    pub storage_engine: Option<bson::Document>,
+
+    #[serde(skip_serializing_if="Option::is_none")]
     pub unique: Option<bool>,
+
+    #[serde(rename="v", skip_serializing_if="Option::is_none")]
     pub version: Option<i32>,
+
     // Options for text indexes
+    #[serde(skip_serializing_if="Option::is_none")]
     pub default_language: Option<String>,
+
+    #[serde(skip_serializing_if="Option::is_none")]
     pub language_override: Option<String>,
+
+    #[serde(rename="textIndexVersion", skip_serializing_if="Option::is_none")]
     pub text_version: Option<i32>,
+
+    #[serde(skip_serializing_if="Option::is_none")]
     pub weights: Option<bson::Document>,
+
     // Options for 2dsphere indexes
+    #[serde(rename="2dsphereIndexVersion", skip_serializing_if="Option::is_none")]
     pub sphere_version: Option<i32>,
+
     // Options for 2d indexes
+    #[serde(skip_serializing_if="Option::is_none")]
     pub bits: Option<i32>,
+
+    #[serde(skip_serializing_if="Option::is_none")]
     pub max: Option<f64>,
+
+    #[serde(skip_serializing_if="Option::is_none")]
     pub min: Option<f64>,
+
     // Options for geoHaystack indexes
+    #[serde(rename="bucketSize", skip_serializing_if="Option::is_none")]
     pub bucket_size: Option<i32>,
 }
 
@@ -329,9 +360,12 @@ impl IndexOptions {
 }
 
 /// A single index model.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub struct IndexModel {
+    #[serde(rename="key")]
     pub keys: bson::Document,
+
+    #[serde(flatten)]
     pub options: IndexOptions,
 }
 
@@ -366,12 +400,12 @@ impl IndexModel {
             match *bson {
                 Bson::I32(ref i) => name.push_str(&format!("{}", i)),
                 Bson::String(ref s)
-                    if s == "text" || s == "hashed" || s == "2d" || s == "2dsphere" => {
+                    if s == "text" || s == "hashed" || s == "2d" || s == "2dsphere" || s == "geoHaystack" => {
                     name.push_str(s)
                 }
                 _ => {
                     return Err(ArgumentError(String::from(
-                        "Index model keys must map to i32, \"text\", \"hashed\", \"2d\" or \"2dsphere\"",
+                        r#"Index model keys must map to i32, "text", "hashed", "2d", "2dsphere" or "geoHaystack"."#,
                     )))
                 }
             }
@@ -398,7 +432,7 @@ impl IndexModel {
             doc.insert("sparse", val);
         }
         if let Some(ref val) = self.options.storage_engine {
-            doc.insert("storageEngine", val);
+            doc.insert("storageEngine", bson::Bson::Document(val.clone()));
         }
         if let Some(val) = self.options.unique {
             doc.insert("unique", val);
@@ -481,3 +515,77 @@ impl UpdateOptions {
 }
 
 pub type ReplaceOptions = UpdateOptions;
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    fn build_populated_index_opts() -> IndexOptions {
+        // Note, this setup is not actually valid, but tests (de)serialization effectively.
+        let mut opts = IndexOptions::default();
+        opts.background = Some(true);
+        opts.expire_after_seconds = Some(10);
+        opts.name = Some("test".to_string());
+        opts.sparse = Some(true);
+        opts.storage_engine = Some(doc!{"mmapv1": true}); // Not sure about the actual shape `:)`.
+        opts.unique = Some(true);
+        opts.version = Some(2);
+        opts.default_language = Some("en_us".to_string());
+        opts.language_override = Some("en_us".to_string());
+        opts.text_version = Some(3);
+        opts.weights = Some(doc!{"test_field": 10});
+        opts.sphere_version = Some(3);
+        opts.bits = Some(26);
+        opts.max = Some(-180.0);
+        opts.min = Some(180.0);
+        opts.bucket_size = Some(10);
+        opts
+    }
+
+    #[test]
+    fn serde_and_manual_serialization_should_match_with_defaults() {
+        let keys = doc!{"test_field": -1};
+        let opts = IndexOptions::default();
+        let model = IndexModel::new(keys, Some(opts));
+
+        let manual_ser = model.to_bson().unwrap();
+        let mut serde_ser = bson::to_bson(&model).unwrap();
+
+        // NOTE: manual serialization is currently supplementing the index name instead of letting
+        // the server do it. So let's assert the shape of the serde `name` & then update it from
+        // the manual serialization for the overall assert.
+        assert!(serde_ser.as_document().unwrap().get("name").is_none()); // Serde should skip "name" if not specified.
+        serde_ser = if let bson::Bson::Document(mut doc) = serde_ser {
+            doc.insert("name", manual_ser.get_str("name").unwrap());
+            bson::Bson::Document(doc)
+        } else {
+            panic!("Expected a bson::Bson::Document(_).");
+        };
+        assert_eq!(bson::Bson::Document(manual_ser), serde_ser);
+    }
+
+    #[test]
+    fn serde_and_manual_serialization_should_match_with_values() {
+        let keys = doc!{"test_field": "text"};
+        let opts = build_populated_index_opts();
+        let model = IndexModel::new(keys, Some(opts));
+
+        let manual_ser = model.to_bson().unwrap();
+        let serde_ser = bson::to_bson(&model).unwrap();
+
+        assert_eq!(bson::Bson::Document(manual_ser), serde_ser);
+    }
+
+    #[test]
+    fn to_and_from_serde_should_be_idempotent() {
+        let keys = doc!{"test_field": "text"};
+        let opts = build_populated_index_opts();
+        let model = IndexModel::new(keys, Some(opts.clone()));
+
+        let serde_ser = bson::to_bson(&model).expect("Expected valid BSON serialization.");
+        let de: IndexModel = bson::from_bson(serde_ser).expect("Expected valid BSON deserialization.");
+
+        assert_eq!(doc!{"test_field": "text"}, de.keys);
+        assert_eq!(opts, de.options);
+    }
+}

@@ -137,6 +137,9 @@ extern crate rand;
 #[macro_use]
 extern crate scan_fmt;
 extern crate semver;
+extern crate serde;
+#[macro_use(Serialize, Deserialize)]
+extern crate serde_derive;
 extern crate separator;
 extern crate textnonce;
 extern crate time;
