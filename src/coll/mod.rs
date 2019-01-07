@@ -1054,12 +1054,7 @@ impl Collection {
     /// This is the same as `list_indexes`, and still uses a `Cursor` under the hood. The elements
     /// are serialized as `IndexModel`s as they are received.
     pub fn list_index_models(&self) -> Result<impl Iterator<Item=Result<IndexModel>>> {
-        let cmd = doc!{ "listIndexes": self.name() };
-        self.db.command_cursor(
-            cmd,
-            CommandType::ListIndexes,
-            self.read_preference.to_owned(),
-        ).map(|cursor| {
+        self.list_indexes().map(|cursor| {
             cursor.map(|doc_res| {
                 doc_res.and_then(|doc| -> Result<IndexModel> {
                     bson::from_bson(bson::Bson::Document(doc)).map_err(|err| DecoderError(err))
