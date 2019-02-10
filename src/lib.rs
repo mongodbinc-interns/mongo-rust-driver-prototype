@@ -138,8 +138,13 @@ extern crate rand;
 extern crate scan_fmt;
 extern crate semver;
 extern crate separator;
+extern crate serde;
+#[macro_use]
+extern crate serde_derive;
 extern crate textnonce;
 extern crate time;
+#[macro_use]
+extern crate typed_builder;
 extern crate md5;
 extern crate sha1;
 extern crate hmac;
@@ -147,6 +152,7 @@ extern crate pbkdf2;
 extern crate hex;
 
 pub mod db;
+pub mod change_stream;
 pub mod coll;
 pub mod common;
 pub mod connstring;
