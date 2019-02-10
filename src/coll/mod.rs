@@ -16,6 +16,7 @@ use ThreadedClient;
 use common::{merge_options, ReadPreference, WriteConcern};
 use cursor::Cursor;
 use db::{Database, ThreadedDatabase};
+use change_stream::{ChangeStream, ChangeStreamOptions};
 
 use Result;
 use Error::{ArgumentError, ResponseError, OperationError, BulkWriteError};
@@ -1047,5 +1048,10 @@ impl Collection {
             CommandType::ListIndexes,
             self.read_preference.to_owned(),
         )
+    }
+
+    /// Watch this collection for changes.
+    pub fn watch(&self, pipeline: Option<Vec<bson::Document>>, options: Option<ChangeStreamOptions>) -> Result<ChangeStream> {
+        ChangeStream::watch_coll(self.name(), pipeline, options, self.read_preference.clone(), self.db.clone())
     }
 }
