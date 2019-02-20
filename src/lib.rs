@@ -182,6 +182,7 @@ use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicIsize, Ordering, ATOMIC_ISIZE_INIT};
 
 use apm::Listener;
+use change_stream::{ChangeStream, ChangeStreamOptions};
 use common::{ReadPreference, ReadMode, WriteConcern};
 use connstring::ConnectionString;
 use db::{Database, ThreadedDatabase};
@@ -326,6 +327,8 @@ pub trait ThreadedClient: Sync + Sized {
     fn add_start_hook(&mut self, hook: fn(Client, &CommandStarted)) -> Result<()>;
     /// Sets a function to be run every time a command completes.
     fn add_completion_hook(&mut self, hook: fn(Client, &CommandResult)) -> Result<()>;
+    /// Watch the entire deployment for changes.
+    fn watch(&self, pipeline: Option<Vec<bson::Document>>, options: Option<ChangeStreamOptions>) -> Result<ChangeStream>;
 }
 
 pub type Client = Arc<ClientInner>;
@@ -502,6 +505,12 @@ impl ThreadedClient for Client {
 
     fn add_completion_hook(&mut self, hook: fn(Client, &CommandResult)) -> Result<()> {
         self.listener.add_completion_hook(hook)
+    }
+
+
+    /// Watch the entire deployment for changes.
+    fn watch(&self, pipeline: Option<Vec<bson::Document>>, options: Option<ChangeStreamOptions>) -> Result<ChangeStream> {
+        ChangeStream::watch_deployment(pipeline, options, self.read_preference.clone(), self.clone())
     }
 }
 

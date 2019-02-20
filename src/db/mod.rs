@@ -172,7 +172,6 @@ pub trait ThreadedDatabase {
         users: Vec<&str>,
         options: Option<UserInfoOptions>,
     ) -> Result<Vec<bson::Document>>;
-
     /// Watch this database for changes
     fn watch(&self, pipeline: Option<Vec<bson::Document>>, options: Option<ChangeStreamOptions>) -> Result<ChangeStream>;
 }
