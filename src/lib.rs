@@ -328,6 +328,12 @@ pub trait ThreadedClient: Sync + Sized {
     /// Sets a function to be run every time a command completes.
     fn add_completion_hook(&mut self, hook: fn(Client, &CommandResult)) -> Result<()>;
     /// Watch the entire deployment for changes.
+    ///
+    /// Using this helper method is preferred to running a raw change stream aggregation, as the
+    /// returned change stream object will handle error recovery automatically.
+    ///
+    /// A `majority` read concern is required for change streams. The server will return an error
+    /// if read concern is not set to `majority`.
     fn watch(&self, pipeline: Option<Vec<bson::Document>>, options: Option<ChangeStreamOptions>) -> Result<ChangeStream>;
 }
 
@@ -507,8 +513,6 @@ impl ThreadedClient for Client {
         self.listener.add_completion_hook(hook)
     }
 
-
-    /// Watch the entire deployment for changes.
     fn watch(&self, pipeline: Option<Vec<bson::Document>>, options: Option<ChangeStreamOptions>) -> Result<ChangeStream> {
         ChangeStream::watch_deployment(pipeline, options, self.read_preference.clone(), self.clone())
     }

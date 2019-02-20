@@ -1051,6 +1051,12 @@ impl Collection {
     }
 
     /// Watch this collection for changes.
+    ///
+    /// Using this helper method is preferred to running a raw change stream aggregation, as the
+    /// returned change stream object will handle error recovery automatically.
+    ///
+    /// A `majority` read concern is required for change streams. The server will return an error
+    /// if read concern is not set to `majority`.
     pub fn watch(&self, pipeline: Option<Vec<bson::Document>>, options: Option<ChangeStreamOptions>) -> Result<ChangeStream> {
         ChangeStream::watch_coll(self.name(), pipeline, options, self.read_preference.clone(), self.db.clone())
     }

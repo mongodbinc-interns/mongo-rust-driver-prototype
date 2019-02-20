@@ -22,8 +22,6 @@ const MISSING_RESUME_TOKEN_ERR: &str = "Cannot provide resume functionality when
 // ChangeStream //////////////////////////////////////////////////////////////////////////////////
 
 /// Observe real-time data changes in your MongoDB deployment without having to tail the oplog.
-///
-/// TODO: document this.
 pub struct ChangeStream {
     /// A representation of how this change stream was built.
     cstype: CSType,

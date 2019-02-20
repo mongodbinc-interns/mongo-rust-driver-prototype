@@ -172,7 +172,13 @@ pub trait ThreadedDatabase {
         users: Vec<&str>,
         options: Option<UserInfoOptions>,
     ) -> Result<Vec<bson::Document>>;
-    /// Watch this database for changes
+    /// Watch this database for changes.
+    ///
+    /// Using this helper method is preferred to running a raw change stream aggregation, as the
+    /// returned change stream object will handle error recovery automatically.
+    ///
+    /// A `majority` read concern is required for change streams. The server will return an error
+    /// if read concern is not set to `majority`.
     fn watch(&self, pipeline: Option<Vec<bson::Document>>, options: Option<ChangeStreamOptions>) -> Result<ChangeStream>;
 }
 
@@ -476,7 +482,6 @@ impl ThreadedDatabase for Database {
             .collect()
     }
 
-    /// Watch this database for changes.
     fn watch(&self, pipeline: Option<Vec<bson::Document>>, options: Option<ChangeStreamOptions>) -> Result<ChangeStream> {
         ChangeStream::watch_db(pipeline, options, self.read_preference.clone(), self.clone())
     }
