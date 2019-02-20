@@ -93,7 +93,7 @@ impl ChangeStream {
         let options = options.unwrap_or_else(|| ChangeStreamOptions::builder().build());
         let pipeline = pipeline.unwrap_or_else(|| Vec::with_capacity(0)); // Will never be mutated, so avoid allocation.
 
-        // Build a pipeline & cursor for watching a collection.
+        // Build the pipeline & cursor.
         let formatted_pipeline = PipelineBuilder::new(&pipeline, &options, 0).build()?.into_iter().map(Bson::from).collect();
         let cmd = doc!{"aggregate": coll.clone(), "pipeline": Bson::Array(formatted_pipeline), "cursor": doc!{}};
         let cursor = db.clone().command_cursor(cmd, CommandType::Aggregate, read_preference.clone())?;
@@ -120,7 +120,7 @@ impl ChangeStream {
         let options = options.unwrap_or_else(|| ChangeStreamOptions::builder().build());
         let pipeline = pipeline.unwrap_or_else(|| Vec::with_capacity(0)); // Will never be mutated, so avoid allocation.
 
-        // Build a pipeline & cursor for watching a collection.
+        // Build the pipeline & cursor.
         let formatted_pipeline = PipelineBuilder::new(&pipeline, &options, 0).build()?.into_iter().map(Bson::from).collect();
         let cmd = doc!{"aggregate": 1, "pipeline": Bson::Array(formatted_pipeline), "cursor": doc!{}};
         let cursor = db.clone().command_cursor(cmd, CommandType::Aggregate, read_preference.clone())?;
@@ -147,7 +147,7 @@ impl ChangeStream {
         let options = options.unwrap_or_else(|| ChangeStreamOptions::builder().build());
         let pipeline = pipeline.unwrap_or_else(|| Vec::with_capacity(0)); // Will never be mutated, so avoid allocation.
 
-        // Build a pipeline & cursor for watching a collection.
+        // Build the pipeline & cursor.
         let formatted_pipeline = PipelineBuilder::new(&pipeline, &options, 0).for_cluster().build()?
             .into_iter().map(Bson::from).collect();
         let cmd = doc!{"aggregate": 1, "pipeline": Bson::Array(formatted_pipeline), "cursor": doc!{}};
