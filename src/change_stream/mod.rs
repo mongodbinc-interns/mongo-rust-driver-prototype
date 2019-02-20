@@ -92,7 +92,7 @@ impl ChangeStream {
         db: Database,
     ) -> Result<Self> {
         let options = options.unwrap_or_else(|| ChangeStreamOptions::builder().build());
-        let pipeline = pipeline.unwrap_or_else(|| Vec::with_capacity(1)); // If empty, we will only ever need to add one item.
+        let pipeline = pipeline.unwrap_or_else(|| Vec::with_capacity(0)); // Will never be mutated, so avoid allocation.
 
         // Build a pipeline & cursor for watching a collection.
         let formatted_pipeline = PipelineBuilder::new(&pipeline, &options, 0).build()?.into_iter().map(Bson::from).collect();
@@ -102,6 +102,32 @@ impl ChangeStream {
         // Build and return the change stream instance.
         Ok(ChangeStream{
             cstype: CSType::Coll(coll, db),
+            buffer: Vec::with_capacity(0),
+            document_resume_token: None,
+            post_batch_resume_token: None,
+            last_optime: None,
+            is_initial_agg: true,
+            pipeline, cursor, options, read_preference,
+        })
+    }
+
+    pub(crate) fn watch_db(
+        pipeline: Option<Vec<Document>>,
+        options: Option<ChangeStreamOptions>,
+        read_preference: ReadPreference,
+        db: Database,
+    ) -> Result<Self> {
+        let options = options.unwrap_or_else(|| ChangeStreamOptions::builder().build());
+        let pipeline = pipeline.unwrap_or_else(|| Vec::with_capacity(0)); // Will never be mutated, so avoid allocation.
+
+        // Build a pipeline & cursor for watching a collection.
+        let formatted_pipeline = PipelineBuilder::new(&pipeline, &options, 0).build()?.into_iter().map(Bson::from).collect();
+        let cmd = doc!{"aggregate": 1, "pipeline": Bson::Array(formatted_pipeline), "cursor": doc!{}};
+        let cursor = db.clone().command_cursor(cmd, CommandType::Aggregate, read_preference.clone())?;
+
+        // Build and return the change stream instance.
+        Ok(ChangeStream{
+            cstype: CSType::Db(db),
             buffer: Vec::with_capacity(0),
             document_resume_token: None,
             post_batch_resume_token: None,

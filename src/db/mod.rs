@@ -58,18 +58,24 @@
 pub mod options;
 pub mod roles;
 
-use auth::Authenticator;
+use std::{
+    error::Error,
+    sync::Arc,
+};
+
 use bson::{self, bson, doc, Bson};
-use {Client, CommandType, ThreadedClient, Result};
-use Error::{CursorNotFoundError, OperationError, ResponseError};
-use coll::Collection;
-use coll::options::FindOptions;
-use common::{ReadPreference, merge_options, WriteConcern};
-use cursor::{Cursor, DEFAULT_BATCH_SIZE};
-use self::options::{CreateCollectionOptions, CreateUserOptions, UserInfoOptions};
 use semver::Version;
-use std::error::Error;
-use std::sync::Arc;
+
+use ::{
+    Client, CommandType, ThreadedClient,
+    auth::Authenticator,
+    change_stream::{ChangeStream, ChangeStreamOptions},
+    coll::{Collection, options::FindOptions},
+    common::{ReadPreference, merge_options, WriteConcern},
+    cursor::{Cursor, DEFAULT_BATCH_SIZE},
+    error::{Error::{CursorNotFoundError, OperationError, ResponseError}, Result},
+};
+use self::options::{CreateCollectionOptions, CreateUserOptions, UserInfoOptions};
 
 /// Interfaces with a MongoDB database.
 #[derive(Debug)]
@@ -166,6 +172,9 @@ pub trait ThreadedDatabase {
         users: Vec<&str>,
         options: Option<UserInfoOptions>,
     ) -> Result<Vec<bson::Document>>;
+
+    /// Watch this database for changes
+    fn watch(&self, pipeline: Option<Vec<bson::Document>>, options: Option<ChangeStreamOptions>) -> Result<ChangeStream>;
 }
 
 impl ThreadedDatabase for Database {
@@ -466,5 +475,10 @@ impl ThreadedDatabase for Database {
                 _ => Err(CursorNotFoundError),
             })
             .collect()
+    }
+
+    /// Watch this database for changes.
+    fn watch(&self, pipeline: Option<Vec<bson::Document>>, options: Option<ChangeStreamOptions>) -> Result<ChangeStream> {
+        ChangeStream::watch_db(pipeline, options, self.read_preference.clone(), self.clone())
     }
 }
