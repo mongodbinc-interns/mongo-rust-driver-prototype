@@ -200,6 +200,7 @@ impl Server {
         top_description: Arc<RwLock<TopologyDescription>>,
         run_monitor: bool,
         connector: StreamConnector,
+        pool_size: Option<usize>,
     ) -> Server {
         let description = Arc::new(RwLock::new(ServerDescription::new()));
 
@@ -207,7 +208,13 @@ impl Server {
         let host_clone = host.clone();
         let desc_clone = description.clone();
 
-        let pool = Arc::new(ConnectionPool::new(host.clone(), connector.clone()));
+        let pool_inner = if let Some(size) = pool_size {
+            ConnectionPool::with_size(host.clone(), connector.clone(), size)
+        } else {
+            ConnectionPool::new(host.clone(), connector.clone())
+        };
+
+        let pool = Arc::new(pool_inner);
 
         // Fails silently
         let monitor = Arc::new(Monitor::new(

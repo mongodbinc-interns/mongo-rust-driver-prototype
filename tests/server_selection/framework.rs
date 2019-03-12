@@ -29,6 +29,7 @@ pub fn run_suite(file: &str) {
             dummy_top_arc.clone(),
             false,
             StreamConnector::default(),
+            None,
         );
 
         {

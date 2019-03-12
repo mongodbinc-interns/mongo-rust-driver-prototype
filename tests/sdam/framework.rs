@@ -51,6 +51,7 @@ pub fn run_suite(file: &str, description: Option<TopologyDescription>) {
             top_description_arc.clone(),
             false,
             StreamConnector::default(),
+            None,
         );
         topology_description.servers.insert(host.clone(), server);
     }

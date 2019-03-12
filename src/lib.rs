@@ -217,6 +217,8 @@ impl fmt::Debug for ClientInner {
 /// Configuration options for a client.
 #[derive(Default)]
 pub struct ClientOptions {
+    /// The size of the inner connection pool of the client None means default, Default is 5
+    pub pool_size: Option<usize>,
     /// File path for command logging.
     pub log_file: Option<String>,
     /// Client-level server selection preferences for read operations.
@@ -237,6 +239,7 @@ impl ClientOptions {
     /// Creates a new default options struct.
     pub fn new() -> ClientOptions {
         ClientOptions {
+            pool_size: None,
             log_file: None,
             read_preference: None,
             write_concern: None,
@@ -409,6 +412,7 @@ impl ThreadedClient for Client {
                     top_description.clone(),
                     true,
                     client_options.stream_connector.clone(),
+                    client_options.pool_size,
                 );
 
                 top.servers.insert(host, server);
