@@ -856,7 +856,8 @@ impl TopologyDescription {
                     top_arc.clone(),
                     run_monitor,
                     self.stream_connector.clone(),
-                    None
+                    None,
+                    None,
                 );
                 self.servers.insert(host, server);
             }

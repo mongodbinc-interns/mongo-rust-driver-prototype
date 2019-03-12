@@ -185,6 +185,7 @@ use stream::StreamConnector;
 use topology::{Topology, TopologyDescription, TopologyType, DEFAULT_HEARTBEAT_FREQUENCY_MS,
                DEFAULT_LOCAL_THRESHOLD_MS, DEFAULT_SERVER_SELECTION_TIMEOUT_MS};
 use topology::server::Server;
+use std::time::Duration;
 
 pub const DRIVER_NAME: &'static str = "mongo-rust-driver-prototype";
 
@@ -217,8 +218,10 @@ impl fmt::Debug for ClientInner {
 /// Configuration options for a client.
 #[derive(Default)]
 pub struct ClientOptions {
-    /// The size of the inner connection pool of the client None means default, Default is 5
+    /// Size of the inner connection pool of the client None means default, Default is 5
     pub pool_size: Option<usize>,
+    /// Timeout for an idle connection inside the connection pool, None means Default, Default is 30 sec
+    pub idle_connection_timeout: Option<Duration>,
     /// File path for command logging.
     pub log_file: Option<String>,
     /// Client-level server selection preferences for read operations.
@@ -240,6 +243,7 @@ impl ClientOptions {
     pub fn new() -> ClientOptions {
         ClientOptions {
             pool_size: None,
+            idle_connection_timeout: None,
             log_file: None,
             read_preference: None,
             write_concern: None,
@@ -413,6 +417,7 @@ impl ThreadedClient for Client {
                     true,
                     client_options.stream_connector.clone(),
                     client_options.pool_size,
+                    client_options.idle_connection_timeout,
                 );
 
                 top.servers.insert(host, server);

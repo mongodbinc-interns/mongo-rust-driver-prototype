@@ -31,6 +31,7 @@ pub struct ConnectionPool {
     // A condition variable used for threads waiting for the pool
     // to be repopulated with available connections.
     wait_lock: Arc<Condvar>,
+    idle_connection_timeout: Duration,
     stream_connector: StreamConnector,
 }
 
@@ -99,21 +100,27 @@ impl Drop for PooledStream {
 impl ConnectionPool {
     /// Returns a connection pool with a default size.
     pub fn new(host: Host, connector: StreamConnector) -> ConnectionPool {
-        ConnectionPool::with_size(host, connector, DEFAULT_POOL_SIZE)
+        ConnectionPool::with_options(host, connector, DEFAULT_POOL_SIZE, DEFAULT_TIMEOUT_ON_IDLE)
     }
 
     /// Returns a connection pool with a specified capped size.
     pub fn with_size(host: Host, connector: StreamConnector, size: usize) -> ConnectionPool {
+        ConnectionPool::with_options(host, connector, size, DEFAULT_TIMEOUT_ON_IDLE)
+    }
+
+    /// Returns a connection pool with a specified options
+    pub fn with_options(host: Host, connector: StreamConnector, size: usize, idle_connection_timeout: Duration) -> ConnectionPool {
         ConnectionPool {
-            host: host,
+            host,
             wait_lock: Arc::new(Condvar::new()),
             inner: Arc::new(Mutex::new(Pool {
                 len: Arc::new(ATOMIC_USIZE_INIT),
-                size: size,
+                size,
                 sockets: VecDeque::with_capacity(size),
                 iteration: 0,
             })),
             stream_connector: connector,
+            idle_connection_timeout
         }
     }
 

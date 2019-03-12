@@ -30,6 +30,7 @@ pub fn run_suite(file: &str) {
             false,
             StreamConnector::default(),
             None,
+            None,
         );
 
         {

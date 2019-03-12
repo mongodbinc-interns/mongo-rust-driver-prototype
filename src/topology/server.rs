@@ -4,7 +4,7 @@ use Error::{self, OperationError};
 
 use bson::oid;
 use connstring::Host;
-use pool::{ConnectionPool, PooledStream};
+use pool::{ConnectionPool, PooledStream, DEFAULT_TIMEOUT_ON_IDLE};
 use stream::StreamConnector;
 
 use std::collections::BTreeMap;
@@ -15,6 +15,7 @@ use std::thread;
 
 use super::monitor::{IsMasterResult, Monitor};
 use super::TopologyDescription;
+use std::time::Duration;
 
 /// Server round trip time is calculated as an exponentially-weighted moving
 /// averaging formula with a weighting factor. A factor of 0.2 places approximately
@@ -201,6 +202,7 @@ impl Server {
         run_monitor: bool,
         connector: StreamConnector,
         pool_size: Option<usize>,
+        idle_timeout: Option<Duration>,
     ) -> Server {
         let description = Arc::new(RwLock::new(ServerDescription::new()));
 
@@ -209,7 +211,7 @@ impl Server {
         let desc_clone = description.clone();
 
         let pool_inner = if let Some(size) = pool_size {
-            ConnectionPool::with_size(host.clone(), connector.clone(), size)
+            ConnectionPool::with_options(host.clone(), connector.clone(), size, idle_timeout.unwrap_or_else(|| DEFAULT_TIMEOUT_ON_IDLE))
         } else {
             ConnectionPool::new(host.clone(), connector.clone())
         };
