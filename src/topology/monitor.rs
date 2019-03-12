@@ -359,8 +359,13 @@ impl Monitor {
 
     /// Execute isMaster and update the server and topology.
     fn execute_update(&self) {
+
         match self.is_master() {
-            Ok((mut cursor, rtt)) => self.update_with_is_master_cursor(&mut cursor, rtt),
+            Ok((mut cursor, rtt)) => {
+                self.update_with_is_master_cursor(&mut cursor, rtt);
+                self.server_pool.prune_idle();
+                self.personal_pool.prune_idle();
+            },
             Err(err) => {
                 // Refresh all connections
                 self.server_pool.clear();

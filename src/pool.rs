@@ -1,23 +1,25 @@
 //! Connection pooling for a single MongoDB server.
-use error::Error::{self, ArgumentError, OperationError};
-use error::Result;
+use std::collections::VecDeque;
+use std::fmt;
+use std::sync::{Arc, Condvar, Mutex};
+use std::sync::atomic::{ATOMIC_USIZE_INIT, AtomicUsize, Ordering};
+use std::time::{Duration, Instant};
+
+use bson::{bson, doc};
+use bufstream::BufStream;
 
 use Client;
 use coll::options::FindOptions;
 use command_type::CommandType;
 use connstring::Host;
 use cursor::Cursor;
+use error::Error::{self, ArgumentError, OperationError};
+use error::Result;
 use stream::{Stream, StreamConnector};
 use wire_protocol::flags::OpQueryFlags;
 
-use bson::{bson, doc};
-use bufstream::BufStream;
-
-use std::fmt;
-use std::sync::{Arc, Condvar, Mutex};
-use std::sync::atomic::{AtomicUsize, Ordering, ATOMIC_USIZE_INIT};
-
 pub static DEFAULT_POOL_SIZE: usize = 5;
+pub static DEFAULT_TIMEOUT_ON_IDLE: Duration = Duration::from_secs(30);
 
 /// Handles threaded connections to a MongoDB server.
 #[derive(Clone)]
@@ -46,7 +48,7 @@ struct Pool {
     // The current number of open connections.
     pub len: Arc<AtomicUsize>,
     // The idle socket pool.
-    sockets: Vec<BufStream<Stream>>,
+    sockets: VecDeque<(BufStream<Stream>, Instant)>,
     // The pool iteration. When a server monitor fails to execute ismaster,
     // the connection pool is cleared and the iteration is incremented.
     iteration: usize,
@@ -86,7 +88,7 @@ impl Drop for PooledStream {
         // or give up if the pool lock has been poisoned.
         if let Ok(mut locked) = self.pool.lock() {
             if self.iteration == locked.iteration {
-                locked.sockets.push(self.socket.take().unwrap());
+                locked.sockets.push_back((self.socket.take().unwrap(), Instant::now()));
                 // Notify waiting threads that the pool has been repopulated.
                 self.wait_lock.notify_one();
             }
@@ -108,7 +110,7 @@ impl ConnectionPool {
             inner: Arc::new(Mutex::new(Pool {
                 len: Arc::new(ATOMIC_USIZE_INIT),
                 size: size,
-                sockets: Vec::with_capacity(size),
+                sockets: VecDeque::with_capacity(size),
                 iteration: 0,
             })),
             stream_connector: connector,
@@ -137,6 +139,28 @@ impl ConnectionPool {
         }
     }
 
+    pub fn prune_idle(&self) {
+        if let Ok(mut locked) = self.inner.lock() {
+            let len = locked.len.load(Ordering::SeqCst);
+            if len > 1 {
+                let mut prune_front = false;
+
+                {
+                    if let Some(front) = locked.sockets.front() {
+                        if Instant::now().duration_since(front.1.clone()) > DEFAULT_TIMEOUT_ON_IDLE {
+                            prune_front = true;
+                        }
+                    }
+                }
+
+                if prune_front {
+                    locked.sockets.pop_front();
+                    let _ = locked.len.fetch_sub(1, Ordering::SeqCst);
+                }
+            }
+        }
+    }
+
     /// Attempts to acquire a connected socket. If none are available and
     /// the pool has not reached its maximum size, a new socket will connect.
     /// Otherwise, the function will block until a socket is returned to the pool.
@@ -150,7 +174,7 @@ impl ConnectionPool {
 
         loop {
             // Acquire available existing socket
-            if let Some(stream) = locked.sockets.pop() {
+            if let Some((stream, _)) = locked.sockets.pop_back() {
                 return Ok(PooledStream {
                     socket: Some(stream),
                     pool: self.inner.clone(),
