@@ -15,11 +15,11 @@ use wire_protocol::flags::OpQueryFlags;
 
 use std::fmt;
 use std::collections::BTreeMap;
-use std::sync::{Arc, Condvar, Mutex, RwLock};
+use std::sync::{Arc, Weak, Condvar, Mutex, RwLock};
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::time::Duration;
 
-use time;
+use ::{time, ClientInner};
 
 use super::server::{ServerDescription, ServerType};
 use super::{DEFAULT_HEARTBEAT_FREQUENCY_MS, TopologyDescription};
@@ -69,7 +69,7 @@ pub struct Monitor {
     // Server description to update.
     server_description: Arc<RwLock<ServerDescription>>,
     // Client reference.
-    client: Client,
+    client: Weak<ClientInner>,
     // Owned, single-threaded pool.
     personal_pool: Arc<ConnectionPool>,
     // Owned copy of the topology's heartbeat frequency.
@@ -241,7 +241,7 @@ impl Monitor {
         connector: StreamConnector,
     ) -> Monitor {
         Monitor {
-            client: client,
+            client: Arc::downgrade(&client),
             host: host.clone(),
             server_pool: pool,
             personal_pool: Arc::new(ConnectionPool::with_size(host, connector, 1)),
@@ -272,30 +272,35 @@ impl Monitor {
 
         let flags = OpQueryFlags::with_find_options(&options);
         let filter = doc!{ "isMaster": 1_i32 };
-        let mut stream = self.personal_pool.acquire_stream(self.client.clone())?;
         let time_start = time::get_time();
-        let cursor = Cursor::query_with_stream(
-            &mut stream,
-            self.client.clone(),
-            String::from("local.$cmd"),
-            flags,
-            filter,
-            options,
-            CommandType::IsMaster,
-            false,
-            None,
-        )?;
-        let time_end = time::get_time();
+        if let Some(client_arc) = self.client.upgrade() {
+            let mut stream = self.personal_pool.acquire_stream(client_arc.clone())?;
 
-        let sec_start_ms: i64 = time_start.sec * 1000;
-        let start_ms = sec_start_ms + time_start.nsec as i64 / 1000000;
+            let cursor = Cursor::query_with_stream(
+                &mut stream,
+                client_arc,
+                String::from("local.$cmd"),
+                flags,
+                filter,
+                options,
+                CommandType::IsMaster,
+                false,
+                None,
+            )?;
+            let time_end = time::get_time();
 
-        let sec_end_ms: i64 = time_end.sec * 1000;
-        let end_ms = sec_end_ms + time_end.nsec as i64 / 1000000;
+            let sec_start_ms: i64 = time_start.sec * 1000;
+            let start_ms = sec_start_ms + time_start.nsec as i64 / 1000000;
 
-        let round_trip_time = end_ms - start_ms;
+            let sec_end_ms: i64 = time_end.sec * 1000;
+            let end_ms = sec_end_ms + time_end.nsec as i64 / 1000000;
 
-        Ok((cursor, round_trip_time))
+            let round_trip_time = end_ms - start_ms;
+
+            Ok((cursor, round_trip_time))
+        } else {
+            Err(Error::OperationError("Unable to upgrade client weak reference".to_string()))
+        }
     }
 
     pub fn request_update(&self) {
@@ -330,12 +335,14 @@ impl Monitor {
     // Updates the topology description associated with this monitor using a new server description.
     fn update_top_description(&self, description: Arc<RwLock<ServerDescription>>) {
         let mut top_description = self.top_description.write().unwrap();
-        top_description.update(
-            self.host.clone(),
-            description,
-            self.client.clone(),
-            self.top_description.clone(),
-        );
+        if let Some(client_arc) = self.client.upgrade() {
+            top_description.update(
+                self.host.clone(),
+                description,
+                client_arc,
+                self.top_description.clone(),
+            );
+        }
     }
 
     // Updates server and topology descriptions using a successful isMaster cursor result.
