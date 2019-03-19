@@ -91,7 +91,11 @@ impl StreamConnector {
 
     pub fn connect(&self, hostname: &str, port: u16) -> Result<Stream> {
         match *self {
-            StreamConnector::Tcp => TcpStream::connect((hostname, port)).map(Stream::Tcp),
+            StreamConnector::Tcp => {
+                let stream = TcpStream::connect((hostname, port))?;
+                stream.set_nodelay(true)?;
+                Ok(Stream::Tcp(stream))
+            },
             #[cfg(feature = "ssl")]
             StreamConnector::Ssl {
                 ref ca_file,
@@ -100,6 +104,7 @@ impl StreamConnector {
                 verify_peer,
             } => {
                 let inner_stream = TcpStream::connect((hostname, port))?;
+                inner_stream.set_nodelay(true)?;
 
                 let mut ssl_context = SslContext::builder(SslMethod::tls())?;
                 ssl_context.set_cipher_list("ALL:!EXPORT:!eNULL:!aNULL:HIGH:@STRENGTH")?;
