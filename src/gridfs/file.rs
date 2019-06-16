@@ -17,7 +17,7 @@ use std::error::Error as ErrorTrait;
 use std::io::Write;
 use std::ops::{Deref, DerefMut};
 use std::sync::{Arc, Condvar, Mutex, RwLock};
-use std::sync::atomic::{AtomicIsize, ATOMIC_ISIZE_INIT, Ordering};
+use std::sync::atomic::{AtomicIsize, Ordering};
 
 pub const DEFAULT_CHUNK_SIZE: i32 = 255 * 1024;
 pub const MEGABYTE: usize = 1024 * 1024;
@@ -140,7 +140,7 @@ impl File {
             gfs: gfs,
             chunk_num: 0,
             offset: 0,
-            wpending: Arc::new(ATOMIC_ISIZE_INIT),
+            wpending: Arc::new(AtomicIsize::new(0)),
             wbuf: Vec::new(),
             wsum: Md5::new(),
             rbuf: Vec::new(),

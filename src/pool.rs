@@ -15,7 +15,7 @@ use bufstream::BufStream;
 
 use std::fmt;
 use std::sync::{Arc, Condvar, Mutex};
-use std::sync::atomic::{AtomicUsize, Ordering, ATOMIC_USIZE_INIT};
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 pub static DEFAULT_POOL_SIZE: usize = 5;
 
@@ -106,7 +106,7 @@ impl ConnectionPool {
             host: host,
             wait_lock: Arc::new(Condvar::new()),
             inner: Arc::new(Mutex::new(Pool {
-                len: Arc::new(ATOMIC_USIZE_INIT),
+                len: Arc::new(AtomicUsize::new(0)),
                 size: size,
                 sockets: Vec::with_capacity(size),
                 iteration: 0,
