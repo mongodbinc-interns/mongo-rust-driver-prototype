@@ -259,6 +259,7 @@ pub struct FindOneAndUpdateOptions {
     pub sort: Option<bson::Document>,
     pub upsert: Option<bool>,
     pub write_concern: Option<WriteConcern>,
+    pub array_filters: Option<bson::Document>,
 }
 
 impl FindOneAndUpdateOptions {
@@ -291,6 +292,10 @@ impl From<FindOneAndUpdateOptions> for bson::Document {
 
         if let Some(write_concern) = options.write_concern {
             document.insert("writeConcern", write_concern.to_bson());
+        }
+
+        if let Some(array_filters) = options.array_filters {
+            document.insert("arrayFilters",  array_filters);
         }
 
         document
