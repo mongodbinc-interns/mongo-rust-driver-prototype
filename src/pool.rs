@@ -2,7 +2,7 @@
 use std::collections::VecDeque;
 use std::fmt;
 use std::sync::{Arc, Condvar, Mutex};
-use std::sync::atomic::{ATOMIC_USIZE_INIT, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::{Duration, Instant};
 
 use bson::{bson, doc};
@@ -17,13 +17,6 @@ use error::Error::{self, ArgumentError, OperationError};
 use error::Result;
 use stream::{Stream, StreamConnector};
 use wire_protocol::flags::OpQueryFlags;
-
-use bson::{bson, doc};
-use bufstream::BufStream;
-
-use std::fmt;
-use std::sync::{Arc, Condvar, Mutex};
-use std::sync::atomic::{AtomicUsize, Ordering};
 
 pub static DEFAULT_POOL_SIZE: usize = 5;
 pub static DEFAULT_TIMEOUT_ON_IDLE: Duration = Duration::from_secs(30);
