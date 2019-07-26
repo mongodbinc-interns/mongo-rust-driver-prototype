@@ -137,6 +137,9 @@ extern crate rand;
 #[macro_use]
 extern crate scan_fmt;
 extern crate semver;
+extern crate serde;
+#[macro_use(Serialize, Deserialize)]
+extern crate serde_derive;
 extern crate separator;
 extern crate textnonce;
 extern crate time;
@@ -173,7 +176,7 @@ use std::fs::{File, OpenOptions};
 use std::io::Write;
 use std::ops::DerefMut;
 use std::sync::{Arc, Mutex};
-use std::sync::atomic::{AtomicIsize, Ordering, ATOMIC_ISIZE_INIT};
+use std::sync::atomic::{AtomicIsize, Ordering};
 
 use apm::Listener;
 use common::{ReadPreference, ReadMode, WriteConcern};
@@ -389,7 +392,7 @@ impl ThreadedClient for Client {
         };
 
         let client = Arc::new(ClientInner {
-            req_id: Arc::new(ATOMIC_ISIZE_INIT),
+            req_id: Arc::new(AtomicIsize::new(0)),
             topology: Topology::new(
                 config.clone(),
                 description,

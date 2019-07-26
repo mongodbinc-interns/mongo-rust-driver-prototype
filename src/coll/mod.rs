@@ -18,7 +18,7 @@ use cursor::Cursor;
 use db::{Database, ThreadedDatabase};
 
 use Result;
-use Error::{ArgumentError, ResponseError, OperationError, BulkWriteError};
+use Error::{ArgumentError, DecoderError, ResponseError, OperationError, BulkWriteError};
 
 use wire_protocol::flags::OpQueryFlags;
 use std::collections::{BTreeMap, VecDeque};
@@ -1047,5 +1047,19 @@ impl Collection {
             CommandType::ListIndexes,
             self.read_preference.to_owned(),
         )
+    }
+
+    /// List all indexes in the collection as serialized `IndexModel`s.
+    ///
+    /// This is the same as `list_indexes`, and still uses a `Cursor` under the hood. The elements
+    /// are serialized as `IndexModel`s as they are received.
+    pub fn list_index_models(&self) -> Result<impl Iterator<Item=Result<IndexModel>>> {
+        self.list_indexes().map(|cursor| {
+            cursor.map(|doc_res| {
+                doc_res.and_then(|doc| -> Result<IndexModel> {
+                    bson::from_bson(bson::Bson::Document(doc)).map_err(|err| DecoderError(err))
+                })
+            })
+        })
     }
 }

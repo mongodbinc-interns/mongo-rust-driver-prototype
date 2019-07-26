@@ -1,6 +1,6 @@
+use std::io::{BufReader, Read, Result, Write};
 #[cfg(feature = "ssl")]
 use std::io::{Error, ErrorKind};
-use std::io::{Read, Result, Write};
 use std::net::{SocketAddr, TcpStream};
 
 #[cfg(feature = "ssl")]
@@ -91,7 +91,14 @@ impl StreamConnector {
 
     pub fn connect(&self, hostname: &str, port: u16) -> Result<Stream> {
         match *self {
-            StreamConnector::Tcp => TcpStream::connect((hostname, port)).map(Stream::Tcp),
+            StreamConnector::Tcp => {
+                let stream = TcpStream::connect((hostname, port))?;
+                stream.set_nodelay(true)?;
+                Ok(Stream::Tcp {
+                    read_half: BufReader::new(stream.try_clone()?),
+                    write_half: stream,
+                })
+            }
             #[cfg(feature = "ssl")]
             StreamConnector::Ssl {
                 ref ca_file,
@@ -100,6 +107,7 @@ impl StreamConnector {
                 verify_peer,
             } => {
                 let inner_stream = TcpStream::connect((hostname, port))?;
+                inner_stream.set_nodelay(true)?;
 
                 let mut ssl_context = SslContext::builder(SslMethod::tls())?;
                 ssl_context.set_cipher_list("ALL:!EXPORT:!eNULL:!aNULL:HIGH:@STRENGTH")?;
@@ -138,7 +146,10 @@ impl StreamConnector {
 }
 
 pub enum Stream {
-    Tcp(TcpStream),
+    Tcp {
+        read_half: BufReader<TcpStream>,
+        write_half: TcpStream,
+    },
     #[cfg(feature = "ssl")]
     Ssl(SslStream<TcpStream>),
 }
@@ -146,7 +157,9 @@ pub enum Stream {
 impl Read for Stream {
     fn read(&mut self, buf: &mut [u8]) -> Result<usize> {
         match *self {
-            Stream::Tcp(ref mut s) => s.read(buf),
+            Stream::Tcp {
+                ref mut read_half, ..
+            } => read_half.read(buf),
             #[cfg(feature = "ssl")]
             Stream::Ssl(ref mut s) => s.read(buf),
         }
@@ -156,7 +169,9 @@ impl Read for Stream {
 impl Write for Stream {
     fn write(&mut self, buf: &[u8]) -> Result<usize> {
         match *self {
-            Stream::Tcp(ref mut s) => s.write(buf),
+            Stream::Tcp {
+                ref mut write_half, ..
+            } => write_half.write(buf),
             #[cfg(feature = "ssl")]
             Stream::Ssl(ref mut s) => s.write(buf),
         }
@@ -164,7 +179,9 @@ impl Write for Stream {
 
     fn flush(&mut self) -> Result<()> {
         match *self {
-            Stream::Tcp(ref mut s) => s.flush(),
+            Stream::Tcp {
+                ref mut write_half, ..
+            } => write_half.flush(),
             #[cfg(feature = "ssl")]
             Stream::Ssl(ref mut s) => s.flush(),
         }
@@ -174,7 +191,7 @@ impl Write for Stream {
 impl Stream {
     pub fn peer_addr(&self) -> Result<SocketAddr> {
         match *self {
-            Stream::Tcp(ref stream) => stream.peer_addr(),
+            Stream::Tcp { ref write_half, .. } => write_half.peer_addr(),
             #[cfg(feature = "ssl")]
             Stream::Ssl(ref stream) => stream.get_ref().peer_addr(),
         }

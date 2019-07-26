@@ -18,6 +18,13 @@ use error::Result;
 use stream::{Stream, StreamConnector};
 use wire_protocol::flags::OpQueryFlags;
 
+use bson::{bson, doc};
+use bufstream::BufStream;
+
+use std::fmt;
+use std::sync::{Arc, Condvar, Mutex};
+use std::sync::atomic::{AtomicUsize, Ordering};
+
 pub static DEFAULT_POOL_SIZE: usize = 5;
 pub static DEFAULT_TIMEOUT_ON_IDLE: Duration = Duration::from_secs(30);
 
@@ -114,7 +121,8 @@ impl ConnectionPool {
             host,
             wait_lock: Arc::new(Condvar::new()),
             inner: Arc::new(Mutex::new(Pool {
-                len: Arc::new(ATOMIC_USIZE_INIT),
+
+                len: Arc::new(AtomicUsize::new(0)),
                 size,
                 sockets: VecDeque::with_capacity(size),
                 iteration: 0,

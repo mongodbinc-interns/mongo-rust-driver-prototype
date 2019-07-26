@@ -115,7 +115,7 @@ impl Header {
     /// # Return value
     ///
     /// Returns nothing on success, or an Error on failure.
-    pub fn write(&self, buffer: &mut Write) -> Result<()> {
+    pub fn write<W: Write>(&self, buffer: &mut W) -> Result<()> {
         buffer.write_i32::<LittleEndian>(self.message_length)?;
         buffer.write_i32::<LittleEndian>(self.request_id)?;
         buffer.write_i32::<LittleEndian>(self.response_to)?;
@@ -134,7 +134,7 @@ impl Header {
     /// # Return value
     ///
     /// Returns the parsed Header on success, or an Error on failure.
-    pub fn read(buffer: &mut Read) -> Result<Header> {
+    pub fn read<R: Read>(buffer: &mut R) -> Result<Header> {
         let message_length = buffer.read_i32::<LittleEndian>()?;
         let request_id = buffer.read_i32::<LittleEndian>()?;
         let response_to = buffer.read_i32::<LittleEndian>()?;
