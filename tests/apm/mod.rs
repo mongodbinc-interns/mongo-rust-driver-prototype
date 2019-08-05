@@ -19,10 +19,7 @@ fn timed_query(_client: Client, command_result: &CommandResult) {
     if command_name.eq("find") {
         // Sanity check
         assert!(duration >= 1500000000);
-
-        // Technically not guaranteed, but since the query is running locally, it shouldn't even be
-        // close
-        assert!(duration < 2000000000);
+        // There is no need to assert a upper duration bound since it is not the purpose of this test
     }
 }
 
