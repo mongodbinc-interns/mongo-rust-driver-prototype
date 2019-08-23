@@ -37,6 +37,10 @@ version = "~0"
 optional = true
 version = "0.10.15"
 
+[dependencies.openssl-sys]
+optional = true
+version = "*"
+
 [dependencies.serde_json]
 version = "1"
 features = ["preserve_order"]
@@ -51,4 +55,7 @@ approx = "0.1.1"
 [features]
 default = []
 ssl = ["openssl"]
+# Force openssl-sys to staticly link in the openssl library. Necessary when
+# cross compiling to x86_64-unknown-linux-musl.
+vendored = ["openssl-sys/vendored"]
 lint = ["clippy"]
