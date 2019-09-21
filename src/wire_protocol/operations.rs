@@ -1,5 +1,5 @@
 //! Wire protocol operational client-server communication logic.
-use bson;
+
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use Error::{ArgumentError, ResponseError};
 use Result;
@@ -13,22 +13,6 @@ use std::result::Result::{Ok, Err};
 trait ByteLength {
     /// Calculates the number of bytes in the serialized version of the struct.
     fn byte_length(&self) -> Result<i32>;
-}
-
-impl ByteLength for bson::Document {
-    /// Gets the length of a BSON document.
-    ///
-    /// # Return value
-    ///
-    /// Returns the number of bytes in the serialized BSON document, or an
-    /// Error if the document couldn't be serialized.
-    fn byte_length(&self) -> Result<i32> {
-        let mut temp_buffer = Vec::new();
-
-        bson::encode_document(&mut temp_buffer, self)?;
-
-        Ok(temp_buffer.len() as i32)
-    }
 }
 
 /// Represents a message in the MongoDB Wire Protocol.
@@ -46,7 +30,7 @@ pub enum Message {
         /// The total number of documents being returned.
         number_returned: i32,
         /// The documents being returned.
-        documents: Vec<bson::Document>,
+        documents: Vec<u8>,
     },
     OpUpdate {
         /// The message header.
@@ -58,9 +42,9 @@ pub enum Message {
         /// A bit vector of update options.
         flags: OpUpdateFlags,
         /// Identifies the document(s) to be updated.
-        selector: bson::Document,
+        selector: Vec<u8>,
         /// Instruction document for how to update the document(s).
-        update: bson::Document,
+        update: Vec<u8>,
     },
     OpInsert {
         /// The message header.
@@ -71,7 +55,7 @@ pub enum Message {
         /// database name and a dot separator.
         namespace: String,
         /// The documents to be inserted.
-        documents: Vec<bson::Document>,
+        documents: Vec<u8>,
     },
     OpQuery {
         /// The message header.
@@ -86,10 +70,10 @@ pub enum Message {
         /// The total number of documents that should be returned by the query.
         number_to_return: i32,
         /// Specifies which documents to return.
-        query: bson::Document,
+        query: Vec<u8>,
         /// An optional projection of which fields should be present in the
         /// documents to be returned by the query.
-        return_field_selector: Option<bson::Document>,
+        return_field_selector: Option<Vec<u8>>,
     },
     OpGetMore {
         /// The message header.
@@ -113,7 +97,7 @@ impl Message {
         cursor_id: i64,
         starting_from: i32,
         number_returned: i32,
-        documents: Vec<bson::Document>,
+        documents: Vec<u8>,
     ) -> Message {
         Message::OpReply {
             header: header,
@@ -130,8 +114,8 @@ impl Message {
         request_id: i32,
         namespace: String,
         flags: OpUpdateFlags,
-        selector: bson::Document,
-        update: bson::Document,
+        selector: Vec<u8>,
+        update: Vec<u8>,
     ) -> Result<Message> {
         let header_length = mem::size_of::<Header>() as i32;
 
@@ -142,11 +126,10 @@ impl Message {
         // a bit vector, and the wire protocol-specified ZERO field.
         let i32_length = mem::size_of::<i32>() as i32 * 2;
 
-        let selector_length = selector.byte_length()?;
-        let update_length = update.byte_length()?;
+        let selector_length = selector.len() as i32;
+        let update_length = update.len() as i32;
 
-        let total_length = header_length + string_length + i32_length + selector_length +
-            update_length;
+        let total_length = header_length + string_length + i32_length + selector_length + update_length;
 
         let header = Header::new_update(total_length, request_id);
 
@@ -164,7 +147,7 @@ impl Message {
         request_id: i32,
         flags: OpInsertFlags,
         namespace: String,
-        documents: Vec<bson::Document>,
+        documents: Vec<u8>,
     ) -> Result<Message> {
         let header_length = mem::size_of::<Header>() as i32;
         let flags_length = mem::size_of::<i32>() as i32;
@@ -174,9 +157,7 @@ impl Message {
 
         let mut total_length = header_length + flags_length + string_length;
 
-        for doc in &documents {
-            total_length += doc.byte_length()?;
-        }
+        total_length += documents.len() as i32;
 
         let header = Header::new_insert(total_length, request_id);
 
@@ -195,8 +176,8 @@ impl Message {
         namespace: String,
         number_to_skip: i32,
         number_to_return: i32,
-        query: bson::Document,
-        return_field_selector: Option<bson::Document>,
+        query: Vec<u8>,
+        return_field_selector: Option<Vec<u8>>,
     ) -> Result<Message> {
 
         let header_length = mem::size_of::<Header>() as i32;
@@ -208,11 +189,11 @@ impl Message {
         // Add an extra byte after the string for null-termination.
         let string_length = namespace.len() as i32 + 1;
 
-        let bson_length = query.byte_length()?;
+        let bson_length = query.len() as i32;
 
         // Add the length of the optional BSON document only if it exists.
         let option_length = match return_field_selector {
-            Some(ref bson) => bson.byte_length()?,
+            Some(ref bson) => bson.len() as i32,
             None => 0,
         };
 
@@ -259,25 +240,6 @@ impl Message {
         }
     }
 
-    /// Writes a serialized BSON document to a given buffer.
-    ///
-    /// # Arguments
-    ///
-    /// `buffer` - The buffer to write to.
-    /// `bson` - The document to serialize and write.
-    ///
-    /// # Return value
-    ///
-    /// Returns nothing on success, or an Error on failure.
-    fn write_bson_document<W: Write>(buffer: &mut W, bson: &bson::Document) -> Result<()> {
-        let mut temp_buffer = Vec::new();
-
-        bson::encode_document(&mut temp_buffer, bson)?;
-        buffer.write_all(&temp_buffer)?;
-
-        Ok(())
-    }
-
     /// Writes a serialized update message to a given buffer.
     ///
     /// # Arguments
@@ -298,8 +260,8 @@ impl Message {
         header: &Header,
         namespace: &str,
         flags: &OpUpdateFlags,
-        selector: &bson::Document,
-        update: &bson::Document,
+        selector: &[u8],
+        update: &[u8],
     ) -> Result<()> {
 
         header.write(buffer)?;
@@ -316,8 +278,8 @@ impl Message {
 
         buffer.write_i32::<LittleEndian>(flags.bits())?;
 
-        Message::write_bson_document(buffer, selector)?;
-        Message::write_bson_document(buffer, update)?;
+        buffer.write_all(selector)?;
+        buffer.write_all(update)?;
 
         let _ = buffer.flush();
         Ok(())
@@ -342,7 +304,7 @@ impl Message {
         header: &Header,
         flags: &OpInsertFlags,
         namespace: &str,
-        documents: &[bson::Document],
+        documents: &[u8],
     ) -> Result<()> {
 
         header.write(buffer)?;
@@ -355,9 +317,7 @@ impl Message {
         // Writes the null terminator for the collection name string.
         buffer.write_u8(0)?;
 
-        for doc in documents {
-            Message::write_bson_document(buffer, doc)?;
-        }
+        buffer.write_all(documents)?;
 
         let _ = buffer.flush();
         Ok(())
@@ -391,8 +351,8 @@ impl Message {
         namespace: &str,
         number_to_skip: i32,
         number_to_return: i32,
-        query: &bson::Document,
-        return_field_selector: &Option<bson::Document>,
+        query: &[u8],
+        return_field_selector: &Option<Vec<u8>>,
     ) -> Result<()> {
 
         header.write(buffer)?;
@@ -407,10 +367,10 @@ impl Message {
 
         buffer.write_i32::<LittleEndian>(number_to_skip)?;
         buffer.write_i32::<LittleEndian>(number_to_return)?;
-        Message::write_bson_document(buffer, query)?;
+        buffer.write_all(query)?;
 
         if let Some(ref doc) = *return_field_selector {
-            Message::write_bson_document(buffer, doc)?;
+            buffer.write_all(doc)?;
         }
 
         let _ = buffer.flush();
@@ -473,7 +433,7 @@ impl Message {
             // Only the server should send replies
             Message::OpReply { .. } => {
                 Err(ArgumentError(
-                    String::from("OP_REPLY should not be sent to the client."),
+                    String::from("OP_REPLY should not be sent by the client."),
                 ))
             }
             Message::OpUpdate {
@@ -546,15 +506,11 @@ impl Message {
         let nr = buffer.read_i32::<LittleEndian>()?;
         length -= mem::size_of::<i32>() as i32;
 
-        let mut v = Vec::new();
+        let mut payload = vec![0; length as usize];
 
-        while length > 0 {
-            let bson = bson::decode_document(buffer)?;
-            length -= bson.byte_length()?;
-            v.push(bson);
-        }
+        buffer.read_exact(&mut payload[..])?;
 
-        Ok(Message::new_reply(header, flags, cid, sf, nr, v))
+        Ok(Message::new_reply(header, flags, cid, sf, nr, payload))
     }
 
     /// Attempts to read a serialized reply Message from a buffer.

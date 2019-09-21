@@ -26,7 +26,7 @@
 use {Client, CommandType, Error, ErrorCode, Result, ThreadedClient};
 use apm::{CommandStarted, CommandResult, EventRunner};
 
-use bson::{self, bson, doc, Bson};
+use bson::{self, bson, doc, encode_document, Bson, Document};
 use common::{merge_options, ReadMode, ReadPreference};
 use coll::options::FindOptions;
 use pool::PooledStream;
@@ -131,9 +131,19 @@ impl Cursor {
         match message {
             Message::OpReply {
                 cursor_id: cid,
-                documents: docs,
+                //documents: docs,
+                number_returned: nret,
+                documents: payload,
                 ..
             } => {
+                let docs: Vec<Document> = {
+                    let mut plcursor = std::io::Cursor::new(payload);
+                    let mut docs = Vec::with_capacity(nret as usize);
+                    for _ in 0..nret as usize {
+                         docs.push(bson::decode_document(&mut plcursor)?);
+                    }
+                    docs
+                };
                 let out_doc = if let Some(out_doc) = docs.get(0) {
                     if let Some(&Bson::I32(code)) = out_doc.get("code") {
                         // If command doesn't exist or namespace not found, return
@@ -299,6 +309,9 @@ impl Cursor {
             _ => query.clone(),
         };
 
+        let mut query_vec = Vec::new();
+        encode_document(&mut query_vec, &query)?;
+
         let init_time = time::precise_time_ns();
         let message = Message::new_query(
             req_id,
@@ -306,8 +319,15 @@ impl Cursor {
             namespace.clone(),
             options.skip.unwrap_or(0) as i32,
             options.batch_size.unwrap_or(DEFAULT_BATCH_SIZE),
-            query,
-            options.projection,
+            query_vec,
+            match options.projection {
+                Some(doc) => {
+                    let mut projection = Vec::new();
+                    encode_document(&mut projection, &doc)?;
+                    Some(projection)
+                }
+                None => None,
+            },
         )?;
 
         if cmd_type != CommandType::Suppressed {

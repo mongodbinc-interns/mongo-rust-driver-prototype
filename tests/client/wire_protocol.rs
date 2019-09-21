@@ -1,9 +1,27 @@
 use bson::{Bson, Document};
-use mongodb::{Client, ThreadedClient};
+use mongodb::{Client, ThreadedClient, encode_document};
 use mongodb::db::ThreadedDatabase;
 use mongodb::wire_protocol::flags::{OpInsertFlags, OpQueryFlags, OpUpdateFlags};
 use mongodb::wire_protocol::operations::Message;
+use mongodb::decode_document;
 use std::net::TcpStream;
+
+fn from_payload(bytes: &[u8]) -> mongodb::Result<Vec<Document>> {
+    let mut out = Vec::new();
+    let mut c = std::io::Cursor::new(bytes);
+    while let Ok(doc) = decode_document(&mut c) {
+        out.push(doc);
+    }
+    Ok(out)
+}
+
+fn to_payload(docs: &[bson::Document]) -> mongodb::Result<Vec<u8>> {
+    let mut out = std::io::Cursor::new(Vec::new());
+    for doc in docs {
+        encode_document(&mut out, doc)?;
+    }
+    Ok(out.into_inner())
+}
 
 #[test]
 fn insert_single_key_doc() {
@@ -18,7 +36,7 @@ fn insert_single_key_doc() {
             let docs = vec![doc];
             let flags = OpInsertFlags::empty();
             let name = "test-client-wire_protocol-insert_single_key_doc.single_key".to_owned();
-            let res = Message::new_insert(1, flags, name, docs);
+            let res = Message::new_insert(1, flags, name, to_payload(&docs).unwrap());
 
             let cm = match res {
                 Ok(message) => message,
@@ -33,7 +51,7 @@ fn insert_single_key_doc() {
             let doc = Document::new();
             let flags = OpQueryFlags::empty();
             let name = "test-client-wire_protocol-insert_single_key_doc.single_key".to_owned();
-            let res = Message::new_query(1, flags, name, 0, 0, doc, None);
+            let res = Message::new_query(1, flags, name, 0, 0, to_payload(&[doc]).unwrap(), None);
 
             let cm = match res {
                 Ok(message) => message,
@@ -51,7 +69,7 @@ fn insert_single_key_doc() {
             };
 
             let docs = match reply {
-                Message::OpReply { documents: d, .. } => d,
+                Message::OpReply { documents: d, .. } => from_payload(&d).unwrap(),
                 _ => panic!("Invalid response read from server"),
             };
 
@@ -83,7 +101,7 @@ fn insert_multi_key_doc() {
             let docs = vec![doc];
             let flags = OpInsertFlags::empty();
             let name = "test-client-wire_protocol-insert_multi_key_doc.multi_key".to_owned();
-            let res = Message::new_insert(1, flags, name, docs);
+            let res = Message::new_insert(1, flags, name, to_payload(&docs).unwrap());
 
             let cm = match res {
                 Ok(message) => message,
@@ -98,7 +116,7 @@ fn insert_multi_key_doc() {
             let doc = Document::new();
             let flags = OpQueryFlags::empty();
             let name = "test-client-wire_protocol-insert_multi_key_doc.multi_key".to_owned();
-            let res = Message::new_query(1, flags, name, 0, 0, doc, None);
+            let res = Message::new_query(1, flags, name, 0, 0, to_payload(&[doc]).unwrap(), None);
 
             let cm = match res {
                 Ok(message) => message,
@@ -116,7 +134,7 @@ fn insert_multi_key_doc() {
             };
 
             let docs = match reply {
-                Message::OpReply { documents: d, .. } => d,
+                Message::OpReply { documents: d, .. } => from_payload(&d).unwrap(),
                 _ => panic!("Invalid response read from server"),
             };
 
@@ -158,7 +176,7 @@ fn insert_docs() {
             let docs = vec![doc1, doc2];
             let flags = OpInsertFlags::empty();
             let name = "test-client-wire_protocol-insert_docs.multi_doc".to_owned();
-            let res = Message::new_insert(1, flags, name, docs);
+            let res = Message::new_insert(1, flags, name, to_payload(&docs).unwrap());
 
             let cm = match res {
                 Ok(message) => message,
@@ -173,7 +191,7 @@ fn insert_docs() {
             let doc = Document::new();
             let flags = OpQueryFlags::empty();
             let name = "test-client-wire_protocol-insert_docs.multi_doc".to_owned();
-            let res = Message::new_query(1, flags, name, 0, 0, doc, None);
+            let res = Message::new_query(1, flags, name, 0, 0, to_payload(&[doc]).unwrap(), None);
 
             let cm = match res {
                 Ok(message) => message,
@@ -192,7 +210,7 @@ fn insert_docs() {
             };
 
             let docs = match reply {
-                Message::OpReply { documents: d, .. } => d,
+                Message::OpReply { documents: d, .. } => from_payload(&d).unwrap(),
                 _ => panic!("Invalid response read from server"),
             };
 
@@ -231,7 +249,7 @@ fn insert_update_then_query() {
             let docs = vec![doc];
             let flags = OpInsertFlags::empty();
             let name = "test-client-wire_protocol-insert_update_then_query.update".to_owned();
-            let res = Message::new_insert(1, flags, name, docs);
+            let res = Message::new_insert(1, flags, name, to_payload(&docs).unwrap());
 
             let cm = match res {
                 Ok(message) => message,
@@ -249,7 +267,7 @@ fn insert_update_then_query() {
 
             let flags = OpUpdateFlags::empty();
             let name = "test-client-wire_protocol-insert_update_then_query.update".to_owned();
-            let res = Message::new_update(2, name, flags, selector, update);
+            let res = Message::new_update(2, name, flags, to_payload(&[selector]).unwrap(), to_payload(&[update]).unwrap());
 
             let cm = match res {
                 Ok(message) => message,
@@ -264,7 +282,7 @@ fn insert_update_then_query() {
             let doc = Document::new();
             let flags = OpQueryFlags::empty();
             let name = "test-client-wire_protocol-insert_update_then_query.update".to_owned();
-            let res = Message::new_query(3, flags, name, 0, 0, doc, None);
+            let res = Message::new_query(3, flags, name, 0, 0, to_payload(&[doc]).unwrap(), None);
 
             let cm = match res {
                 Ok(message) => message,
@@ -282,7 +300,7 @@ fn insert_update_then_query() {
             };
 
             let docs = match reply {
-                Message::OpReply { documents: d, .. } => d,
+                Message::OpReply { documents: d, .. } => from_payload(&d).unwrap(),
                 _ => panic!("Invalid response read from server"),
             };
 
