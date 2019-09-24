@@ -29,17 +29,8 @@ impl ByteLength for bson::Document {
             len += key.len() as i32 + 1; // cstring
             len += value.byte_length()?;
         }
-        // Compatibility check: remove this
-        assert!(check_length(self, len));
-
         Ok(len)
     }
-}
-
-fn check_length(doc: &bson::Document, len: i32) -> bool {
-    let mut temp_buffer = Vec::new();
-    bson::encode_document(&mut temp_buffer, doc).unwrap();
-    len == temp_buffer.len() as i32
 }
 
 impl ByteLength for bson::Bson {
