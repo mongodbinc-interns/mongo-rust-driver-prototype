@@ -13,12 +13,12 @@ impl Phase {
     fn from_json(object: &Map<String, Value>) -> Result<Phase, String> {
         let operation = val_or_err!(object.get("responses"),
                                     Some(&Value::Array(ref array)) =>
-                                    try!(Responses::from_json(array)),
+                                    Responses::from_json(array)?,
                                     "No `responses` array found.");
 
         let outcome = val_or_err!(object.get("outcome"),
                                   Some(&Value::Object(ref obj)) =>
-                                  try!(Outcome::from_json(obj)),
+                                  Outcome::from_json(obj)?,
                                   "No `outcome` object found.");
 
         Ok(Phase {
@@ -78,8 +78,7 @@ impl SuiteContainer for Value {
                               Some(&Value::String(ref s)) => s.clone(),
                               "`get_suite` requires a connection uri");
 
-
-        let phases = try!(get_phases(&object));
+        let phases = get_phases(&object)?;
         Ok(Suite {
             uri: uri,
             phases: phases,

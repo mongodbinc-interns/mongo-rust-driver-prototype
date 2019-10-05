@@ -130,8 +130,8 @@ impl SuiteContainer for Value {
                                  Value::Object(ref object) => object.clone(),
                                  "`get_suite` requires a JSON object");
 
-        let data = try!(get_data(&object));
-        let tests = try!(get_tests(&object));
+        let data = get_data(&object)?;
+        let tests = get_tests(&object)?;
 
         Ok(Suite {
             data: data,

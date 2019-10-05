@@ -28,8 +28,7 @@ fn get_server_array(vals: &[Value]) -> Result<Vec<Server>, String> {
                 match Server::from_json(obj) {
                     Ok(server) => servers.push(server),
                     Err(err) => return Err(err),
-                }
-            }
+            },
             _ => {
                 return Err(String::from(
                     "Some servers could not be parsed for topology",
@@ -68,17 +67,17 @@ impl SuiteContainer for Value {
 
         let read_preference = val_or_err!(object.get("read_preference"),
                                           Some(&Value::Object(ref object)) =>
-                                          try!(ReadPreference::from_json(object)),
+                                          ReadPreference::from_json(object)?,
                                           "suite requires a read_preference object.");
 
         let in_latency_window = val_or_err!(object.get("in_latency_window"),
                                            Some(&Value::Array(ref array)) =>
-                                           try!(get_server_array(array)),
+                                           get_server_array(array)?,
                                            "suite requires an in_latency_window array.");
 
         let suitable_servers = val_or_err!(object.get("suitable_servers"),
                                            Some(&Value::Array(ref array)) =>
-                                           try!(get_server_array(array)),
+                                           get_server_array(array)?,
                                            "suite requires a suitable_servers array.");
 
         let topology_obj = val_or_err!(object.get("topology_description"),
@@ -87,7 +86,7 @@ impl SuiteContainer for Value {
 
         let top_servers = val_or_err!(topology_obj.get("servers"),
                                       Some(&Value::Array(ref array)) =>
-                                      try!(get_server_array(array)),
+                                      get_server_array(array)?,
                                       "topology requires an array of servers.");
 
         let ttype = val_or_err!(topology_obj.get("type"),
