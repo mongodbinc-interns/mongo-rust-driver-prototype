@@ -232,17 +232,3 @@ fn logging() {
 
     fs::remove_file("test_log.txt").unwrap();
 }
-
-fn assert_with_ip(expected_line: &str, line: &str) {
-    if line.contains("127.0.0.1") {
-        assert_eq!(
-            "COMMAND.create_collection 127.0.0.1:27017 STARTED: { create: \"logging\" }\n",
-            line
-        );
-    } else {
-        assert_eq!(
-            "COMMAND.create_collection qqqq:27017 STARTED: { create: \"logging\" }\n",
-            line
-        );
-    }
-}
