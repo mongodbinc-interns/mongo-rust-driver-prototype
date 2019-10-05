@@ -28,7 +28,8 @@ fn get_server_array(vals: &[Value]) -> Result<Vec<Server>, String> {
                 match Server::from_json(obj) {
                     Ok(server) => servers.push(server),
                     Err(err) => return Err(err),
-            },
+                }
+            }
             _ => {
                 return Err(String::from(
                     "Some servers could not be parsed for topology",
