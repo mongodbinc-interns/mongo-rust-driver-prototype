@@ -5,6 +5,7 @@ extern crate mongodb;
 use mongodb::{Client, ThreadedClient, ClientOptions};
 use mongodb::db::ThreadedDatabase;
 
+#[cfg(feature = "ssl")]
 fn main() -> Result<(), std::io::Error> {
     let args: Vec<String> = env::args().collect();
     let uri = args.get(1).expect("First parameter should be a connection string");
@@ -27,4 +28,9 @@ fn main() -> Result<(), std::io::Error> {
     println!("DONE!");
 
     Ok(())
+}
+
+#[cfg(not(feature = "ssl"))]
+fn main() {
+    println!("Skipped: please enable ssl feature");
 }
