@@ -148,6 +148,7 @@ extern crate sha1;
 extern crate hmac;
 extern crate pbkdf2;
 extern crate hex;
+extern crate trust_dns_resolver;
 
 pub mod db;
 pub mod coll;

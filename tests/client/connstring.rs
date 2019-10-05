@@ -253,3 +253,36 @@ fn full() {
     assert_eq!("true", options.get("journal").unwrap());
     assert_eq!("50", options.get("wtimeoutMS").unwrap());
 }
+
+#[test]
+fn mongo_svr_without_username_password() {
+    let uri = "mongodb+srv://cluster0-amtij.gcp.mongodb.net/admin?retryWrites=true&w=majority";
+    let connstr = connstring::parse(uri).unwrap();
+    println!("{:#?}", connstr);
+    assert_eq!(3, connstr.hosts.len());
+    assert_eq!("cluster0-shard-00-00-amtij.gcp.mongodb.net", connstr.hosts[0].host_name);
+    assert_eq!(27017, connstr.hosts[0].port);
+    assert_eq!("cluster0-shard-00-01-amtij.gcp.mongodb.net", connstr.hosts[1].host_name);
+    assert_eq!(27017, connstr.hosts[1].port);
+    assert_eq!("cluster0-shard-00-02-amtij.gcp.mongodb.net", connstr.hosts[2].host_name);
+    assert_eq!(27017, connstr.hosts[2].port);
+
+    assert_eq!(None, connstr.user);
+    assert_eq!(None, connstr.password);
+
+    let options = connstr.options.unwrap();
+    assert_eq!("true", options.get("ssl").unwrap());
+}
+
+use mongodb::error;
+#[test]
+fn mongo_svr_with_username_password() {
+    let uri = "mongodb+srv://username:password@cluster0-amtij.gcp.mongodb.net/admin?retryWrites=true&w=majority";
+    let connstr = connstring::parse(uri);
+
+    assert!(connstr.is_err());
+
+    let err = connstr.err().unwrap();
+
+    assert_eq!("username and password are not currently supported in url.", err.to_string());
+}

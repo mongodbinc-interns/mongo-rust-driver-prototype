@@ -1,10 +1,13 @@
 //! Connection string parsing and options.
 use Result;
+use Error;
 use Error::ArgumentError;
 use std::collections::BTreeMap;
+use trust_dns_resolver::Resolver;
 
 pub const DEFAULT_PORT: u16 = 27017;
 pub const URI_SCHEME: &'static str = "mongodb://";
+pub const URI_SRV_SCHEME: &'static str = "mongodb+srv://";
 
 /// Encapsulates the hostname and port of a host.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -100,14 +103,20 @@ impl ConnectionString {
 /// Parses a MongoDB connection string URI as defined by
 /// [the manual](http://docs.mongodb.org/manual/reference/connection-string/).
 pub fn parse(address: &str) -> Result<ConnectionString> {
-    if !address.starts_with(URI_SCHEME) {
+    if !address.starts_with(URI_SCHEME) && !address.starts_with(URI_SRV_SCHEME) {
         return Err(ArgumentError(String::from(
-            "MongoDB connection string must start with 'mongodb://'.",
+            format!("MongoDB connection string must start with '{}' or '{}'.", URI_SCHEME, URI_SRV_SCHEME)
         )));
     }
 
+    let is_srv = address.starts_with(URI_SRV_SCHEME);
+
     // Remove scheme
-    let addr = &address[URI_SCHEME.len()..];
+    let addr = if !is_srv {
+        &address[URI_SCHEME.len()..]
+    } else {
+        &address[URI_SRV_SCHEME.len()..]
+    };
 
     let hosts: Vec<Host>;
     let mut user: Option<String> = None;
@@ -142,9 +151,17 @@ pub fn parse(address: &str) -> Result<ConnectionString> {
         let (u, p) = parse_user_info(user_info)?;
         user = Some(String::from(u));
         password = Some(String::from(p));
-        hosts = split_hosts(host_string)?;
+        hosts = if is_srv {
+            resolve_srv(host_string)?
+        } else {
+            split_hosts(host_string)?
+        };
     } else {
-        hosts = split_hosts(host_str)?;
+        hosts = if is_srv {
+            resolve_srv(host_str)?
+        } else {
+            split_hosts(host_str)?
+        };
     }
 
     let mut opts = "";
@@ -163,8 +180,14 @@ pub fn parse(address: &str) -> Result<ConnectionString> {
     }
 
     // Collect options if any exist
-    if !opts.is_empty() {
-        options = Some(split_options(opts).unwrap());
+    if !opts.is_empty() || is_srv {
+        options = Some(split_options(opts, is_srv).unwrap());
+    }
+
+    if is_srv && (user.is_some() || password.is_some()) {
+        return Err(ArgumentError(String::from(
+            "username and password are not currently supported in url.",
+        )));
     }
 
     Ok(ConnectionString {
@@ -288,7 +311,7 @@ fn parse_options(opts: &str, delim: Option<&str>) -> ConnectionOptions {
 }
 
 // Determines the option delimiter and offloads parsing to parse_options.
-fn split_options(opts: &str) -> Result<ConnectionOptions> {
+fn split_options(opts: &str, is_srv: bool) -> Result<ConnectionOptions> {
     let and_idx = opts.find('&');
     let semi_idx = opts.find(';');
     let mut delim = None;
@@ -306,7 +329,12 @@ fn split_options(opts: &str) -> Result<ConnectionOptions> {
             "InvalidURI: MongoDB URI options are key=value pairs.",
         )));
     }
-    let options = parse_options(opts, delim);
+    let mut options = parse_options(opts, delim);
+
+    if is_srv {
+        options.options.insert("ssl".to_owned(), "true".to_owned());
+    }
+
     Ok(options)
 }
 
@@ -332,4 +360,36 @@ fn rsplit<'a>(string: &'a str, sep: &str) -> (&'a str, &'a str) {
         Some(idx) => (&string[..idx + sep.len()], &string[idx + sep.len()..]),
         None => (string, ""),
     }
+}
+
+// Map io into Error
+fn map_io_error(error: std::io::Error) -> Error {
+    Error::DefaultError(error.to_string())
+}
+
+// Map trust_dns_resolver into Error
+fn map_thrust_dns_error(error: trust_dns_resolver::error::ResolveError) -> Error {
+    Error::DefaultError(error.to_string())
+}
+
+// Resolve SRV entry.
+fn resolve_srv<'a>(host_string: &'a str) -> Result<Vec<Host>> {
+    let resolver = Resolver::default().map_err(map_io_error)?;
+
+    let dns_entry = "_mongodb._tcp.".to_owned() + host_string;
+    let srv_lookup = resolver.lookup_srv(&dns_entry).map_err(map_thrust_dns_error)?;
+
+    let mut hosts: Vec<Host> = srv_lookup.iter()
+        .map(|entity| {
+            let port: u16 = entity.port();
+            let hostname = entity.target();
+            let mut hostname = hostname.to_utf8();
+            hostname.pop();
+            Host::new(hostname, port)
+        })
+        .collect();
+
+    hosts.sort_by(|a, b| a.host_name.partial_cmp(&b.host_name).unwrap());
+
+    Ok(hosts)
 }
