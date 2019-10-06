@@ -381,11 +381,6 @@ fn rsplit<'a>(string: &'a str, sep: &str) -> (&'a str, &'a str) {
     }
 }
 
-// Map io into Error
-fn map_io_error(error: std::io::Error) -> Error {
-    Error::DefaultError(error.to_string())
-}
-
 // Map trust_dns_resolver into Error
 fn map_thrust_dns_error(error: trust_dns_resolver::error::ResolveError) -> Error {
     Error::DefaultError(error.to_string())
@@ -393,7 +388,7 @@ fn map_thrust_dns_error(error: trust_dns_resolver::error::ResolveError) -> Error
 
 // Resolve SRV entry.
 fn resolve_srv<'a>(host_string: &'a str) -> Result<Vec<Host>> {
-    let resolver = Resolver::default().map_err(map_io_error)?;
+    let resolver = Resolver::default()?;
 
     let dns_entry = "_mongodb._tcp.".to_owned() + host_string;
     let srv_lookup = resolver.lookup_srv(&dns_entry).map_err(map_thrust_dns_error)?;
