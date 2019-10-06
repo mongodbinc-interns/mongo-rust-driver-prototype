@@ -285,3 +285,27 @@ fn mongo_svr_with_username_password() {
 
     assert_eq!("username and password are not currently supported in url.", err.to_string());
 }
+
+#[test]
+fn mongo_svr_with_ssl_false() {
+    let uri = "mongodb+srv://cluster0-amtij.gcp.mongodb.net/admin?ssl=false";
+    let connstr = connstring::parse(uri);
+
+    assert!(connstr.is_err());
+
+    let err = connstr.err().unwrap();
+
+    assert_eq!("srv schema cannot be unsafe.", err.to_string());
+}
+
+#[test]
+fn mongo_svr_with_tls_false() {
+    let uri = "mongodb+srv://cluster0-amtij.gcp.mongodb.net/admin?tls=false";
+    let connstr = connstring::parse(uri);
+
+    assert!(connstr.is_err());
+
+    let err = connstr.err().unwrap();
+
+    assert_eq!("srv schema cannot be unsafe.", err.to_string());
+}

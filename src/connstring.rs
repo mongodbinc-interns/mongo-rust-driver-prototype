@@ -180,25 +180,38 @@ pub fn parse(address: &str) -> Result<ConnectionString> {
         options = Some(split_options(opts).unwrap());
     }
 
+    if is_srv && (user.is_some() || password.is_some()) {
+        return Err(ArgumentError(String::from(
+            "username and password are not currently supported in url.",
+        )));
+    }
+
+    if is_srv {
+        if let Some(opt) = &options {
+            let default_value = "true".to_owned();
+            let ssl = opt.get("ssl").or(Some(&default_value)).unwrap();
+            let tls = opt.get("tls").or(Some(&default_value)).unwrap();
+
+            if ssl != "true" || tls != "true" {
+                return Err(ArgumentError(String::from(
+                    "srv schema cannot be unsafe.",
+                )));
+            }
+        }
+    }
+
     options = match (options, is_srv) {
         (None, true) => {
             let mut options = BTreeMap::new();
             options.insert(String::from("tls"), String::from("true"));
             Some(ConnectionOptions::new(options, vec![]))
         },
-        (None, false) => None,
         (Some(mut opt), true) => {
             opt.options.insert(String::from("tls"), String::from("true"));
             Some(opt)
         },
-        (Some(opt), false) => Some(opt),
+        (old, false) => old,
     };
-
-    if is_srv && (user.is_some() || password.is_some()) {
-        return Err(ArgumentError(String::from(
-            "username and password are not currently supported in url.",
-        )));
-    }
 
     Ok(ConnectionString {
         hosts: hosts,
@@ -339,7 +352,7 @@ fn split_options(opts: &str) -> Result<ConnectionOptions> {
             "InvalidURI: MongoDB URI options are key=value pairs.",
         )));
     }
-    let mut options = parse_options(opts, delim);
+    let options = parse_options(opts, delim);
 
     Ok(options)
 }
