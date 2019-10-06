@@ -112,13 +112,12 @@ pub fn parse(address: &str) -> Result<ConnectionString> {
     let is_srv = address.starts_with(URI_SRV_SCHEME);
 
     // Remove scheme
-    let addr = if !is_srv {
-        &address[URI_SCHEME.len()..]
-    } else {
+    let addr = if is_srv {
         &address[URI_SRV_SCHEME.len()..]
+    } else {
+        &address[URI_SCHEME.len()..]
     };
 
-    let hosts: Vec<Host>;
     let mut user: Option<String> = None;
     let mut password: Option<String> = None;
     let mut database: Option<String> = Some(String::from("test"));
@@ -126,7 +125,7 @@ pub fn parse(address: &str) -> Result<ConnectionString> {
     let mut options: Option<ConnectionOptions> = None;
 
     // Split on host/path
-    let (host_str, path_str) = if addr.contains(".sock") {
+    let (mut host_str, path_str) = if addr.contains(".sock") {
         // Partition ipc socket
         let (host_part, path_part) = rsplit(addr, ".sock");
         if path_part.starts_with('/') {
@@ -151,18 +150,15 @@ pub fn parse(address: &str) -> Result<ConnectionString> {
         let (u, p) = parse_user_info(user_info)?;
         user = Some(String::from(u));
         password = Some(String::from(p));
-        hosts = if is_srv {
-            resolve_srv(host_string)?
-        } else {
-            split_hosts(host_string)?
-        };
+
+        host_str = host_string
+    };
+
+    let hosts: Vec<Host> = if is_srv {
+        resolve_srv(host_str)?
     } else {
-        hosts = if is_srv {
-            resolve_srv(host_str)?
-        } else {
-            split_hosts(host_str)?
-        };
-    }
+        split_hosts(host_str)?
+    };
 
     let mut opts = "";
 
