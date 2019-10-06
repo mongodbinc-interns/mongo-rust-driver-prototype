@@ -403,7 +403,5 @@ fn resolve_srv<'a>(host_string: &'a str) -> Result<Vec<Host>> {
         })
         .collect();
 
-    hosts.sort_by(|a, b| a.host_name.partial_cmp(&b.host_name).unwrap());
-
     Ok(hosts)
 }

@@ -257,8 +257,10 @@ fn full() {
 #[test]
 fn mongo_svr_without_username_password() {
     let uri = "mongodb+srv://cluster0-amtij.gcp.mongodb.net/admin?retryWrites=true&w=majority";
-    let connstr = connstring::parse(uri).unwrap();
-    println!("{:#?}", connstr);
+    let mut connstr = connstring::parse(uri).unwrap();
+    
+    connstr.hosts.sort_by(|a, b| a.host_name.partial_cmp(&b.host_name).unwrap());
+
     assert_eq!(3, connstr.hosts.len());
     assert_eq!("cluster0-shard-00-00-amtij.gcp.mongodb.net", connstr.hosts[0].host_name);
     assert_eq!(27017, connstr.hosts[0].port);
