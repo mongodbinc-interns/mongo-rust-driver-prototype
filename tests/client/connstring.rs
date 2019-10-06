@@ -271,7 +271,7 @@ fn mongo_svr_without_username_password() {
     assert_eq!(None, connstr.password);
 
     let options = connstr.options.unwrap();
-    assert_eq!("true", options.get("ssl").unwrap());
+    assert_eq!("true", options.get("tls").unwrap());
 }
 
 use mongodb::error;

@@ -176,9 +176,23 @@ pub fn parse(address: &str) -> Result<ConnectionString> {
     }
 
     // Collect options if any exist
-    if !opts.is_empty() || is_srv {
-        options = Some(split_options(opts, is_srv).unwrap());
+    if !opts.is_empty() {
+        options = Some(split_options(opts).unwrap());
     }
+
+    options = match (options, is_srv) {
+        (None, true) => {
+            let mut options = BTreeMap::new();
+            options.insert(String::from("tls"), String::from("true"));
+            Some(ConnectionOptions::new(options, vec![]))
+        },
+        (None, false) => None,
+        (Some(mut opt), true) => {
+            opt.options.insert(String::from("tls"), String::from("true"));
+            Some(opt)
+        },
+        (Some(opt), false) => Some(opt),
+    };
 
     if is_srv && (user.is_some() || password.is_some()) {
         return Err(ArgumentError(String::from(
@@ -307,7 +321,7 @@ fn parse_options(opts: &str, delim: Option<&str>) -> ConnectionOptions {
 }
 
 // Determines the option delimiter and offloads parsing to parse_options.
-fn split_options(opts: &str, is_srv: bool) -> Result<ConnectionOptions> {
+fn split_options(opts: &str) -> Result<ConnectionOptions> {
     let and_idx = opts.find('&');
     let semi_idx = opts.find(';');
     let mut delim = None;
@@ -326,10 +340,6 @@ fn split_options(opts: &str, is_srv: bool) -> Result<ConnectionOptions> {
         )));
     }
     let mut options = parse_options(opts, delim);
-
-    if is_srv {
-        options.options.insert("ssl".to_owned(), "true".to_owned());
-    }
 
     Ok(options)
 }
