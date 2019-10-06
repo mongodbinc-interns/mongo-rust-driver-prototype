@@ -393,7 +393,7 @@ fn resolve_srv<'a>(host_string: &'a str) -> Result<Vec<Host>> {
     let dns_entry = "_mongodb._tcp.".to_owned() + host_string;
     let srv_lookup = resolver.lookup_srv(&dns_entry).map_err(map_thrust_dns_error)?;
 
-    let mut hosts: Vec<Host> = srv_lookup.iter()
+    let hosts: Vec<Host> = srv_lookup.iter()
         .map(|entity| {
             let port: u16 = entity.port();
             let hostname = entity.target();
