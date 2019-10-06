@@ -6,29 +6,8 @@ use mongodb::db::ThreadedDatabase;
 use mongodb::{Client, ClientOptions, CommandResult, ThreadedClient};
 use rand;
 
-macro_rules! assert_eq_ignoring_ip {
-    ($expected: expr, $actual: ident) => {{
-        if $actual.contains("127.0.0.1") {
-            assert_eq!($expected, &$actual);
-        } else if $actual.contains("[::1]") {
-            let expected_string = &$expected.replace("127.0.0.1", "[::1]");
-            assert_eq!(expected_string, &$actual);
-        } else {
-            unimplemented!("Unable to understand which interface is binded");
-        }
-    }};
-}
-macro_rules! assert_start_ignoring_ip {
-    ($expected: expr, $actual: ident) => {{
-        if $actual.contains("127.0.0.1") {
-            assert!($actual.starts_with($expected));
-        } else if $actual.contains("[::1]") {
-            let expected_string = &$expected.replace("127.0.0.1", "[::1]");
-            assert!($actual.starts_with(expected_string));
-        } else {
-            unimplemented!("Unable to understand which interface is binded");
-        }
-    }};
+fn coerce_ip_v6_to_v4 (line: &String) -> String {
+    line.replace("[::1]", "127.0.0.1")
 }
 
 fn timed_query(_client: Client, command_result: &CommandResult) {
@@ -131,43 +110,41 @@ fn logging() {
 
     // Create collection started
     read_first_non_monitor_line(&mut file, &mut line);
-    assert_eq_ignoring_ip!(
+    assert_eq!(
         "COMMAND.create_collection 127.0.0.1:27017 STARTED: { create: \"logging\" }\n",
-        line
+        coerce_ip_v6_to_v4(&line)
     );
 
     // Create collection completed
     line.clear();
     read_first_non_monitor_line(&mut file, &mut line);
-    assert_start_ignoring_ip!(
+    assert!(coerce_ip_v6_to_v4(&line).starts_with(
         "COMMAND.create_collection 127.0.0.1:27017 COMPLETED: { ok: 1 } (",
-        line
-    );
+    ));
     assert!(line.ends_with(" ns)\n"));
 
     // Drop collection started
     line.clear();
     read_first_non_monitor_line(&mut file, &mut line);
-    assert_eq_ignoring_ip!(
+    assert_eq!(
         "COMMAND.drop_collection 127.0.0.1:27017 STARTED: { drop: \"logging\" }\n",
-        line
+        coerce_ip_v6_to_v4(&line)
     );
 
     // Drop collection completed
     line.clear();
     read_first_non_monitor_line(&mut file, &mut line);
-    assert_start_ignoring_ip!(
+    assert!(coerce_ip_v6_to_v4(&line).starts_with(
         "COMMAND.drop_collection 127.0.0.1:27017 COMPLETED: { ns: \"test-apm-mod.logging\", nIndexesWas: 1, ok: 1 } (",
-        line
-    );
+    ));
     assert!(line.ends_with(" ns)\n"));
 
     // First insert started
     line.clear();
     read_first_non_monitor_line(&mut file, &mut line);
-    assert_eq_ignoring_ip!(
+    assert_eq!(
         "COMMAND.insert_one 127.0.0.1:27017 STARTED: { insert: \"logging\", documents: [{ _id: 1 }] }\n",
-        line
+        coerce_ip_v6_to_v4(&line)
     );
 
     let insert_one_line_start = if v3_3 {
@@ -179,53 +156,52 @@ fn logging() {
     // First insert completed
     line.clear();
     read_first_non_monitor_line(&mut file, &mut line);
-    assert_start_ignoring_ip!(insert_one_line_start, line);
+    assert!(coerce_ip_v6_to_v4(&line).starts_with(insert_one_line_start));
     assert!(line.ends_with(" ns)\n"));
 
     // Second insert started
     line.clear();
     read_first_non_monitor_line(&mut file, &mut line);
-    assert_eq_ignoring_ip!(
+    assert_eq!(
         "COMMAND.insert_one 127.0.0.1:27017 STARTED: { insert: \"logging\", documents: [{ _id: 2 }] }\n",
-        line
+        coerce_ip_v6_to_v4(&line)
     );
 
     // Second insert completed
     line.clear();
     read_first_non_monitor_line(&mut file, &mut line);
-    assert_start_ignoring_ip!(insert_one_line_start, line);
+    assert!(coerce_ip_v6_to_v4(&line).starts_with(insert_one_line_start));
     assert!(line.ends_with(" ns)\n"));
 
     // Third insert started
     line.clear();
     read_first_non_monitor_line(&mut file, &mut line);
-    assert_start_ignoring_ip!(
+    assert!(
         "COMMAND.insert_one 127.0.0.1:27017 STARTED: { insert: \"logging\", documents: [{ _id: 3 }] }\n",
-        line
+        coerce_ip_v6_to_v4(&line)
     );
 
     // Third insert completed
     line.clear();
     read_first_non_monitor_line(&mut file, &mut line);
-    assert_start_ignoring_ip!(insert_one_line_start, line);
+    assert!(coerce_ip_v6_to_v4(&line).starts_with(insert_one_line_start));
     assert!(line.ends_with(" ns)\n"));
 
     // Find command started
     line.clear();
     read_first_non_monitor_line(&mut file, &mut line);
-    assert_eq_ignoring_ip!(
+    assert_eq!(
         "COMMAND.find 127.0.0.1:27017 STARTED: { find: \"logging\", filter: { _id: { $gt: 1 } } }\n",
-        line
+        coerce_ip_v6_to_v4(&line)
     );
 
     // Find command completed
     line.clear();
     read_first_non_monitor_line(&mut file, &mut line);
-    assert_start_ignoring_ip!(
+    assert!(coerce_ip_v6_to_v4(&line).starts_with(
         "COMMAND.find 127.0.0.1:27017 COMPLETED: { cursor: { id: 0, ns: \
-         \"test-apm-mod.logging\", firstBatch: [{ _id: 2 }, { _id: 3 }] }, ok: 1 } (",
-        line
-    );
+            \"test-apm-mod.logging\", firstBatch: [{ _id: 2 }, { _id: 3 }] }, ok: 1 } (",
+    ));
     assert!(line.ends_with(" ns)\n"));
 
     coll.drop().unwrap();
