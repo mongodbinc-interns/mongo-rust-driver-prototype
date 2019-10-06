@@ -274,7 +274,6 @@ fn mongo_svr_without_username_password() {
     assert_eq!("true", options.get("tls").unwrap());
 }
 
-use mongodb::error;
 #[test]
 fn mongo_svr_with_username_password() {
     let uri = "mongodb+srv://username:password@cluster0-amtij.gcp.mongodb.net/admin?retryWrites=true&w=majority";
