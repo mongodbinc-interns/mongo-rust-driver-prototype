@@ -176,10 +176,9 @@ fn logging() {
     // Third insert started
     line.clear();
     read_first_non_monitor_line(&mut file, &mut line);
-    assert!(
+    assert!(coerce_ip_v6_to_v4(&line).starts_with(
         "COMMAND.insert_one 127.0.0.1:27017 STARTED: { insert: \"logging\", documents: [{ _id: 3 }] }\n",
-        coerce_ip_v6_to_v4(&line)
-    );
+    ));
 
     // Third insert completed
     line.clear();
