@@ -130,6 +130,8 @@ fn main() {
 }
 ```
 
+If you're using `mongodb://srv` scheme for your connection url, please check out [the example](examples/srv.rs)!
+
 Testing
 -------
 
