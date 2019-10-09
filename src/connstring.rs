@@ -125,7 +125,7 @@ pub fn parse(address: &str) -> Result<ConnectionString> {
     let mut options: Option<ConnectionOptions> = None;
 
     // Split on host/path
-    let (mut host_str, path_str) = if addr.contains(".sock") {
+    let (host_str, path_str) = if addr.contains(".sock") {
         // Partition ipc socket
         let (host_part, path_part) = rsplit(addr, ".sock");
         if path_part.starts_with('/') {
@@ -145,13 +145,15 @@ pub fn parse(address: &str) -> Result<ConnectionString> {
     }
 
     // Split on authentication and hosts
-    if host_str.contains('@') {
+    let host_str = if host_str.contains('@') {
         let (user_info, host_string) = rpartition(host_str, "@");
         let (u, p) = parse_user_info(user_info)?;
         user = Some(String::from(u));
         password = Some(String::from(p));
 
-        host_str = host_string
+        host_string
+    } else {
+        host_str
     };
 
     let hosts: Vec<Host> = if is_srv {
