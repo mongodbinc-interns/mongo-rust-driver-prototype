@@ -217,6 +217,15 @@ impl fmt::Debug for ClientInner {
     }
 }
 
+impl ClientInner {
+ 	/// recursive with topology.description.servers
+    pub fn force_release(&self) {
+        let top_description = &self.topology.description;
+        let mut top = top_description.write().unwrap();
+        top.servers.clear();
+    }
+}
+
 /// Configuration options for a client.
 #[derive(Default)]
 pub struct ClientOptions {
