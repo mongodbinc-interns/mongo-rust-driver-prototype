@@ -236,7 +236,7 @@ impl Server {
         Server {
             host: host,
             pool: pool,
-            description: description.clone(),
+            description: description,
             monitor: monitor,
         }
     }

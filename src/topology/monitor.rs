@@ -65,7 +65,7 @@ pub struct Monitor {
     // Connection pool for the host.
     server_pool: Arc<ConnectionPool>,
     // Topology description to update.
-    top_description: Arc<RwLock<TopologyDescription>>,
+    top_description: Weak<RwLock<TopologyDescription>>,
     // Server description to update.
     server_description: Arc<RwLock<ServerDescription>>,
     // Client reference.
@@ -245,7 +245,7 @@ impl Monitor {
             host: host.clone(),
             server_pool: pool,
             personal_pool: Arc::new(ConnectionPool::with_size(host, connector, 1)),
-            top_description: top_description,
+            top_description: Arc::downgrade(&top_description),
             server_description: server_description,
             heartbeat_frequency_ms: AtomicUsize::new(DEFAULT_HEARTBEAT_FREQUENCY_MS as usize),
             dummy_lock: Mutex::new(()),
@@ -334,13 +334,20 @@ impl Monitor {
 
     // Updates the topology description associated with this monitor using a new server description.
     fn update_top_description(&self, description: Arc<RwLock<ServerDescription>>) {
-        let mut top_description = self.top_description.write().unwrap();
+        let top_description_arc = if let Some(top_description) = self.top_description.upgrade() {
+            top_description
+        } else {
+            return
+        };
+
+        let mut top_description = top_description_arc.write().unwrap();
+
         if let Some(client_arc) = self.client.upgrade() {
             top_description.update(
                 self.host.clone(),
                 description,
                 client_arc,
-                self.top_description.clone(),
+                top_description_arc.clone(),
             );
         }
     }
@@ -409,11 +416,13 @@ impl Monitor {
 
             self.execute_update();
 
-            if let Ok(description) = self.top_description.read() {
-                self.heartbeat_frequency_ms.store(
-                    description.heartbeat_frequency_ms as usize,
-                    Ordering::SeqCst,
-                );
+            if let Some(top_description) = self.top_description.upgrade() {
+                if let Ok(description) = top_description.read() {
+                    self.heartbeat_frequency_ms.store(
+                        description.heartbeat_frequency_ms as usize,
+                        Ordering::SeqCst,
+                    );
+                }
             }
 
             let frequency = self.heartbeat_frequency_ms.load(Ordering::SeqCst) as u64;

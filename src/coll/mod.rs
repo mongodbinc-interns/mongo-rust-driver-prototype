@@ -719,8 +719,7 @@ impl Collection {
         docs: Vec<bson::Document>,
         options: Option<InsertManyOptions>,
     ) -> Result<InsertManyResult> {
-        let write_concern = options.as_ref().map_or(
-            None,
+        let write_concern = options.as_ref().and_then(
             |opts| opts.write_concern.clone(),
         );
 

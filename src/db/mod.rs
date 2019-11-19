@@ -149,7 +149,7 @@ pub trait ThreadedDatabase {
         options: Option<CreateUserOptions>,
     ) -> Result<()>;
     /// Permanently deletes all users from the database.
-    fn drop_all_users(&self, write_concern: Option<WriteConcern>) -> Result<(i32)>;
+    fn drop_all_users(&self, write_concern: Option<WriteConcern>) -> Result<i32>;
     /// Permanently deletes the collection from the database.
     fn drop_collection(&self, name: &str) -> Result<()>;
     /// Permanently deletes the database from the server.
@@ -354,7 +354,7 @@ impl ThreadedDatabase for Database {
         self.command(doc, CommandType::CreateUser, None).map(drop)
     }
 
-    fn drop_all_users(&self, write_concern: Option<WriteConcern>) -> Result<(i32)> {
+    fn drop_all_users(&self, write_concern: Option<WriteConcern>) -> Result<i32> {
         let mut doc = doc! { "dropAllUsersFromDatabase": 1 };
 
         if let Some(concern) = write_concern {
