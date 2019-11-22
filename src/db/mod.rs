@@ -246,7 +246,7 @@ impl ThreadedDatabase for Database {
         let coll = self.collection("$cmd");
         let options = FindOptions {
             batch_size: Some(1),
-            read_preference: read_preference,
+            read_preference,
             ..FindOptions::new()
         };
         let res = coll.find_one_with_command_type(

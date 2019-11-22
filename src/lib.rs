@@ -157,6 +157,7 @@ pub mod cursor;
 pub mod error;
 pub mod gridfs;
 pub mod pool;
+pub mod r2d2_mongo;
 pub mod stream;
 pub mod topology;
 pub mod wire_protocol;
@@ -219,7 +220,7 @@ impl fmt::Debug for ClientInner {
 }
 
 /// Configuration options for a client.
-#[derive(Default)]
+#[derive(Default, Debug, Clone)]
 pub struct ClientOptions {
     /// Size of the inner connection pool of the client None means default, Default is 5
     pub pool_size: Option<usize>,
