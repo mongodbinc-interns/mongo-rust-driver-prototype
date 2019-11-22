@@ -7,7 +7,7 @@ use std::net::{SocketAddr, TcpStream};
 use openssl::ssl::{Ssl, SslContext, SslFiletype, SslMethod, SslOptions, SslStream, SslVerifyMode};
 
 /// Encapsulates the functionality for how to connect to the server.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum StreamConnector {
     /// Connect to the server through a regular TCP stream.
     Tcp,
