@@ -187,8 +187,8 @@ impl ThreadedDatabase for Database {
     }
 
     fn auth(&self, user: &str, password: &str) -> Result<()> {
-        let authenticator = Authenticator::new(self.clone());
-        authenticator.auth(user, password)
+        let mut stream = self.client.acquire_stream(self.read_preference.clone())?.0;
+        Authenticator::new(&mut stream, self.client.clone()).auth(user, password)
     }
 
     fn collection(&self, coll_name: &str) -> Collection {

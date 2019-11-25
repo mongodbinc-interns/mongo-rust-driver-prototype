@@ -1,6 +1,5 @@
 use crate::{
-    connstring::ConnectionString, db::ThreadedDatabase, Client, ClientOptions,
-    ThreadedClient,
+    connstring::ConnectionString, db::ThreadedDatabase, Client, ClientOptions, ThreadedClient,
 };
 
 /// A basic r2d2 connection manager for this driver.
@@ -16,9 +15,9 @@ pub struct MongoConnectionManager {
 
 impl MongoConnectionManager {
     pub fn new<S, CO>(connection_str: ConnectionString, db_name: S, client_options: CO) -> Self
-        where
-            S: Into<String>,
-            CO: Into<Option<ClientOptions>>,
+    where
+        S: Into<String>,
+        CO: Into<Option<ClientOptions>>,
     {
         Self {
             conn_str: connection_str,
@@ -33,12 +32,7 @@ impl r2d2::ManageConnection for MongoConnectionManager {
     type Error = crate::error::Error;
 
     fn connect(&self) -> Result<Self::Connection, Self::Error> {
-        let client =
-            Client::with_config(self.conn_str.clone(), self.client_options.clone(), None)?;
-        if let (Some(username), Some(password)) = (&self.conn_str.user, &self.conn_str.password)
-        {
-            client.db("admin").auth(username, password)?;
-        }
+        let client = Client::with_config(self.conn_str.clone(), self.client_options.clone(), None)?;
         Ok(client.db(&self.db_name))
     }
 

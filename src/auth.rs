@@ -1,24 +1,38 @@
 //! Authentication schemes.
-use bson::Bson::{self, Binary};
-use bson::{Document, bson, doc};
+use crate::wire_protocol::flags::OpQueryFlags;
+use crate::Client;
 use bson::spec::BinarySubtype::Generic;
-use CommandType::Suppressed;
+use bson::Bson::{self, Binary};
+use bson::{bson, doc, Document};
+use coll::options::FindOptions;
+use cursor::Cursor;
+use data_encoding::BASE64;
+use error::Error::{DefaultError, MaliciousServerError, OperationError, ResponseError};
+use error::MaliciousServerErrorType;
+use error::Result;
+use hex;
 use hmac::{Hmac, Mac};
 use md5::Md5;
 use pbkdf2::pbkdf2;
-use sha1::{Sha1, Digest};
-use hex;
-use data_encoding::BASE64;
-use db::{Database, ThreadedDatabase};
-use error::Error::{DefaultError, MaliciousServerError, ResponseError};
-use error::MaliciousServerErrorType;
-use error::Result;
+use pool::PooledStream;
+use sha1::{Digest, Sha1};
+use std::fmt;
 use textnonce::TextNonce;
+use CommandType::Suppressed;
 
 /// Handles SCRAM-SHA-1 authentication logic.
-#[derive(Debug)]
-pub struct Authenticator {
-    db: Database,
+pub struct Authenticator<'a> {
+    stream: &'a mut PooledStream,
+    client: Client,
+}
+
+impl fmt::Debug for Authenticator<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Authenticator")
+            .field("stream", &"PooledStream { ... }")
+            .field("client", &self.client)
+            .finish()
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -39,14 +53,14 @@ struct AuthData {
 type HmacSha1 = Hmac<Sha1>;
 const SHA1_OUTPUT: usize = 20;
 
-impl Authenticator {
+impl Authenticator<'_> {
     /// Creates a new authenticator.
-    pub fn new(db: Database) -> Authenticator {
-        Authenticator { db }
+    pub fn new(stream: &mut PooledStream, client: Client) -> Authenticator {
+        Authenticator { stream, client }
     }
 
     /// Authenticates a user-password pair against a database.
-    pub fn auth(self, user: &str, password: &str) -> Result<()> {
+    pub fn auth(mut self, user: &str, password: &str) -> Result<()> {
         let initial_data = self.start(user)?;
         let conversation_id = initial_data.conversation_id.clone();
         let full_password = format!("{}:mongo:{}", user, password);
@@ -55,7 +69,7 @@ impl Authenticator {
         self.finish(conversation_id, auth_data)
     }
 
-    fn start(&self, user: &str) -> Result<InitialData> {
+    fn start(&mut self, user: &str) -> Result<InitialData> {
         let text_nonce = match TextNonce::sized(64) {
             Ok(text_nonce) => text_nonce,
             Err(string) => return Err(DefaultError(string)),
@@ -73,7 +87,7 @@ impl Authenticator {
             "mechanism": "SCRAM-SHA-1"
         };
 
-        let doc = self.db.command(start_doc, Suppressed, None)?;
+        let doc = self.command(start_doc)?;
 
         let data = match doc.get("payload") {
             Some(&Binary(_, ref payload)) => payload.to_owned(),
@@ -88,9 +102,9 @@ impl Authenticator {
         let response = match String::from_utf8(data) {
             Ok(string) => string,
             Err(_) => {
-                return Err(ResponseError(
-                    String::from("Invalid UTF-8 payload returned"),
-                ))
+                return Err(ResponseError(String::from(
+                    "Invalid UTF-8 payload returned",
+                )))
             }
         };
 
@@ -102,7 +116,7 @@ impl Authenticator {
         })
     }
 
-    fn next(&self, password: String, initial_data: InitialData) -> Result<AuthData> {
+    fn next(&mut self, password: String, initial_data: InitialData) -> Result<AuthData> {
         // Parse out rnonce, salt, and iteration count
         let (rnonce_opt, salt_opt, i_opt) = scan_fmt!(
             &initial_data.response[..],
@@ -112,9 +126,8 @@ impl Authenticator {
             u32
         );
 
-        let rnonce_b64 = rnonce_opt.ok_or_else(|| {
-            ResponseError(String::from("Invalid rnonce returned"))
-        })?;
+        let rnonce_b64 =
+            rnonce_opt.ok_or_else(|| ResponseError(String::from("Invalid rnonce returned")))?;
 
         // Validate rnonce to make sure server isn't malicious
         if !rnonce_b64.starts_with(&initial_data.nonce[..]) {
@@ -123,30 +136,34 @@ impl Authenticator {
             ));
         }
 
-        let salt_b64 = salt_opt.ok_or_else(|| {
-            ResponseError(String::from("Invalid salt returned"))
-        })?;
+        let salt_b64 =
+            salt_opt.ok_or_else(|| ResponseError(String::from("Invalid salt returned")))?;
 
         let salt = BASE64.decode(salt_b64.as_bytes()).or_else(|e| {
-            Err(ResponseError(
-                format!("Invalid base64 salt returned: {}", e),
-            ))
+            Err(ResponseError(format!(
+                "Invalid base64 salt returned: {}",
+                e
+            )))
         })?;
 
-        let i = i_opt.ok_or_else(|| {
-            ResponseError(String::from("Invalid iteration count returned"))
-        })?;
+        let i =
+            i_opt.ok_or_else(|| ResponseError(String::from("Invalid iteration count returned")))?;
 
         // Hash password
         let hashed_password = hex::encode(Md5::digest(password.as_bytes()));
 
         // Salt password
         let mut salted_password = [0u8; SHA1_OUTPUT];
-        pbkdf2::<HmacSha1>(hashed_password.as_bytes(), &salt, i as usize, &mut salted_password);
+        pbkdf2::<HmacSha1>(
+            hashed_password.as_bytes(),
+            &salt,
+            i as usize,
+            &mut salted_password,
+        );
 
         // Compute client key
-        let mut client_key_hmac = HmacSha1::new_varkey(&salted_password)
-            .expect("HMAC can take key of any size");
+        let mut client_key_hmac =
+            HmacSha1::new_varkey(&salted_password).expect("HMAC can take key of any size");
         let client_key_bytes = b"Client Key";
         client_key_hmac.input(client_key_bytes);
         let client_key = client_key_hmac.result().code().to_owned();
@@ -160,14 +177,12 @@ impl Authenticator {
         let without_proof = format!("c=biws,r={}", rnonce_b64);
         let auth_message = format!(
             "{},{},{}",
-            initial_data.message,
-            initial_data.response,
-            without_proof
+            initial_data.message, initial_data.response, without_proof
         );
 
         // Compute client signature
-        let mut client_signature_hmac = HmacSha1::new_varkey(&stored_key)
-            .expect("HMAC can take key of any size");
+        let mut client_signature_hmac =
+            HmacSha1::new_varkey(&stored_key).expect("HMAC can take key of any size");
         client_signature_hmac.input(auth_message.as_bytes());
         let client_signature = client_signature_hmac.result().code().to_owned();
 
@@ -196,7 +211,7 @@ impl Authenticator {
             "conversationId": initial_data.conversation_id.clone(),
         };
 
-        let response = self.db.command(next_doc, Suppressed, None)?;
+        let response = self.command(next_doc)?;
 
         Ok(AuthData {
             salted_password: salted_password,
@@ -205,7 +220,7 @@ impl Authenticator {
         })
     }
 
-    fn finish(&self, conversation_id: Bson, auth_data: AuthData) -> Result<()> {
+    fn finish(&mut self, conversation_id: Bson, auth_data: AuthData) -> Result<()> {
         let final_doc = doc! {
             "saslContinue": 1,
             "payload": Binary(Generic, Vec::new()),
@@ -220,8 +235,8 @@ impl Authenticator {
         let server_key = server_key_hmac.result().code();
 
         // Compute server signature
-        let mut server_signature_hmac = HmacSha1::new_varkey(&server_key)
-            .expect("HMAC can take key of any size");
+        let mut server_signature_hmac =
+            HmacSha1::new_varkey(&server_key).expect("HMAC can take key of any size");
         server_signature_hmac.input(auth_data.message.as_bytes());
         let server_signature = server_signature_hmac.result().code();
 
@@ -233,9 +248,9 @@ impl Authenticator {
                 let payload_str = match String::from_utf8(payload.to_owned()) {
                     Ok(string) => string,
                     Err(_) => {
-                        return Err(ResponseError(
-                            String::from("Invalid UTF-8 payload returned"),
-                        ))
+                        return Err(ResponseError(String::from(
+                            "Invalid UTF-8 payload returned",
+                        )))
                     }
                 };
 
@@ -257,11 +272,40 @@ impl Authenticator {
                 }
             }
 
-            doc = self.db.command(final_doc.clone(), Suppressed, None)?;
+            doc = self.command(final_doc.clone())?;
 
             if let Some(&Bson::Boolean(true)) = doc.get("done") {
                 return Ok(());
             }
+        }
+    }
+
+    fn command(&mut self, query: bson::Document) -> Result<bson::Document> {
+        let options = FindOptions {
+            batch_size: Some(1),
+            limit: Some(1),
+            ..FindOptions::new()
+        };
+        let flags = OpQueryFlags::with_find_options(&options);
+
+        let mut cursor = Cursor::query_with_stream(
+            self.stream,
+            self.client.clone(),
+            "admin.$cmd".to_owned(),
+            flags,
+            query,
+            options,
+            Suppressed,
+            false,
+            None,
+        )?;
+
+        match cursor.next() {
+            Some(Ok(bson)) => Ok(bson),
+            Some(Err(err)) => Err(err),
+            None => Err(OperationError(
+                "(Auth) failed to execute command".to_owned(),
+            )),
         }
     }
 }
