@@ -3,6 +3,10 @@ use crate::{
     ThreadedClient,
 };
 
+/// A basic r2d2 connection manager for this driver.
+///
+/// - returns a Database object matching the provided database name, not a Client
+/// - takes a parsed connection string and client options
 #[derive(Debug)]
 pub struct MongoConnectionManager {
     conn_str: ConnectionString,
