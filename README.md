@@ -1,16 +1,20 @@
 # This Repository is NOT a supported MongoDB product
 
 
-[![Travis](https://travis-ci.org/mongodb-labs/mongo-rust-driver-prototype.svg)](https://travis-ci.org/mongodb-labs/mongo-rust-driver-prototype) [![Crates.io](https://img.shields.io/crates/v/mongodb.svg)](https://crates.io/crates/mongodb) [![docs.rs](https://docs.rs/mongodb/badge.svg)](https://docs.rs/mongodb) [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
+[![Crates.io](https://img.shields.io/crates/v/mongodb_cwal.svg)](https://crates.io/crates/mongodb_cwal) [![docs.rs](https://docs.rs/mongodb_cwal/badge.svg)](https://docs.rs/mongodb_cwal) [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 
-MongoDB Rust Driver Prototype
-=============================
+MongoDB Rust Driver Prototype - Can't Wait Any Longer
+=====================================================
 
-This branch contains active development on a new driver written for Rust 1.x and MongoDB 3.0.x.
+This fork contains quick fixes for the [mongodb-labs's mongo rust driver prototype](https://github.com/mongodb-labs/mongo-rust-driver-prototype).
+This isn't active development.
+The goal is only to quickly fix issues with the current driver until the new official driver is released.
+Pull requests are welcomed.
 
-The API and implementation are currently subject to change at any time. You should not use this driver in production as it is still under development and is in no way supported by MongoDB Inc. We absolutely encourage you to experiment with it and provide us feedback on the API, design, and implementation. Bug reports and suggestions for improvements are welcomed, as are pull requests.
+Version 0.4 is fully compatible with the original driver.
+Other versions might break compatibility.
 
-**Note**: This driver currently only supports MongoDB 3.0.x and 3.2.x. This driver is **not** expected to work with MongoDB 2.6 or any earlier versions. Do not use this driver if you need support for other versions of MongoDB.
+**Note**: This driver only supports MongoDB 3.0.x and 3.2.x. This driver is **not** expected to work with MongoDB 2.6 or any earlier versions. Do not use this driver if you need support for other versions of MongoDB.
 
 Installation
 ------------
@@ -25,15 +29,14 @@ The driver is available on crates.io. To use the MongoDB driver in your code, ad
 
 ```toml
 [dependencies]
-mongodb = "0.3.11"
+mongodb = { package = "mongodb_cwal", version = "0.4" }
 ```
 
 Alternately, you can use the MongoDB driver with SSL support. To do this, you must have OpenSSL installed on your system. Then, enable the `ssl` feature for MongoDB in your Cargo.toml:
 
 ```toml
 [dependencies]
-# ...
-mongodb = { version = "0.3.11", features = ["ssl"] }
+mongodb = { package = "mongodb_cwal", version = "0.4", features = ["ssl"] }
 ```
 
 Then, import the bson and driver libraries within your code.
@@ -46,7 +49,6 @@ extern crate mongodb;
 or with Rust 2018:
 
 ```rust
-extern crate mongodb;
 use mongodb::{bson, doc};
 ```
 
