@@ -1,13 +1,13 @@
 [package]
 authors = ["Kevin Yeh <kevinyeah@utexas.edu>", "Saghm Rossi <saghmrossi@gmail.com>", "Valeri Karpov <valkar207@gmail.com>"]
-description = "A native MongoDB driver developed under MongoDB labs."
-documentation = "https://docs.rs/mongodb"
+description = "A native MongoDB driver for those who can't wait any longer (CWAL)"
+documentation = "https://docs.rs/mongodb_cwal"
 keywords = ["mongo", "mongodb", "database", "bson", "nosql"]
 license = "Apache-2.0"
-name = "mongodb"
+name = "mongodb_cwal"
 readme = "README.md"
-repository = "https://github.com/mongodb-labs/mongo-rust-driver-prototype"
-version = "0.3.12"
+repository = "https://github.com/Devolutions/mongodb-cwal-rs"
+version = "0.4.0"
 
 [dependencies]
 bitflags = "1.0.0"
