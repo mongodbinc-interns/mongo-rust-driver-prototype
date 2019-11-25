@@ -1,14 +1,14 @@
 //! Connection pooling for a single MongoDB server.
 use std::collections::VecDeque;
 use std::fmt;
-use std::sync::{Arc, Condvar, Mutex};
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::{Arc, Condvar, Mutex};
 use std::time::{Duration, Instant};
 
 use bson::{bson, doc};
 use bufstream::BufStream;
 
-use Client;
+use auth::Authenticator;
 use coll::options::FindOptions;
 use command_type::CommandType;
 use connstring::Host;
@@ -17,6 +17,7 @@ use error::Error::{self, ArgumentError, OperationError};
 use error::Result;
 use stream::{Stream, StreamConnector};
 use wire_protocol::flags::OpQueryFlags;
+use Client;
 
 pub static DEFAULT_POOL_SIZE: usize = 5;
 pub static DEFAULT_TIMEOUT_ON_IDLE: Duration = Duration::from_secs(30);
@@ -89,7 +90,9 @@ impl Drop for PooledStream {
         // or give up if the pool lock has been poisoned.
         if let Ok(mut locked) = self.pool.lock() {
             if self.iteration == locked.iteration {
-                locked.sockets.push_back((self.socket.take().unwrap(), Instant::now()));
+                locked
+                    .sockets
+                    .push_back((self.socket.take().unwrap(), Instant::now()));
                 // Notify waiting threads that the pool has been repopulated.
                 self.wait_lock.notify_one();
             }
@@ -109,19 +112,23 @@ impl ConnectionPool {
     }
 
     /// Returns a connection pool with a specified options
-    pub fn with_options(host: Host, connector: StreamConnector, size: usize, idle_connection_timeout: Duration) -> ConnectionPool {
+    pub fn with_options(
+        host: Host,
+        connector: StreamConnector,
+        size: usize,
+        idle_connection_timeout: Duration,
+    ) -> ConnectionPool {
         ConnectionPool {
             host,
             wait_lock: Arc::new(Condvar::new()),
             inner: Arc::new(Mutex::new(Pool {
-
                 len: Arc::new(AtomicUsize::new(0)),
                 size,
                 sockets: VecDeque::with_capacity(size),
                 iteration: 0,
             })),
             stream_connector: connector,
-            idle_connection_timeout
+            idle_connection_timeout,
         }
     }
 
@@ -155,7 +162,8 @@ impl ConnectionPool {
 
                 {
                     if let Some(front) = locked.sockets.front() {
-                        if Instant::now().duration_since(front.1.clone()) > DEFAULT_TIMEOUT_ON_IDLE {
+                        if Instant::now().duration_since(front.1.clone()) > DEFAULT_TIMEOUT_ON_IDLE
+                        {
                             prune_front = true;
                         }
                     }
@@ -204,7 +212,16 @@ impl ConnectionPool {
                     successful_handshake: false,
                 };
 
-                self.handshake(client, &mut stream)?;
+                self.handshake(client.clone(), &mut stream)?;
+
+                // authentication
+                if let (Some(user), Some(password)) = (
+                    client.topology.config.user.clone(),
+                    client.topology.config.password.clone(),
+                ) {
+                    let _ = Authenticator::new(&mut stream, client).auth(&user, &password);
+                }
+
                 let _ = locked.len.fetch_add(1, Ordering::SeqCst);
                 return Ok(stream);
             }
@@ -216,10 +233,10 @@ impl ConnectionPool {
 
     // Connects to a MongoDB server as defined by the initial configuration.
     fn connect(&self) -> Result<BufStream<Stream>> {
-        match self.stream_connector.connect(
-            &self.host.host_name[..],
-            self.host.port,
-        ) {
+        match self
+            .stream_connector
+            .connect(&self.host.host_name[..], self.host.port)
+        {
             Ok(s) => Ok(BufStream::new(s)),
             Err(e) => Err(Error::from(e)),
         }
