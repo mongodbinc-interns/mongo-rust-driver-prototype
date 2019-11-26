@@ -148,6 +148,7 @@ extern crate sha1;
 extern crate hmac;
 extern crate pbkdf2;
 extern crate hex;
+extern crate trust_dns_resolver;
 
 pub mod db;
 pub mod coll;
@@ -181,7 +182,7 @@ use std::sync::atomic::{AtomicIsize, Ordering};
 
 use apm::Listener;
 use common::{ReadPreference, ReadMode, WriteConcern};
-use connstring::ConnectionString;
+use connstring::{ConnectionString, ConnectionProtocol};
 use db::{Database, ThreadedDatabase};
 use error::Error::ResponseError;
 use pool::PooledStream;
@@ -191,7 +192,7 @@ use topology::{Topology, TopologyDescription, TopologyType, DEFAULT_HEARTBEAT_FR
 use topology::server::Server;
 use std::time::Duration;
 
-pub const DRIVER_NAME: &'static str = "mongo-rust-driver-prototype";
+pub const DRIVER_NAME: &str = "mongodb-cwal-rs";
 
 /// Interfaces with a MongoDB server or replica set.
 pub struct ClientInner {
@@ -362,7 +363,7 @@ impl ThreadedClient for Client {
     }
 
     fn with_config(
-        config: ConnectionString,
+        mut config: ConnectionString,
         options: Option<ClientOptions>,
         description: Option<TopologyDescription>,
     ) -> Result<Client> {
@@ -413,7 +414,11 @@ impl ThreadedClient for Client {
             top.server_selection_timeout_ms = client_options.server_selection_timeout_ms;
             top.local_threshold_ms = client_options.local_threshold_ms;
 
-            for host in config.hosts {
+            if let ConnectionProtocol::DNS(dns) = &mut config.hosts {
+                dns.discover_hosts()?;
+            }
+
+            for host in config.hosts.into_iter() {
                 let server = Server::new(
                     client.clone(),
                     host.clone(),

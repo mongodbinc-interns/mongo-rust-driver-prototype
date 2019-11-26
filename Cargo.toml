@@ -7,7 +7,7 @@ license = "Apache-2.0"
 name = "mongodb_cwal"
 readme = "README.md"
 repository = "https://github.com/Devolutions/mongodb-cwal-rs"
-version = "0.5.0"
+version = "0.6.0"
 
 [dependencies]
 bitflags = "1.0.0"
@@ -29,6 +29,7 @@ hmac = "0.6.2"
 pbkdf2 = "0.2.0"
 hex = "0.3.2"
 r2d2 = "0.8"
+trust-dns-resolver = "0.18.0-alpha.1"
 
 [dependencies.clippy]
 optional = true

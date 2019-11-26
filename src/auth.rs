@@ -1,15 +1,18 @@
 //! Authentication schemes.
-use crate::wire_protocol::flags::OpQueryFlags;
-use crate::Client;
-use bson::spec::BinarySubtype::Generic;
-use bson::Bson::{self, Binary};
-use bson::{bson, doc, Document};
+use crate::{wire_protocol::flags::OpQueryFlags, Client};
+use bson::{
+    bson, doc,
+    spec::BinarySubtype::Generic,
+    Bson::{self, Binary},
+    Document,
+};
 use coll::options::FindOptions;
 use cursor::Cursor;
 use data_encoding::BASE64;
-use error::Error::{DefaultError, MaliciousServerError, OperationError, ResponseError};
-use error::MaliciousServerErrorType;
-use error::Result;
+use error::{
+    Error::{DefaultError, MaliciousServerError, OperationError, ResponseError},
+    MaliciousServerErrorType, Result,
+};
 use hex;
 use hmac::{Hmac, Mac};
 use md5::Md5;
@@ -288,10 +291,25 @@ impl Authenticator<'_> {
         };
         let flags = OpQueryFlags::with_find_options(&options);
 
+        const DEFAULT_AUTH_SOURCE: &str = "admin";
+        let auth_source = self
+            .client
+            .topology
+            .config
+            .options
+            .as_ref()
+            .map(|options| {
+                options
+                    .get("authSource")
+                    .cloned()
+                    .unwrap_or(DEFAULT_AUTH_SOURCE.to_owned())
+            })
+            .unwrap_or(DEFAULT_AUTH_SOURCE.to_owned());
+
         let mut cursor = Cursor::query_with_stream(
             self.stream,
             self.client.clone(),
-            "admin.$cmd".to_owned(),
+            format!("{}.$cmd", auth_source),
             flags,
             query,
             options,
