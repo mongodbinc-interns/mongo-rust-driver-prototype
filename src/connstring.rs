@@ -2,9 +2,35 @@
 use Result;
 use Error::ArgumentError;
 use std::collections::BTreeMap;
+use trust_dns_resolver::Resolver;
 
 pub const DEFAULT_PORT: u16 = 27017;
-pub const URI_SCHEME: &'static str = "mongodb://";
+pub const URI_SCHEME: &str = "mongodb://";
+pub const URI_SCHEME_DNS_SEEDLIST: &str = "mongodb+srv://";
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct DNS {
+    pub name: String,
+    discovered_hosts: Vec<Host>,
+}
+
+impl DNS {
+    pub fn new<S: Into<String>>(name: S) -> Self {
+        Self {
+            name: name.into(),
+            discovered_hosts: Vec::new(),
+        }
+    }
+
+    pub fn discover_hosts(&mut self) -> Result<()> {
+        let host = format!("_mongodb._tcp.{}", self.name);
+        let srv_lookup = Resolver::default()?.lookup_srv(&host)?;
+        for srv in srv_lookup {
+            self.discovered_hosts.push(Host::new(srv.target().to_utf8(), srv.port()));
+        }
+        Ok(())
+    }
+}
 
 /// Encapsulates the hostname and port of a host.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -41,7 +67,7 @@ impl Host {
 }
 
 /// Encapsulates the options and read preference tags of a MongoDB connection.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
 pub struct ConnectionOptions {
     pub options: BTreeMap<String, String>,
     pub read_pref_tags: Vec<String>,
@@ -65,10 +91,46 @@ impl ConnectionOptions {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum ConnectionProtocol {
+    DNS(DNS),
+    Hosts(Vec<Host>),
+}
+
+impl ConnectionProtocol {
+    pub fn num_hosts(&self) -> usize {
+        match &self {
+            ConnectionProtocol::DNS(dns) => dns.discovered_hosts.len(),
+            ConnectionProtocol::Hosts(hosts) => hosts.len(),
+        }
+    }
+
+    pub fn into_iter(self) -> impl Iterator<Item=Host> {
+        match self {
+            ConnectionProtocol::DNS(dns) => dns.discovered_hosts.into_iter(),
+            ConnectionProtocol::Hosts(hosts) => hosts.into_iter(),
+        }
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item=&Host> {
+        match self {
+            ConnectionProtocol::DNS(dns) => dns.discovered_hosts.iter(),
+            ConnectionProtocol::Hosts(hosts) => hosts.iter(),
+        }
+    }
+
+    pub fn iter_mut(&mut self) -> impl Iterator<Item=&mut Host> {
+        match self {
+            ConnectionProtocol::DNS(dns) => dns.discovered_hosts.iter_mut(),
+            ConnectionProtocol::Hosts(hosts) => hosts.iter_mut(),
+        }
+    }
+}
+
 /// Encapsulates information for connection to a single MongoDB host or replicated set.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ConnectionString {
-    pub hosts: Vec<Host>,
+    pub hosts: ConnectionProtocol,
     pub string: Option<String>,
     pub user: Option<String>,
     pub password: Option<String>,
@@ -86,7 +148,7 @@ impl ConnectionString {
 
     fn with_host(host: Host) -> ConnectionString {
         ConnectionString {
-            hosts: vec![host],
+            hosts: ConnectionProtocol::Hosts(vec![host]),
             string: None,
             user: None,
             password: None,
@@ -100,16 +162,19 @@ impl ConnectionString {
 /// Parses a MongoDB connection string URI as defined by
 /// [the manual](http://docs.mongodb.org/manual/reference/connection-string/).
 pub fn parse(address: &str) -> Result<ConnectionString> {
-    if !address.starts_with(URI_SCHEME) {
-        return Err(ArgumentError(String::from(
-            "MongoDB connection string must start with 'mongodb://'.",
-        )));
-    }
+    let (dns_seed_discovery, addr) = if address.starts_with(URI_SCHEME_DNS_SEEDLIST) {
+        // https://github.com/mongodb/specifications/blob/master/source/initial-dns-seedlist-discovery/initial-dns-seedlist-discovery.rst
+        (true, &address[URI_SCHEME_DNS_SEEDLIST.len()..])
+    } else {
+        if !address.starts_with(URI_SCHEME) {
+            return Err(ArgumentError(String::from(
+                "MongoDB connection string must start with 'mongodb://' or 'mongodb+srv://'.",
+            )));
+        }
 
-    // Remove scheme
-    let addr = &address[URI_SCHEME.len()..];
+        (false, &address[URI_SCHEME.len()..])
+    };
 
-    let hosts: Vec<Host>;
     let mut user: Option<String> = None;
     let mut password: Option<String> = None;
     let mut database: Option<String> = Some(String::from("test"));
@@ -136,16 +201,25 @@ pub fn parse(address: &str) -> Result<ConnectionString> {
         )));
     }
 
-    // Split on authentication and hosts
-    if host_str.contains('@') {
-        let (user_info, host_string) = rpartition(host_str, "@");
+    // Split on authentication credentials and hosts
+    let hosts = if host_str.contains('@') {
+        let (user_info, host_str) = rpartition(host_str, "@");
         let (u, p) = parse_user_info(user_info)?;
         user = Some(String::from(u));
         password = Some(String::from(p));
-        hosts = split_hosts(host_string)?;
+
+        if dns_seed_discovery {
+            ConnectionProtocol::DNS(parse_dns_addr(host_str)?)
+        } else {
+            ConnectionProtocol::Hosts(split_hosts(host_str)?)
+        }
     } else {
-        hosts = split_hosts(host_str)?;
-    }
+        if dns_seed_discovery {
+            ConnectionProtocol::DNS(parse_dns_addr(host_str)?)
+        } else {
+            ConnectionProtocol::Hosts(split_hosts(host_str)?)
+        }
+    };
 
     let mut opts = "";
 
@@ -167,6 +241,15 @@ pub fn parse(address: &str) -> Result<ConnectionString> {
         options = Some(split_options(opts).unwrap());
     }
 
+    // with DNS, implicitly enable TLS if ssl option isn't provided.
+    if dns_seed_discovery {
+        let mut conn_options = options.take().unwrap_or_default();
+        if conn_options.get("ssl").is_none() {
+            conn_options.options.insert("ssl".to_owned(), "true".to_owned());
+        }
+        options = Some(conn_options);
+    }
+
     Ok(ConnectionString {
         hosts: hosts,
         string: Some(String::from(address)),
@@ -176,6 +259,28 @@ pub fn parse(address: &str) -> Result<ConnectionString> {
         collection: collection,
         options: options,
     })
+}
+
+fn parse_dns_addr(dns_str: &str) -> Result<DNS> {
+    if dns_str.split('.').collect::<Vec<_>>().len() < 3 {
+        return Err(ArgumentError(String::from(
+            "DNS must consists of a least a hostname, a domain name and a TLD",
+        )));
+    }
+
+    if dns_str.find(':').is_some() {
+        return Err(ArgumentError(String::from(
+            "Connection string using DNS MUST not contains a port",
+        )));
+    }
+
+    if dns_str.find(',').is_some() {
+        return Err(ArgumentError(String::from(
+            "Connection string using DNS can't contains more than one host name",
+        )));
+    }
+
+    Ok(DNS::new(dns_str))
 }
 
 // Parse user information of the form user:password

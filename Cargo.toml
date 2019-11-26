@@ -29,6 +29,7 @@ hmac = "0.6.2"
 pbkdf2 = "0.2.0"
 hex = "0.3.2"
 r2d2 = "0.8"
+trust-dns-resolver = "0.18.0-alpha.1"
 
 [dependencies.clippy]
 optional = true

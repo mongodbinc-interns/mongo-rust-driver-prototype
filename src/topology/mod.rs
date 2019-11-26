@@ -875,7 +875,7 @@ impl Topology {
 
         let mut options = description.unwrap_or_else(|| TopologyDescription::new(connector));
 
-        if config.hosts.len() > 1 && options.topology_type == TopologyType::Single {
+        if config.hosts.num_hosts() > 1 && options.topology_type == TopologyType::Single {
             return Err(ArgumentError(String::from(
                 "TopologyType::Single cannot be used with multiple seeds.",
             )));
