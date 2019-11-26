@@ -191,7 +191,7 @@ use topology::{Topology, TopologyDescription, TopologyType, DEFAULT_HEARTBEAT_FR
 use topology::server::Server;
 use std::time::Duration;
 
-pub const DRIVER_NAME: &'static str = "mongo-rust-driver-prototype";
+pub const DRIVER_NAME: &str = "mongodb-cwal-rs";
 
 /// Interfaces with a MongoDB server or replica set.
 pub struct ClientInner {
