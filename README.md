@@ -9,6 +9,13 @@ This Rust driver is a fork [unsupported Rust MongoDB driver prototype](https://g
 
 MongoDB 3.x and 4.x are both supported with replica sets.
 
+Here is a list of important changes and fixes that were made:
+* MongoDB 4.x support
+* Replica set support
+* R2D2 connection pooling
+* BSON performance optimization
+* Fixed connection and memory leaks
+
 Installation
 ------------
 
