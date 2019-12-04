@@ -23,13 +23,113 @@ impl ByteLength for bson::Document {
     /// Returns the number of bytes in the serialized BSON document, or an
     /// Error if the document couldn't be serialized.
     fn byte_length(&self) -> Result<i32> {
-        let mut temp_buffer = Vec::new();
-
-        bson::encode_document(&mut temp_buffer, self)?;
-
-        Ok(temp_buffer.len() as i32)
+        let mut len = 5;
+        for (key, value) in self {
+            len += 1; // Type specifier
+            len += key.len() as i32 + 1; // cstring
+            len += value.byte_length()?;
+        }
+        Ok(len)
     }
 }
+
+impl ByteLength for bson::Bson {
+    fn byte_length(&self) -> Result<i32> {
+        Ok(match self {
+            bson::Bson::Document(d) => {
+                d.byte_length()?
+            }
+            bson::Bson::Array(a) => {
+                let mut len = 5; // Total array byte size + array terminator
+                for (mut i, elem) in a.iter().enumerate() {
+                    // There's a faster way to calculate this up front.
+                    len += 1;
+                    while i >= 10 {
+                        len += 1;
+                        i /= 10;
+                    }
+                    len += 2;  // type tag + key cstring terminator
+                    len += elem.byte_length()?;
+                }
+                len
+            }
+            bson::Bson::ObjectId(_) => 12,
+            bson::Bson::Boolean(_) => 1,
+            bson::Bson::UtcDatetime(_) => 8,
+            bson::Bson::Null => 0,
+            bson::Bson::Binary(_, data) => 5 + data.len() as i32,
+            bson::Bson::RegExp(pat, opts) => pat.len() as i32 + opts.len() as i32 + 2,
+            bson::Bson::I32(_) => 4,
+            bson::Bson::I64(_) => 8,
+            bson::Bson::TimeStamp(_) => 8,
+            bson::Bson::String(s) => 5 + s.len() as i32,
+            bson::Bson::Symbol(s) => 5 + s.len() as i32,
+            bson::Bson::FloatingPoint(_) => 8,
+            bson::Bson::JavaScriptCode(js) => 5 + js.len() as i32,
+            bson::Bson::JavaScriptCodeWithScope(js, s) => 9 + js.len() as i32 + s.byte_length()?,
+        })
+    }
+}
+
+#[cfg(test)]
+mod byte_length_test {
+    use bson::{Bson, bson, doc};
+    use super::ByteLength;
+
+    #[test]
+    fn test_scalar_lengths() {
+        assert_eq!(Bson::I32(1i32).byte_length().unwrap(), 4);
+        assert_eq!(Bson::I64(1i64).byte_length().unwrap(), 8);
+        assert_eq!(Bson::FloatingPoint(2.0).byte_length().unwrap(), 8);
+        assert_eq!(Bson::FloatingPoint(2.0).byte_length().unwrap(), 8);
+        assert_eq!(Bson::Null.byte_length().unwrap(), 0);
+        assert_eq!(Bson::Boolean(true).byte_length().unwrap(), 1);
+        assert_eq!(Bson::ObjectId(bson::oid::ObjectId::new().unwrap()).byte_length().unwrap(), 12);
+        assert_eq!(Bson::UtcDatetime("2012-06-02T01:12:00.000Z".parse().unwrap()).byte_length().unwrap(), 8);
+        assert_eq!(Bson::TimeStamp(4).byte_length().unwrap(), 8);
+    }
+
+    #[test]
+    fn test_string_length() {
+        assert_eq!(Bson::String(String::from("hello")).byte_length().unwrap(), 10);
+        assert_eq!(Bson::Symbol(String::from("hello")).byte_length().unwrap(), 10);
+        assert_eq!(Bson::Binary(bson::spec::BinarySubtype::Generic, b"12345".to_vec()).byte_length().unwrap(), 10);
+        assert_eq!(Bson::JavaScriptCode("alert(\"hello\");".into()).byte_length().unwrap(), 20);
+        assert_eq!(Bson::JavaScriptCodeWithScope("alert(\"hello\");".into(), doc!{}).byte_length().unwrap(), 29);
+    }
+
+    #[test]
+    fn test_document_lengths() {
+        assert_eq!(doc!{}.byte_length().unwrap(), 5);
+        assert_eq!(doc!{"answer": 42}.byte_length().unwrap(), 17);
+    }
+
+    #[test]
+    fn test_array_lengths() {
+        for (ct, expected_len) in vec![(16, 123), (110, 885)] {
+            let arr = Bson::Array(
+                (0..ct).into_iter()
+                    .map(Bson::from)
+                    .collect::<Vec<_>>()
+            );
+            assert_eq!(
+                arr.byte_length().unwrap(),
+                expected_len,
+            );
+        }
+
+    }
+
+    #[test]
+    fn test_complex_document() {
+        let doc = bson!({ "isMaster": 1, "client": { "driver": { "name": "mongo-rust-driver-prototype", "version": "0.4.0" }, "os": { "type": "linux", "architecture": "x86_64" } } });
+        assert_eq!(
+            doc.byte_length().unwrap(),
+            152,
+        );
+    }
+}
+
 
 /// Represents a message in the MongoDB Wire Protocol.
 #[derive(Debug, Clone, PartialEq)]
