@@ -1,20 +1,13 @@
-# This Repository is NOT a supported MongoDB product
-
+# Community contributions are welcome! Let's make MongoDB Rust support production ready :)
 
 [![Crates.io](https://img.shields.io/crates/v/mongodb_cwal.svg)](https://crates.io/crates/mongodb_cwal) [![docs.rs](https://docs.rs/mongodb_cwal/badge.svg)](https://docs.rs/mongodb_cwal) [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 
-MongoDB Rust Driver Prototype - Can't Wait Any Longer
+MongoDB CWAL - A MongoDB Rust driver for those who can’t wait any longer
 =====================================================
 
-This fork contains quick fixes for the [mongodb-labs's mongo rust driver prototype](https://github.com/mongodb-labs/mongo-rust-driver-prototype).
-This isn't active development.
-The goal is only to quickly fix issues with the current driver until the new official driver is released.
-Pull requests are welcomed.
+This Rust driver is a fork [unsupported Rust MongoDB driver prototype](https://github.com/mongodb-labs/mongo-rust-driver-prototype) with patches to make it suitable for production use. Instead of waiting for the official Rust MongoDB driver to come out, we have decided to fork the original one and improve it for production use.
 
-Version 0.4 is fully compatible with the original driver.
-Other versions might break compatibility.
-
-**Note**: This driver only supports MongoDB 3.0.x and 3.2.x. This driver is **not** expected to work with MongoDB 2.6 or any earlier versions. Do not use this driver if you need support for other versions of MongoDB.
+MongoDB 3.x and 4.x are both supported with replica sets.
 
 Installation
 ------------
