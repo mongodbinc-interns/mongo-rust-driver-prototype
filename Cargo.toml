@@ -7,7 +7,7 @@ license = "Apache-2.0"
 name = "mongodb_cwal"
 readme = "README.md"
 repository = "https://github.com/Devolutions/mongodb-cwal-rs"
-version = "0.6.1"
+version = "0.6.2"
 
 [dependencies]
 bitflags = "1.0.0"
